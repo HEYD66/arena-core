@@ -7,7 +7,7 @@ const rendererDir=process.env.RENDERER_DIR||path.resolve(__dirname,'../src/rende
 const pageURL='file://'+path.join(rendererDir,'index.html').replace(/\\/g,'/').replace(/^\/?/,'/');
 const LONG='超长实例名称用于检查截断与布局稳定性——Research Workspace Alpha Beta Gamma Delta Epsilon 0123456789';
 const SIZES=[[1024,768],[1280,800],[1440,960]];
-const VIEWS=['browser','environment','logs','overview','proxies','global-logs','extensions','global'];
+const VIEWS=['browser','environment','logs','overview','proxies','global-logs','extensions','global','settings'];
 
 function fixture({instances=15,nodes=43}={}){
  const nodeNames=Array.from({length:nodes},(_,i)=>`Node ${String(i+1).padStart(2,'0')} · ${['HK','JP','SG','US'][i%4]} ${i%7===0?'带有较长备注的节点名称':''}`.trim());
@@ -80,7 +80,17 @@ try{
    assert(r.count>5,`${theme}/${v}: too little text audited`);for(const x of r.small)audit.add(`${theme}/${v} <11px: ${x}`);for(const x of r.low)audit.add(`${theme}/${v} <4.5:1: ${x}`);}}
  if(audit.size)fs.writeFileSync(path.join(__dirname,'ux3-audit.json'),JSON.stringify([...audit],null,1));assert.deepEqual([...audit],[],'readability audit (full list in tests/ux3-audit.json)');
  await page.evaluate(()=>{document.documentElement.dataset.theme='light';});
- ok('All visible text is >= 11px and >= 4.5:1 in day and night themes across all eight views');
+ ok('All visible text is >= 11px and >= 4.5:1 in day and night themes across all nine views');
+ // B2. Optional palettes (应用信息 → 外观主题): choosing one switches mode, persists, and every palette stays readable.
+ await page.click('#sidebar .nav[data-view="settings"]');await settle(page);assert.match(await page.locator('#workspaceHead h1').textContent(),/^设置/);assert.equal(await page.locator('#sidebar .nav.active').getAttribute('data-view'),'settings');assert.equal(await page.locator('.theme-card [data-palette-mode]').count(),8,'4 day + 4 night palettes');
+ await page.click('[data-palette-mode="dark"][data-palette="gold"]');
+ assert.deepEqual(await page.evaluate(()=>({theme:document.documentElement.dataset.theme,dark:document.documentElement.dataset.darkPalette,stored:localStorage.getItem('arena.ui.palette.dark'),checked:document.querySelector('[data-palette-mode="dark"][data-palette="gold"]').getAttribute('aria-checked'),live:document.querySelector('[data-theme-row="dark"]').classList.contains('is-live')})),{theme:'dark',dark:'gold',stored:'gold',checked:'true',live:true});
+ const audit2=new Set();
+ for(const [theme,ids] of [['light',['mono','copper','moss']],['dark',['gold','mono','moss']]])for(const id of ids){await page.evaluate(([t,i])=>{const r=document.documentElement;r.dataset.theme=t;r.dataset[t==='dark'?'darkPalette':'lightPalette']=i;},[theme,id]);await page.waitForTimeout(450);
+  for(const v of ['environment','overview','proxies','extensions','settings']){await go(page,v);await settle(page);const r=await readability(page);for(const x of r.small)audit2.add(`${theme}:${id}/${v} <11px: ${x}`);for(const x of r.low)audit2.add(`${theme}:${id}/${v} <4.5:1: ${x}`);}}
+ await page.evaluate(()=>{const r=document.documentElement;r.dataset.theme='light';r.dataset.lightPalette='indigo';r.dataset.darkPalette='indigo';localStorage.removeItem('arena.ui.palette.dark');localStorage.setItem('arena.ui.theme','light');});await page.waitForTimeout(450);
+ assert.deepEqual([...audit2],[],'palette readability audit');
+ ok('Theme picker switches and remembers palettes; six alternative palettes keep audited text >= 11px and >= 4.5:1');
  await go(page,'proxies');await settle(page);const rows=await page.$$eval('#content .compact-node-table tbody tr',rs=>rs.filter(r=>r.getClientRects().length).map(r=>Math.round(r.getBoundingClientRect().height)));
  assert(rows.length>=20,'node rows rendered: '+rows.length);assert(rows.every(h=>h<=37),'compact rows stay 36px: '+rows.join(','));
  ok('43-node compact table keeps 36px rows after the size increase');
