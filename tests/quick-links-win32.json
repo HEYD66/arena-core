@@ -1,0 +1,23 @@
+{
+  "platform": "win32",
+  "electron": "44.4.5",
+  "passed": 15,
+  "results": [
+    "Five defaults appear without loading sites; stopped-instance navigation is rejected without startup",
+    "Collapsed sidebar expands native browser area and retains accessible navigation",
+    "Night mode changes control chrome only, preserving native instance and environment",
+    "Night mode and sidebar preference survive control-window reload",
+    "Night shortcut placeholder meets 4.5 to 1 contrast in real Windows Chromium",
+    "Night management pages and dialogs retain theme, fit width and hide native content",
+    "Returning to day mode preserves instance configuration and browser identity",
+    "Management hides the native page even across resize and state refresh",
+    "Add, edit, URL rejection with draft preservation, and ordering persist through production IPC",
+    "Shortcut navigates only the selected instance and retains its actual webContents and session",
+    "Switching instances uses the new target without opening new tabs or sharing login storage",
+    "Shortcut traffic uses the selected instance bundled Mihomo route instead of direct networking",
+    "Proxy failure does not permit quick links to fall back to direct mode",
+    "Deletion requires confirmation and removes only the saved shortcut, not the open page",
+    "Twenty long labels stay in one title row at three sizes; horizontally hidden links remain clickable"
+  ],
+  "errors": []
+}

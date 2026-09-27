@@ -1,0 +1,229 @@
+{
+  "platform": "linux",
+  "electron": "44.4.5",
+  "passed": 54,
+  "results": [
+    {
+      "name": "Production preload/IPC initializes real renderer",
+      "passed": true
+    },
+    {
+      "name": "No nodes: two real direct instances run concurrently",
+      "passed": true
+    },
+    {
+      "name": "Cookies and localStorage isolated between instances",
+      "passed": true
+    },
+    {
+      "name": "Per-instance timezone/language; remote pages have no Node or control bridge",
+      "passed": true
+    },
+    {
+      "name": "Renderer tab activation positions the native browser view",
+      "passed": true
+    },
+    {
+      "name": "Production UI settings IPC saves only its target and stops it safely",
+      "passed": true
+    },
+    {
+      "name": "No-op and invalid settings preserve the existing running browser",
+      "passed": true
+    },
+    {
+      "name": "Legacy subscription IPC remains compatible and hides URL tokens",
+      "passed": true
+    },
+    {
+      "name": "Failed subscription leaves previous nodes and running instance intact",
+      "passed": true
+    },
+    {
+      "name": "Manual refresh uses saved subscription and does not enable proxy automatically",
+      "passed": true
+    },
+    {
+      "name": "Global sidebar UI saves subscription without changing or stopping instances",
+      "passed": true
+    },
+    {
+      "name": "Multiple global subscriptions coexist with redacted snapshots",
+      "passed": true
+    },
+    {
+      "name": "Failed global update preserves all sources and running instances",
+      "passed": true
+    },
+    {
+      "name": "Production diagnostic UI through isolated Mihomo: latency",
+      "passed": true
+    },
+    {
+      "name": "Production diagnostic UI through isolated Mihomo: ip",
+      "passed": true
+    },
+    {
+      "name": "Production diagnostic UI through isolated Mihomo: speed",
+      "passed": true
+    },
+    {
+      "name": "Batch diagnostics reject overlap and clean independent temporary cores",
+      "passed": true
+    },
+    {
+      "name": "Diagnostic cancellation cleans up without stopping real instances",
+      "passed": true
+    },
+    {
+      "name": "Unreachable proxy diagnostic fails without a direct fallback",
+      "passed": true
+    },
+    {
+      "name": "Explicit UI assignment affects only target; source deletion preserves assigned node",
+      "passed": true
+    },
+    {
+      "name": "43-node UI at three window sizes keeps import and results expanded with bounded scrolling",
+      "passed": true
+    },
+    {
+      "name": "Compact nodes keep import controls visible and remove separate results card",
+      "passed": true
+    },
+    {
+      "name": "Inline results separate source, node and kind; errors have detailed tooltips",
+      "passed": true
+    },
+    {
+      "name": "Real mouse selection and batch delete remove only selected library nodes",
+      "passed": true
+    },
+    {
+      "name": "Single-node delete and restore work through visible controls",
+      "passed": true
+    },
+    {
+      "name": "Subscription import remains mouse-clickable with 43 nodes loaded",
+      "passed": true
+    },
+    {
+      "name": "Sticky task status exposes cancel and disables overlapping tests",
+      "passed": true
+    },
+    {
+      "name": "Favorites UI persists node references and separate IP bookmarks",
+      "passed": true
+    },
+    {
+      "name": "Unified favorites runs real latency/IP/speed, saves IP and assigns only its named target with source and assignment status",
+      "passed": true
+    },
+    {
+      "name": "Global logs filter, persist, redact credentials, copy summary and export",
+      "passed": true
+    },
+    {
+      "name": "Advanced environment UI produces real UA, platform, viewport, DPR, CPU, media and geolocation overrides",
+      "passed": true
+    },
+    {
+      "name": "Reference random UI fills coherent persisted settings without enabling disruptive patches",
+      "passed": true
+    },
+    {
+      "name": "Opt-in Canvas, audio and layout patches are deterministic and do not accumulate on repeated reads",
+      "passed": true
+    },
+    {
+      "name": "Fingerprint persists across restart and disabling restores native APIs on the next start",
+      "passed": true
+    },
+    {
+      "name": "IP timezone query uses explicit direct or isolated assigned proxy and leaves settings unchanged until saved",
+      "passed": true
+    },
+    {
+      "name": "Front-loaded random can be undone without saving or stopping",
+      "passed": true
+    },
+    {
+      "name": "Dirty environment navigation preserves draft and save-and-leave affects only target",
+      "passed": true
+    },
+    {
+      "name": "Library rerender preserves assignment target and task summary links to filtered logs",
+      "passed": true
+    },
+    {
+      "name": "Creation distinguishes startup failure and retries the same instance through production IPC",
+      "passed": true
+    },
+    {
+      "name": "Three immediate start/delete cycles destroy native views before clearing isolated sessions",
+      "passed": true
+    },
+    {
+      "name": "Environment save bar stays visible at three Windows window sizes",
+      "passed": true
+    },
+    {
+      "name": "Three concurrent real Mihomo probes keep distinct upstream IPs and reclaim all cores",
+      "passed": true
+    },
+    {
+      "name": "Parallel cancellation reclaims every worker core",
+      "passed": true
+    },
+    {
+      "name": "Unavailable primary test target falls back once without changing instance routing",
+      "passed": true
+    },
+    {
+      "name": "Subscription information entries are excluded from tests until explicitly enabled",
+      "passed": true
+    },
+    {
+      "name": "Subscription groups contain their node manager and collapse independently",
+      "passed": true
+    },
+    {
+      "name": "Stopping/reopening retains login storage",
+      "passed": true
+    },
+    {
+      "name": "Proxy mode without a node fails rather than directly loading",
+      "passed": true
+    },
+    {
+      "name": "Electron traffic routes through bundled Mihomo and synthetic upstream",
+      "passed": true
+    },
+    {
+      "name": "Unexpected proxy exit destroys browser view, with no direct fallback",
+      "passed": true
+    },
+    {
+      "name": "Six real direct instances initialize via startup queue",
+      "passed": true
+    },
+    {
+      "name": "Concurrent duplicate start reuses the same live instance",
+      "passed": true
+    },
+    {
+      "name": "Deleting one instance stops it without affecting another",
+      "passed": true
+    },
+    {
+      "name": "Shutdown releases all owned views and core processes",
+      "passed": true
+    }
+  ],
+  "scale": {
+    "running": 6,
+    "workload": "local HTML fixtures; direct; no live websites",
+    "workingSetKiB": 1129776
+  },
+  "errors": []
+}

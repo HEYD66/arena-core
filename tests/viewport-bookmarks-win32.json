@@ -1,0 +1,19 @@
+{
+  "platform": "win32",
+  "electron": "44.4.5",
+  "passed": 11,
+  "results": [
+    "Reproduces old fixed viewport clipping: bottom-right control cannot be reached",
+    "Fitted fixed viewport preserves virtual dimensions and right-bottom mouse coordinates",
+    "Resize across three window sizes keeps the whole fixed viewport interactive",
+    "Switching fixed/adaptive instances preserves their layouts and saved configuration",
+    "Result favorite toggles visibly and synchronizes every row sharing one IP",
+    "Right-side bookmark manager adds IPv6 and persists edited notes across reload",
+    "Search, selection including hidden rows, actual clipboard and confirmed batch deletion work",
+    "Validation keeps draft; closing manager preserves node filters and synchronizes deleted result",
+    "Bookmark dialog fits three sizes and retains an unsaved draft when reopened",
+    "Bookmark management never changes environment, proxy configuration or running state",
+    "DPR 2 preserves fitted pointer coordinates independently of native display scaling"
+  ],
+  "errors": []
+}

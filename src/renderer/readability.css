@@ -1,0 +1,54 @@
+/* UX batch 3 · readability layer, loaded last.
+   Minimum text size 11px; descriptions and form labels 12px; day theme secondary text >= 4.5:1.
+   Row heights are unchanged: the 36px compact node table keeps its fixed height. */
+
+/* Day theme secondary colours (night theme already exceeds 4.5:1). */
+:root:not([data-theme="dark"]){--muted:#566771;--dim:#5f6f7a;--accent:#0f7c63;--purple:#0f7c63;--green:#12765a;--amber:#8a5a0e;--red:#a63a51}
+.btn.primary,.mark{background:#1b7358;border-color:#1b7358;color:#fff}
+/* Hard-coded pale greys in styles.css -> theme variable (night.css keeps its own, more specific rules). */
+.actions-note,.card-meta,.card-meta span:nth-child(odd),.field small,.logs-table th,.logs-table td:first-child,.quick-empty,.quick-manager-row small,.workspace-head h1 .tag{color:var(--muted)}
+.scope-note{color:var(--text)}
+.tab-close{opacity:1;color:var(--muted)}
+.tab-close:hover{color:var(--text)}
+.library-taskbar small{font-size:11px}
+
+/* 11px: labels, tags, meta, footer, tiny buttons. */
+.scope-label,.scope-badge,.instance-card small,.instance-meta,.side-label,.nav .tail,.global-heading,.global-heading span:last-child,
+.sidebar-foot,.breadcrumbs,.workspace-head h1 .tag,.address-input b,.micro-tag,.avatar,.page-hero .overline,.instance-strip,.instance-strip .end,
+.log-preview,.log-preview b,.log-preview button,.footer,.footer #footerCore,.footer-right,.stat strong small,.managed-card .status,.logs-table th,.kbd,.notice,
+.brand span,.node-protocol,.proxy-management .compact-node-table .btn.tiny,.node-result .save-ip,.favorite-result .favorite-location{font-size:11px}
+
+/* 12px: sentences a user has to read. */
+.actions-note,.field small,.inline-info p,.settings-save,.modal .hint,.card-meta,.logs-table td,.scope-note,.field>span,.composer-foot{font-size:12px}
+
+@media(max-width:760px){
+ .scope-label,.instance-card small,.instance-meta,.side-label,.sidebar-foot,.footer,.notice{font-size:11px}
+ .card-meta,.logs-table th,.logs-table td,.scope-note,.field>span{font-size:11px}
+}
+
+/* Footer: version + Mihomo status only. */
+.footer{color:var(--muted)}
+.footer-right{color:var(--muted)}
+
+/* Keyboard focus is always visible, in both themes. */
+a:focus-visible,summary:focus-visible,[tabindex]:focus-visible,.nav:focus-visible,.tab-select:focus-visible,.icon-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tab-select:focus-visible{outline-offset:-2px;border-radius:6px}
+#environmentSaveInfo:focus{outline:none}
+#environmentSaveInfo:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* Sidebar "back to instance" entry on global pages. */
+/* 侧栏启动/停止：两种状态同样醒目（启动=实心绿，停止=实心红）。 */
+.actions-grid .btn.instance-toggle{font-weight:600}
+.actions-grid .btn.danger.instance-toggle{background:#b8394f;border-color:#b8394f;color:#fff}
+.actions-grid .btn.danger.instance-toggle:hover{background:#9f2d42;border-color:#9f2d42;color:#fff}
+:root[data-theme="dark"] .actions-grid .btn.danger.instance-toggle{background:#a8374b;border-color:#c04a5e;color:#fff}
+:root[data-theme="dark"] .actions-grid .btn.danger.instance-toggle:hover{background:#bb4357}
+
+/* Shortcut hints. */
+.shortcut-hint{display:inline-flex;align-items:center;gap:3px;margin-right:6px;font-size:11px;color:var(--muted);white-space:nowrap}
+.shortcut-hint kbd,.shortcut-list kbd{font:11px/1.4 Consolas,"Cascadia Mono",monospace;padding:1px 5px;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;background:var(--panel2);color:var(--text)}
+.shortcut-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:6px 18px;margin:0 0 8px}
+.shortcut-list>div{display:flex;align-items:center;gap:10px;min-height:28px}
+.shortcut-list dt{flex:0 0 auto;margin:0}
+.shortcut-list dd{margin:0;color:var(--muted);font-size:12px}
+@media(max-width:1100px){.shortcut-hint{display:none}}

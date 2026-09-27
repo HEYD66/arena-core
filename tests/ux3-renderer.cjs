@@ -1,0 +1,162 @@
+'use strict';
+// UX batch 3 renderer regression: navigation de-duplication, text size/contrast, remembered state and keyboard use.
+// Actual Chromium controls with a self-contained simulated IPC bridge (no main-process modules, no network, no real instances).
+// Optional env: PW_CHROMIUM=<chromium executable>, RENDERER_DIR=<dir containing index.html>.
+const {chromium}=require('playwright'),fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
+const rendererDir=process.env.RENDERER_DIR||path.resolve(__dirname,'../src/renderer');
+const pageURL='file://'+path.join(rendererDir,'index.html').replace(/\\/g,'/').replace(/^\/?/,'/');
+const LONG='超长实例名称用于检查截断与布局稳定性——Research Workspace Alpha Beta Gamma Delta Epsilon 0123456789';
+const SIZES=[[1024,768],[1280,800],[1440,960]];
+const VIEWS=['browser','environment','logs','overview','proxies','global-logs','extensions','global'];
+
+function fixture({instances=15,nodes=43}={}){
+ const nodeNames=Array.from({length:nodes},(_,i)=>`Node ${String(i+1).padStart(2,'0')} · ${['HK','JP','SG','US'][i%4]} ${i%7===0?'带有较长备注的节点名称':''}`.trim());
+ const statuses=['running','stopped','error','starting','stopped'];
+ const list=Array.from({length:instances},(_,i)=>({id:'inst-'+(i+1),name:i===1?LONG:`工作实例 ${i+1}`,url:'https://example.test/',status:i===0?'running':statuses[i%statuses.length],
+  network:i===0||i%3?{mode:'direct',nodeName:''}:{mode:'mihomo',nodeName:nodeNames[0]},environment:{language:'zh-CN',timezone:'Asia/Tokyo'},
+  nodes:i===0?[]:i===3?nodeNames:[],logs:[{at:new Date(0).toISOString(),level:'INFO',text:'合成日志'}],assignment:{status:'未关联来源'},pageState:'未打开网页',error:i%5===2?'合成启动故障':'',currentURL:'https://example.test/'}));
+ const endedAt=new Date(0).toISOString();
+ return {versions:{app:'test',electron:'simulated IPC'},coreInstalled:true,activeId:null,creationProgress:null,quickLinks:[],extensions:[],favorites:{ips:[],nodes:[]},
+  library:nodes?[{id:'src-1',name:'合成订阅 · '+LONG,host:'sub.example.test',updatedAt:endedAt,subscription:true,excludedCount:0,nodes:nodeNames.map((name,i)=>({name,type:['http','vmess','trojan','ss'][i%4],hint:false}))}]:[],
+  diagnostics:{job:null,lastJob:{id:'task-1',kind:'latency',total:4,cancelled:true,endedAt,items:nodeNames.slice(0,4).map((name,i)=>({sourceId:'src-1',name,state:['success','failed','cancelled','cancelled'][i]}))},
+   results:nodeNames.slice(0,2).map((name,i)=>({sourceId:'src-1',name,taskId:'task-1',kind:'latency',at:endedAt,ok:i===0,latencyMs:12,error:i?'检测目标无法完成请求':''}))},
+  events:[{id:'e1',at:endedAt,level:'ERROR',scope:'diagnostic',text:'检测失败：检测目标无法完成请求',sourceId:'src-1',taskId:'task-1'},{id:'e2',at:endedAt,level:'WARN',scope:'diagnostic',text:'检测已取消',sourceId:'src-1',taskId:'task-1'},{id:'e3',at:endedAt,level:'INFO',scope:'instance',text:'实例已停止',instanceId:'inst-1'}],
+  instances:list};
+}
+
+async function openApp(browser,{size=[1440,960],data=fixture(),storage=null}={}){
+ const context=await browser.newContext({viewport:{width:size[0],height:size[1]}});const page=await context.newPage();const errors=[],calls=[];let snap=data;
+ page.on('pageerror',e=>errors.push(e.message));
+ await page.exposeFunction('__ux3Request',async(action,m={})=>{calls.push({action,...m});switch(action){case 'snapshot':return {ok:true,value:snap};case 'activate':case 'layout':return {ok:true};
+  case 'stop':snap={...snap,instances:snap.instances.map(x=>x.id===m.id?{...x,status:'stopped'}:x)};return {ok:true};
+  case 'settings':await new Promise(r=>setTimeout(r,40));snap={...snap,instances:snap.instances.map(x=>x.id===m.id?{...x,...m.patch,status:'stopped'}:x)};return {ok:true,value:{changed:true}};
+  case 'environment-timezone':return {ok:true,value:{timezone:'Asia/Tokyo'}};default:return {ok:false,error:'Unmocked action '+action};}});
+ await page.addInitScript(saved=>{if(saved!==null&&!sessionStorage.getItem('ux3-seeded')){localStorage.setItem('arena.ui.state.v1',saved);sessionStorage.setItem('ux3-seeded','1');}window.arenaCore={request:(a,p)=>window.__ux3Request(a,p),onState:fn=>window.__stateListener=fn};},storage);
+ await page.goto(pageURL);await page.waitForSelector('#sidebar .nav');
+ return {context,page,errors,calls};
+}
+const go=(page,v)=>page.evaluate(async v=>{await route(v);},v);
+const settle=page=>page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+
+// Visible text audit: minimum computed size and WCAG contrast against the effective background.
+async function readability(page){return page.evaluate(()=>{
+ const parse=c=>{const m=c.match(/rgba?\(([^)]+)\)/);if(!m)return null;const p=m[1].split(/[ ,/]+/).filter(Boolean).map(Number);return {r:p[0],g:p[1],b:p[2],a:p.length>3?p[3]:1};};
+ const lum=({r,g,b})=>{const f=v=>{v/=255;return v<=.03928?v/12.92:((v+.055)/1.055)**2.4;};return .2126*f(r)+.7152*f(g)+.0722*f(b);};
+ const blend=(top,bottom)=>({r:top.r*top.a+bottom.r*(1-top.a),g:top.g*top.a+bottom.g*(1-top.a),b:top.b*top.a+bottom.b*(1-top.a),a:1});
+ const background=el=>{const layers=[];for(let n=el;n&&n.nodeType===1;n=n.parentElement){const c=parse(getComputedStyle(n).backgroundColor);if(c&&c.a>0){layers.push(c);if(c.a>=1)break;}}let base={r:255,g:255,b:255,a:1};for(const c of layers.reverse())base=blend(c,base);return base;};
+ const small=[],low=[];let min=99,count=0;
+ const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
+ const seen=new Set();
+ while(walker.nextNode()){const t=walker.currentNode;if(!t.textContent.trim())continue;const el=t.parentElement;if(!el||seen.has(el))continue;seen.add(el);
+  if(el.closest('[hidden],[aria-hidden="true"],option,script,style,.modal-backdrop[hidden],svg'))continue;
+  const r=el.getBoundingClientRect(),cs=getComputedStyle(el);if(!r.width||!r.height||cs.visibility==='hidden'||Number(cs.opacity)===0)continue;
+  if(r.bottom<0||r.right<0||r.top>innerHeight||r.left>innerWidth)continue;
+  if(el.closest('button:disabled,input:disabled,select:disabled,[aria-disabled="true"],fieldset:disabled'))continue;
+  count++;const size=parseFloat(cs.fontSize);min=Math.min(min,size);const label=(el.id?'#'+el.id:el.tagName.toLowerCase()+(el.className&&typeof el.className==='string'?'.'+el.className.trim().split(/\s+/).join('.'):''))+' "'+t.textContent.trim().slice(0,24)+'"';
+  if(size<11)small.push(label+' '+size+'px');
+  const fg=parse(cs.color);if(!fg)continue;let opacity=1;for(let n=el;n&&n.nodeType===1;n=n.parentElement)opacity*=Number(getComputedStyle(n).opacity);
+  const bg=background(el),f=blend({...fg,a:fg.a*opacity},bg);const ratio=(Math.max(lum(f),lum(bg))+.05)/(Math.min(lum(f),lum(bg))+.05);
+  const large=size>=24||size>=18.66&&Number(cs.fontWeight)>=700;if(ratio<(large?3:4.5))low.push(label+' '+ratio.toFixed(2)+' '+cs.color+' on rgb('+[bg.r,bg.g,bg.b].map(Math.round)+')');}
+ return {min,count,small,low};});}
+
+(async()=>{const browser=await chromium.launch({headless:true,args:['--no-sandbox'],executablePath:process.env.PW_CHROMIUM||undefined});const results=[];const ok=name=>{results.push(name);console.log('PASS',name);};let current;
+try{
+ // A. Navigation de-duplication.
+ current=await openApp(browser);let {page,errors}=current;
+ assert.equal(await page.locator('#manageTop').count(),0);assert.equal(await page.locator('.notice').count(),0);
+ assert.match(await page.locator('#footerCore').textContent(),/内置 Mihomo · 已就绪/);assert.match(await page.locator('.footer-right').textContent(),/0\.2\.0/);
+ const body=await page.locator('body').innerText();assert.doesNotMatch(body,/GLOBAL|INSTANCE/);
+ assert.equal(await page.locator('#sidebar [data-view="environment"]').count(),1);assert.match(await page.locator('#sidebar').textContent(),/本机 IP 直连/);
+ await page.locator('#allTabs').click();await page.waitForFunction(()=>view==='overview');
+ assert.equal(await page.locator('#sidebar [data-view="environment"]').count(),1,'sidebar keeps the instance section on global pages');assert.equal(await page.locator('#sidebar [data-action="toggle"]').count(),1);assert.equal(await page.locator('#sidebar .back-to-instance').count(),0);
+ assert.deepEqual(await page.locator('#sidebar .nav.active').evaluateAll(n=>n.map(x=>x.dataset.view)),['overview']);assert.match(await page.locator('#sidebar [data-view="overview"]').innerText(),/实例管理/);
+ await page.locator('#sidebar [data-view="browser"]').click();await page.waitForFunction(()=>view==='browser'&&activeId==='inst-1');
+ ok('One management entry; the sidebar stays the same on global pages and only the right side and highlight change; footer is version + Mihomo only');
+
+ // B. Size and contrast, every view, day and night.
+ const audit=new Set();
+ for(const theme of ['light','dark']){await page.evaluate(t=>{document.documentElement.dataset.theme=t;},theme);await page.waitForTimeout(450);
+  for(const v of VIEWS){await go(page,v);if(v==='environment')await page.evaluate(()=>{const d=document.querySelector('details.advanced-environment');if(d)d.open=true;});await settle(page);const r=await readability(page);
+   assert(r.count>5,`${theme}/${v}: too little text audited`);for(const x of r.small)audit.add(`${theme}/${v} <11px: ${x}`);for(const x of r.low)audit.add(`${theme}/${v} <4.5:1: ${x}`);}}
+ if(audit.size)fs.writeFileSync(path.join(__dirname,'ux3-audit.json'),JSON.stringify([...audit],null,1));assert.deepEqual([...audit],[],'readability audit (full list in tests/ux3-audit.json)');
+ await page.evaluate(()=>{document.documentElement.dataset.theme='light';});
+ ok('All visible text is >= 11px and >= 4.5:1 in day and night themes across all eight views');
+ await go(page,'proxies');await settle(page);const rows=await page.$$eval('#content .compact-node-table tbody tr',rs=>rs.filter(r=>r.getClientRects().length).map(r=>Math.round(r.getBoundingClientRect().height)));
+ assert(rows.length>=20,'node rows rendered: '+rows.length);assert(rows.every(h=>h<=37),'compact rows stay 36px: '+rows.join(','));
+ ok('43-node compact table keeps 36px rows after the size increase');
+ assert.deepEqual(errors,[]);await current.context.close();
+
+ // C. Remembered state.
+ current=await openApp(browser);({page,errors}=current);
+ await page.locator('[data-close="inst-3"]').click();await page.waitForSelector('#modal [data-action="confirm"]');await page.locator('#modal [data-action="confirm"]').click();await page.waitForFunction(()=>!localOpen.has('inst-3'));
+ await go(page,'overview');await page.locator('[data-filter="error"]').click();await page.locator('#instanceSearch').fill('实例');
+ await go(page,'proxies');await page.selectOption('#librarySort','name');await page.selectOption('#libraryOnly','available');await page.selectOption('#libraryConcurrency','5');await page.locator('#libraryIncludeHints').check();
+ await go(page,'global-logs');await page.selectOption('#globalLogLevel','ERROR');await page.selectOption('#globalLogScope','diagnostic');await page.selectOption('#globalLogSource','src-1');
+ await page.evaluate(async()=>{await route('environment','inst-4');document.querySelector('details.advanced-environment').open=true;});await page.waitForTimeout(80);
+ await go(page,'proxies');await page.waitForTimeout(260);
+ const startCallsBefore=current.calls.filter(c=>c.action==='start').length;
+ await page.reload();await page.waitForSelector('#sidebar .nav');
+ const restored=await page.evaluate(()=>({view,activeId,open:[...localOpen],filter,search,librarySort,libraryOnly,libraryConcurrency,libraryIncludeHints,librarySource,globalLogLevel,globalLogScope,globalLogSource}));
+ assert.equal(restored.view,'proxies');assert.equal(restored.activeId,'inst-4');assert(!restored.open.includes('inst-3'));assert.equal(restored.open.length,14);
+ assert.deepEqual([restored.filter,restored.search,restored.librarySort,restored.libraryOnly,restored.libraryConcurrency,restored.libraryIncludeHints,restored.librarySource],['error','实例','name','available',5,true,'src-1']);
+ assert.deepEqual([restored.globalLogLevel,restored.globalLogScope,restored.globalLogSource],['ERROR','diagnostic','src-1']);
+ assert.equal(await page.locator('#librarySort').inputValue(),'name');assert.equal(current.calls.filter(c=>c.action==='start').length,startCallsBefore);
+ await go(page,'environment');assert.equal(await page.locator('details.advanced-environment').evaluate(d=>d.open),true);
+ ok('Tabs, active instance, page, filters, sort, concurrency and advanced section survive a restart; nothing is started');
+ await go(page,'proxies');await page.evaluate(()=>{const c=document.querySelector('#content');c.scrollTop=Math.min(320,c.scrollHeight-c.clientHeight);});const top=await page.evaluate(()=>document.querySelector('#content').scrollTop);
+ await go(page,'overview');await go(page,'proxies');await settle(page);assert(Math.abs(await page.evaluate(()=>document.querySelector('#content').scrollTop)-top)<=2,'scroll restored');
+ ok('Scroll position is remembered per page within the run');
+ assert.deepEqual(errors,[]);await current.context.close();
+ current=await openApp(browser,{storage:JSON.stringify({v:1,view:'no-such-view',activeId:'gone',localOpen:['gone','inst-2'],filters:{librarySort:'evil',libraryConcurrency:99,librarySource:'gone',globalLogInstance:'gone',filter:'x',favoriteTab:'?'}})});({page,errors}=current);
+ const stale=await page.evaluate(()=>({view,activeId,open:[...localOpen],librarySort,libraryConcurrency,librarySource,globalLogInstance,filter,favoriteTab}));
+ assert.deepEqual(stale,{view:'browser',activeId:'inst-2',open:['inst-2'],librarySort:'original',libraryConcurrency:3,librarySource:'',globalLogInstance:'all',filter:'all',favoriteTab:'ips'});
+ await current.context.close();
+ current=await openApp(browser,{storage:'{not json'});assert.equal(await current.page.evaluate(()=>view),'browser');assert.deepEqual(current.errors,[]);await current.context.close();
+ current=await openApp(browser,{storage:JSON.stringify({v:1,view:'logs',activeId:'inst-1',localOpen:[]})});assert.deepEqual(await current.page.evaluate(()=>({view,open:localOpen.size})),{view:'overview',open:0});await current.context.close();
+ ok('Stale ids, unknown views, invalid values and corrupt storage fall back safely');
+
+ // D. Keyboard.
+ current=await openApp(browser);({page,errors}=current);const key=async k=>{await page.keyboard.press(k);await page.waitForTimeout(60);};
+ await page.locator('#content').click({position:{x:5,y:5}}).catch(()=>{});
+ await key('Control+2');assert.equal(await page.evaluate(()=>activeId),'inst-2');await key('Control+Tab');assert.equal(await page.evaluate(()=>activeId),'inst-3');await key('Control+Shift+Tab');assert.equal(await page.evaluate(()=>activeId),'inst-2');
+ await key('Control+9');assert.equal(await page.evaluate(()=>activeId),'inst-15');
+ const inView=await page.evaluate(()=>{const t=document.querySelector('#tabs [aria-selected="true"]').getBoundingClientRect(),s=document.querySelector('#tabs').getBoundingClientRect();return t.left>=s.left-1&&t.right<=s.right+1;});assert(inView,'active tab scrolled into view');
+ await page.locator('#tabs [data-tab="inst-1"]').focus();await key('ArrowRight');assert.equal(await page.evaluate(()=>document.activeElement.dataset.tab),'inst-2');await key('End');assert.equal(await page.evaluate(()=>document.activeElement.dataset.tab),'inst-15');await key('Home');assert.equal(await page.evaluate(()=>document.activeElement.dataset.tab),'inst-1');await key('ArrowLeft');assert.equal(await page.evaluate(()=>document.activeElement.dataset.tab),'inst-15');
+ await key('Enter');assert.equal(await page.evaluate(()=>activeId),'inst-15');assert.equal(await page.evaluate(()=>document.activeElement.dataset.tab),'inst-15');
+ ok('Ctrl+Tab, Ctrl+Shift+Tab, Ctrl+1..9 and arrow/Home/End in the tab strip; focus survives re-render');
+ await key('Control+l');assert.match(await page.locator('#toast').innerText(),/未运行/);assert.equal(await page.evaluate(()=>document.activeElement.dataset.action),'toggle');
+ await key('Control+1');await go(page,'overview');await key('Control+l');assert.equal(await page.evaluate(()=>view),'browser');assert.equal(await page.evaluate(()=>activeId),'inst-1');assert.equal(await page.evaluate(()=>document.activeElement.id),'addressField');
+ await page.locator('#newTab').focus();await key('Enter');await page.waitForSelector('#nameInput');await key('Escape');assert.equal(await page.evaluate(()=>!!modal),false);assert.equal(await page.evaluate(()=>document.activeElement.id),'newTab');
+ await key('Control+t');await page.waitForSelector('#nameInput');await key('Escape');
+ await page.locator('#sidebar [data-view="logs"]').focus();await key('Enter');await page.waitForFunction(()=>view==='logs');assert.equal(await page.evaluate(()=>document.activeElement.dataset.view),'logs');
+ const before=current.calls.length;const prevented=await page.evaluate(()=>{const e=new KeyboardEvent('keydown',{key:'w',ctrlKey:true,bubbles:true,cancelable:true});document.dispatchEvent(e);return e.defaultPrevented;});assert.equal(prevented,false);assert.equal(current.calls.slice(before).filter(c=>c.action==='stop').length,0);
+ ok('Ctrl+L, Ctrl+T, Esc returns focus to the opener, sidebar focus kept after navigation, no Ctrl+W');
+ await go(page,'environment');await key('Control+Enter');assert.match(await page.locator('#toast').innerText(),/没有需要保存的修改/);
+ await page.locator('#timezone').fill('Europe/London');await page.locator('#timezone').dispatchEvent('input');await page.locator('#timezone').dispatchEvent('change');await key('Control+Enter');
+ await page.waitForFunction(()=>!document.querySelector('[data-ux="save-environment"]')?.textContent.includes('保存中'));await page.waitForTimeout(120);
+ assert(current.calls.some(c=>c.action==='settings'),'Ctrl+Enter saved');assert.notEqual(await page.evaluate(()=>document.activeElement.tagName),'BODY');
+ assert.match(await page.locator('[data-ux="save-environment"]').getAttribute('title'),/Ctrl \+ Enter/);
+ await go(page,'global');assert.match(await page.locator('.shortcut-list').innerText(),/Ctrl \+ L[\s\S]*Ctrl \+ Enter[\s\S]*Ctrl \+ Tab/);
+ const rings=[];for(const theme of ['light','dark']){await page.evaluate(t=>{document.documentElement.dataset.theme=t;},theme);await page.keyboard.press('Tab');await page.locator('#tabs [data-tab="inst-1"]').focus();await page.keyboard.press('ArrowRight');rings.push(await page.evaluate(()=>getComputedStyle(document.activeElement).outlineStyle));}
+ assert.deepEqual(rings,['solid','solid']);
+ ok('Ctrl+Enter saves only when something changed, focus is not lost, shortcuts listed, focus ring visible in both themes');
+ assert.deepEqual(errors,[]);await current.context.close();
+
+ // E. Window sizes, long names, 15 instances, 43 nodes, no nodes, zero instances, failed/cancelled tasks.
+ for(const size of SIZES){current=await openApp(browser,{size});({page,errors}=current);
+  for(const v of VIEWS){await go(page,v);await settle(page);const o=await page.evaluate(()=>({doc:document.documentElement.scrollWidth-document.documentElement.clientWidth,side:[...document.querySelectorAll('#sidebar *')].some(el=>el.getBoundingClientRect().right>document.querySelector('#sidebar').getBoundingClientRect().right+1),head:document.querySelector('#workspaceHead').scrollWidth-document.querySelector('#workspaceHead').clientWidth}));
+   assert(o.doc<=1,`${size}/${v}: page scrolls horizontally`);assert(!o.side,`${size}/${v}: sidebar content overflows`);assert(o.head<=1,`${size}/${v}: header overflows`);}
+  await page.evaluate(async()=>{await route('overview','inst-2');});assert.match(await page.locator('#sidebar .instance-card h2').textContent(),/超长实例名称/);
+  assert(await page.evaluate(()=>{const t=document.querySelector('#tabs');return t.scrollWidth>t.clientWidth&&getComputedStyle(t).overflowX!=='hidden';}),'15 tabs scroll horizontally');
+  await go(page,'proxies');assert.match(await page.locator('#libraryTaskbar').innerText(),/检测已取消/);await go(page,'global-logs');assert.match(await page.locator('#content').innerText(),/检测失败/);
+  assert.deepEqual(errors,[]);await current.context.close();}
+ ok('1024×768, 1280×800, 1440×960: no horizontal overflow with a long name, 15 tabs, 43 nodes and failed/cancelled tasks');
+ current=await openApp(browser,{data:fixture({instances:0,nodes:0})});({page,errors}=current);
+ for(const v of ['overview','proxies','global-logs','global'])await go(page,v);await go(page,'overview');assert.match(await page.locator('#sidebar .instance-card').textContent(),/暂无实例/);assert.equal(await page.locator('#sidebar [data-action="toggle"]').isDisabled(),true);
+ await page.keyboard.press('Control+l');await page.waitForTimeout(60);assert.match(await page.locator('#toast').innerText(),/请先打开或新建/);await page.keyboard.press('Control+Tab');
+ assert.deepEqual(errors,[]);await current.context.close();
+ current=await openApp(browser,{data:fixture({instances:3,nodes:0})});({page,errors}=current);await go(page,'environment');await go(page,'proxies');assert.match(await page.locator('#sidebar').innerText(),/实例管理/);assert.deepEqual(errors,[]);await current.context.close();
+ ok('Zero instances and no nodes: no errors, clear guidance, shortcuts degrade to a hint');
+ fs.writeFileSync(path.join(__dirname,'ux3-renderer-results.json'),JSON.stringify({platform:process.platform,backend:'simulated IPC (self-contained)',passed:results.length,results},null,2)+'\n');console.log('All UX batch 3 renderer tests passed:',results.length);
+}catch(e){if(current?.page)await current.page.screenshot({path:path.join(__dirname,'ux3-failure.png')}).catch(()=>{});console.error('Page errors',current?.errors);throw e;}finally{await browser.close();}
+})().catch(e=>{console.error(e);process.exit(1);});

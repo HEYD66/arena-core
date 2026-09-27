@@ -1,0 +1,23 @@
+{
+  "platform": "win32",
+  "backend": "simulated IPC and runtime; actual Store/validation",
+  "passed": 15,
+  "results": [
+    "Unchanged form disables save; invalid network preserves running state",
+    "Dirty navigation prompts and forced redraw restores session draft",
+    "Save-and-leave commits only the current instance",
+    "Concurrent save attempts issue only one IPC request",
+    "Front-loaded random action supports undo without saving",
+    "All six presets pass native form validation, including fractional DPR 1.25",
+    "Random UI preserves current width, height and DPR without saving",
+    "Validation error identifies field and discard restores persisted configuration",
+    "Save bar stays reachable at three desktop sizes",
+    "Node search and sorting preserve assignment target and import draft",
+    "Assignment names its target and offers a return action",
+    "Detection summary, failed-only retry, remembered consent and related logs work",
+    "Creation failure dialog retries existing instance instead of creating duplicates",
+    "Unified favorite selection caps total at 100 including hidden selections",
+    "Favorite tabs use their own namespace and never navigate instance tabs"
+  ],
+  "errors": []
+}

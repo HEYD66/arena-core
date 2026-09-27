@@ -1,0 +1,66 @@
+# UX交付状态（第一至四批）
+
+## 第四批：扩展中心、地址栏扩展图标、侧栏空白
+
+- 「浏览器扩展」改为「扩展中心」，以扩展为主：一张卡片一个扩展（清单图标或首字母、版本、大小、启用数量），下方勾选要启用的实例；可同时改多个实例，点「应用更改（n）」一次确认，确认栏写明将启用/停用哪些实例、会停止哪些运行中的实例；可撤销，改回原状态自动取消。移除只在所有实例都停用后可用，并需确认。
+- 实例浏览页不再单独占一行放扩展：已启用的扩展以图标显示在地址栏右侧（未启动的实例图标为灰色，加载失败带红色「!」），点击直接打开扩展面板；没有面板时打开设置页。拼图按钮打开扩展菜单（面板/设置、未在此实例启用的扩展数、跳转扩展中心），Esc或点外面关闭；菜单打开时网页视图暂时让位。地址栏自动让出宽度。
+- 全局管理页侧栏不再在「返回实例」下方留空白。
+- 主进程：extension-catalog.cjs 新增 extensionIcon，只读取清单声明、位于扩展目录内、不超过64KB的 png/jpg/gif/webp/svg；extensions.cjs 缓存图标并在快照中提供 icon。启用/停用仍会停止目标实例（原有行为不变）。
+- 新增 src/renderer/extensions.css、tests/extension-center.cjs（npm run test:extension-center-ui）；tests/extensions.test.cjs 增加图标测试。
+
+Windows验证：check 50；extension-center 7；ux3 11；experience-renderer 15；appearance 8；ui 5/5；7组单元测试全部通过；extensions-electron 11；quick-links 15；viewport 11；smoke 54/0（第一次运行出现一次偶发的 “Script failed to execute”，随后连续两次全部通过、errors为空）。
+
+## 第三批：导航去重、字号与对比度、状态记忆、键盘操作
+
+2026-09-27：Windows全量回归通过；未重启用户正在运行的实例，需用户自行重启 Arena Core 后生效。
+
+### 改动
+
+- 导航：删除顶栏「实例管理」按钮和顶部通知条，只保留标签栏网格按钮与侧栏「实例管理」。全局页侧栏不再显示实例工作台和启停按钮，改为「返回实例：名称」。去掉 GLOBAL/INSTANCE 标签；页脚只显示「内置 Mihomo · 状态」和版本号。浏览器预览提示仅在预览模式动态插入。
+- 可读性：新增 `src/renderer/readability.css`（最后加载）：所有文字不小于 11px，说明与表单标签 12px；日间主题次要文字、状态色、主按钮调整为不低于 4.5:1；夜间主题原本已达标。36px 紧凑节点行不变。
+- 状态记忆：新增 `src/renderer/ux-habits.js`，`localStorage` 键 `arena.ui.state.v1`。记住打开的标签、当前实例、页面、代理管理的来源/排序/筛选/并发/提示/搜索、全局日志的级别/范围/实例/来源、实例总览的筛选/搜索、收藏页签和「高级指纹」展开状态。滚动位置只在本次运行内按页面记忆。过期 ID、未知页面、非法取值、损坏的存储一律回退默认值；启动时不自动启动任何实例。
+- 键盘（仅软件界面，不拦截网页内按键）：Ctrl+L 地址栏（实例未运行时提示并聚焦启动按钮）、Ctrl+Enter 在「代理与指纹」页保存、Ctrl+Tab / Ctrl+Shift+Tab、Ctrl+1…9、Ctrl+T 新建、标签栏 ←/→/Home/End。不提供 Ctrl+W。重新渲染和弹窗关闭后焦点回到原控件；两种主题下都有可见焦点框；快捷键列在「应用信息」页。
+- 测试工具：`scripts/preview.cjs` 原先只提供 index.html、styles.css、app.js，拆分出的其他脚本全部 404，导致 `tests/ui.cjs` 在本批之前就已失败（提示条为 `refreshIPBookmarks is not defined`）。已改为提供渲染目录下所有 html/css/js 文件（只接受平铺文件名，路径穿越返回 404）。
+- 新增 `tests/ux3-renderer.cjs`（`npm run test:ux3-ui`），只依赖 Playwright、使用自包含的模拟 IPC，共 11 组用例：导航、8 个页面在日/夜主题下的字号与对比度审计、43 节点 36px 行高、重启后状态恢复且不启动实例、滚动记忆、过期/损坏存储回退、全部快捷键、焦点连续性、1024×768 / 1280×800 / 1440×960 下长名称 + 15 实例 + 43 节点无横向溢出、失败/已取消任务、零实例与无节点。
+
+### Windows 验证
+
+check 49 个脚本；ux3-renderer 11/11；experience-renderer 15/15；appearance-audit 8/8；ui（浏览器预览）5/5；core、subscription、library、workspace、fingerprint、experience、extensions 单元测试全部 exit 0；Electron：electron-smoke 通过（errors=[]），viewport-bookmarks 11、quick-links 15、extensions-electron 11。测试前后用户的 verge-mihomo、mihomo 与 Arena 进程均保持运行。
+
+### 已知环境问题
+
+`node_modules` 中的 Playwright 1.63.0 需要 chromium_headless_shell-1243，本机只装有 1234。本轮 Chromium 类测试通过环境变量 `PW_CHROMIUM` 指向 1234 版运行：ux3 测试原生支持该变量，其余测试用放在 %TEMP% 的预加载脚本注入，未改动仓库。如需按默认方式运行，请在 arena-core 目录执行 `npx playwright install chromium-headless-shell`。
+
+---
+
+# UX前两批交付状态
+
+2026-09-27：Windows最终回归通过，生产未强制重启。
+
+## 通过的验证
+
+Windows命令cmd_f8b7a9f4d27b034e4f5c60bb9f73acbdb2860e3117bf49b1 exit0：check33、experience6、fingerprint5、workspace5、core10、library5、subscription7、Electron52，errors=[]。
+
+新增Windows浏览器用例覆盖无修改/无效配置不停止真实实例、随机撤销、草稿离开保护/保存只影响目标、分配目标保持及任务日志跳转、创建成功但启动失败后重试同一实例，以及三种窗口尺寸的固定保存栏。原有订阅、43节点紧凑表、并发检测、取消、代理无直连回退、指纹与时区等回归继续通过。
+
+另有11组Chromium界面测试（模拟IPC与runtime、真实Store/校验）及Linux Electron52项通过。这些辅助结果不代替Windows结果。
+
+## 本轮改动
+
+- 保存前校验、无修改短路、防重复提交、固定保存栏和就地错误。
+- 按实例会话内草稿、离开保护、旧草稿冲突保护；退出应用不保留未保存草稿。
+- 创建/查询时区/启动阶段分离，失败重试已有实例；节点副本保存失败不以直连启动。
+- 指纹方案前置及撤销，禁用未启用字段；实例卡片快捷启动/打开/配置，删除在更多菜单。
+- 代理/收藏目标保持、导入草稿、分配后返回；检测完成摘要、失败项重测、结果详情和相关日志。
+- 用户可明确选择在本次应用运行中记住同类连通性/IP检测告知；测速仍手动确认。
+- 当前状态与历史错误分开；任务筛选可读并增量更新，导出明确为全部日志。
+
+## 恢复记录
+
+此前Windows桥接HTTP530导致中断。恢复后先取回terminal105的旧结果，确认测试选择器仍按span查找已改为button的结果单元格；已修正为.node-result-value，重跑全套通过。没有重复启动重叠测试，没有停止生产或修改旧asar、参考归档。
+
+## 边界
+
+测试使用受控本机上游，不证明用户真实节点、公网IP数据库准确性、15实例长期重载或完整防泄漏/防检测。草稿仅本次应用内保留；环境需保存并启动后生效。公开发行授权核查仍未完成。
+
+截图：tests/ux-environment-win32.png；测试报告：tests/electron-results-win32.json。

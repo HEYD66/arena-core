@@ -1,0 +1,20 @@
+{
+  "platform": "win32",
+  "electron": "44.4.5",
+  "passed": 11,
+  "results": [
+    "Trusted-folder import requires consent, copies package and never auto-enables or starts instances",
+    "Enable cancellation is safe; confirming stops only the named target and saves selection",
+    "Content scripts run only in enabled instance; extension panel shares its session but has no control bridge or Node",
+    "Same extension in two persistent sessions keeps chrome.storage.local isolated",
+    "Stopping unloads extension and panels; restarting restores selection and storage without changing environment",
+    "Disabling removes residual content scripts on restart; removal refuses extensions still used elsewhere",
+    "Unreferenced extension removal deletes only its owned package",
+    "An invalid enabled package blocks instance startup with an explicit extension error",
+    "Enabled extension preserves fixed viewport DPR 2 and actual corner mouse coordinates",
+    "Extension background fetch uses its isolated Mihomo; core failure unloads it without direct fallback",
+    "Extension management fits three window sizes and night mode"
+  ],
+  "compatibility": {},
+  "errors": []
+}

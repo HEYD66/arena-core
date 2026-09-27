@@ -1,0 +1,39 @@
+{
+  "name": "arena-core",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Independent multi-instance browser with explicit direct networking and bundled Mihomo",
+  "main": "src/main/main.cjs",
+  "scripts": {
+    "start": "node scripts/launch-electron.cjs .",
+    "preview": "node scripts/preview.cjs",
+    "check": "node scripts/check.cjs",
+    "test:ui": "node tests/ui.cjs",
+    "setup:core": "node scripts/setup-core.cjs",
+    "test:core": "node --test tests/core.test.cjs",
+    "test:electron": "node scripts/launch-electron.cjs tests/electron-smoke.cjs",
+    "test:subscription": "node --test tests/subscription.test.cjs",
+    "test:library": "node --test tests/library.test.cjs",
+    "test:workspace": "node --test tests/workspace.test.cjs",
+    "test:fingerprint": "node --test tests/fingerprint.test.cjs",
+    "test:experience": "node --test tests/experience.test.cjs",
+    "test:experience-ui": "node tests/experience-renderer.cjs",
+    "test:viewport-bookmarks": "node scripts/launch-electron.cjs tests/viewport-bookmarks.cjs",
+    "test:quick-links": "node scripts/launch-electron.cjs tests/quick-links.cjs",
+    "test:appearance-ui": "node tests/appearance-audit.cjs",
+    "test:extensions": "node --test tests/extensions.test.cjs",
+    "test:extensions-electron": "node scripts/launch-electron.cjs tests/extensions-electron.cjs",
+    "test:ux3-ui": "node tests/ux3-renderer.cjs",
+    "test:extension-center-ui": "node tests/extension-center.cjs"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "devDependencies": {
+    "electron": "44.4.5",
+    "playwright": "1.63.0"
+  },
+  "dependencies": {
+    "js-yaml": "5.4.2"
+  }
+}

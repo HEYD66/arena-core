@@ -1,0 +1,16 @@
+{
+  "platform": "win32",
+  "backend": "simulated IPC and runtime; actual Store/validation",
+  "passed": 8,
+  "results": [
+    "Invalid saved appearance preferences fall back to light and expanded",
+    "Shortcut URL placeholder meets 4.5:1 contrast in day and night modes",
+    "Keyboard sidebar control and theme changes preserve an unsaved environment draft",
+    "Night favorite placeholders remain readable and tabs do not change instance route",
+    "Night quick-link dialog fits three sizes, preserves draft across refresh and closes with Escape",
+    "Night invalid-field indicator keeps its error color",
+    "Twenty shortcut labels retain management access at three sizes with either sidebar width",
+    "Unavailable preference storage does not block appearance controls or startup"
+  ],
+  "errors": []
+}

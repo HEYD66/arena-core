@@ -1,0 +1,6 @@
+{
+  "scope": "Static browser preview only; real integration is tested in Electron",
+  "checks": 5,
+  "passed": 5,
+  "errors": []
+}

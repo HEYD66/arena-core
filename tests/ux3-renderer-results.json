@@ -1,0 +1,18 @@
+{
+  "platform": "win32",
+  "backend": "simulated IPC (self-contained)",
+  "passed": 11,
+  "results": [
+    "One management entry; the sidebar stays the same on global pages and only the right side and highlight change; footer is version + Mihomo only",
+    "All visible text is >= 11px and >= 4.5:1 in day and night themes across all eight views",
+    "43-node compact table keeps 36px rows after the size increase",
+    "Tabs, active instance, page, filters, sort, concurrency and advanced section survive a restart; nothing is started",
+    "Scroll position is remembered per page within the run",
+    "Stale ids, unknown views, invalid values and corrupt storage fall back safely",
+    "Ctrl+Tab, Ctrl+Shift+Tab, Ctrl+1..9 and arrow/Home/End in the tab strip; focus survives re-render",
+    "Ctrl+L, Ctrl+T, Esc returns focus to the opener, sidebar focus kept after navigation, no Ctrl+W",
+    "Ctrl+Enter saves only when something changed, focus is not lost, shortcuts listed, focus ring visible in both themes",
+    "1024×768, 1280×800, 1440×960: no horizontal overflow with a long name, 15 tabs, 43 nodes and failed/cancelled tasks",
+    "Zero instances and no nodes: no errors, clear guidance, shortcuts degrade to a hint"
+  ]
+}

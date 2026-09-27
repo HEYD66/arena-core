@@ -1,0 +1,12 @@
+{
+  "version": "v1.19.31",
+  "platform": "win32",
+  "architecture": "x64",
+  "assetURL": "https://github.com/MetaCubeX/mihomo/releases/download/v1.19.31/mihomo-windows-amd64-compatible-v1.19.31.zip",
+  "assetSHA256": "93d14e9a13b49b2f2d256202d02cc8d14a7c4695edf084cae0f941986bc9c218",
+  "binarySHA256": "1fa8055e03596fc35167f70e9ecd1890517d38d960a39177445746a1b0defc2b",
+  "sourceURL": "https://codeload.github.com/MetaCubeX/mihomo/tar.gz/refs/tags/v1.19.31",
+  "sourceSHA256": "5a04aa9cf4520e06fa1c13d37b6aca49209479690722d485c40034ab17f8581f",
+  "licenseURL": "https://raw.githubusercontent.com/MetaCubeX/mihomo/v1.19.31/LICENSE",
+  "releaseURL": "https://github.com/MetaCubeX/mihomo/releases/tag/v1.19.31"
+}
