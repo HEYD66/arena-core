@@ -9,7 +9,7 @@
     "Night favorite placeholders remain readable and tabs do not change instance route",
     "Night quick-link dialog fits three sizes, preserves draft across refresh and closes with Escape",
     "Night invalid-field indicator keeps its error color",
-    "Twenty shortcut labels retain management access at three sizes with either sidebar width",
+    "Twenty shortcut labels retain management access in the bookmarks bar at three sizes with either sidebar width",
     "Unavailable preference storage does not block appearance controls or startup"
   ],
   "errors": []

@@ -2,9 +2,9 @@
 
 /* 地址栏右侧：扩展图标 + 拼图按钮（地址栏自动让出宽度）。 */
 .address-row .address-input{flex:1 1 auto;min-width:160px}
-.ext-toolbar{display:flex;align-items:center;gap:2px;flex:0 1 auto;min-width:0;overflow:hidden;margin-left:4px;padding-left:6px;border-left:1px solid var(--line)}
+.ext-toolbar{display:flex;align-items:center;gap:2px;flex:0 1 auto;min-width:0;overflow:hidden;margin-left:2px;padding-left:6px;border-left:1px solid var(--line)}
 .ext-tool{position:relative;display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;flex:0 0 30px;padding:0;border:1px solid transparent;border-radius:7px;background:transparent;color:var(--muted);cursor:pointer}
-.ext-tool:hover{background:var(--panel2);color:var(--text)}
+.ext-tool:hover{background:var(--hover);color:var(--text)}
 .ext-tool[aria-expanded="true"]{background:var(--panel2);border-color:var(--line)}
 .ext-tool-icon{width:18px;height:18px;border-radius:4px;object-fit:contain}
 .ext-tool.idle .ext-tool-icon{filter:grayscale(1);opacity:.5}
@@ -16,12 +16,12 @@
 @media(max-width:900px){.address-row .address-input{min-width:110px}}
 
 /* 拼图菜单（非模态 dialog，打开时网页视图暂时让位，与快捷网站对话框相同机制）。 */
-.ext-menu{position:fixed;margin:0;padding:0;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--text);box-shadow:0 12px 32px #0003;z-index:40;overflow:hidden}
+.ext-menu{position:fixed;margin:0;padding:0;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--text);box-shadow:var(--shadow-lg);z-index:40;overflow:hidden}
 .ext-menu header{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line)}
 .ext-menu header small{color:var(--muted);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60%}
 .ext-menu ul{list-style:none;margin:0;padding:6px;max-height:320px;overflow:auto}
 .ext-menu li{display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:7px}
-.ext-menu li:hover{background:var(--panel2)}
+.ext-menu li:hover{background:var(--hover)}
 .ext-menu li>div{flex:1;min-width:0;display:flex;flex-direction:column}
 .ext-menu li b{font-weight:600;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ext-menu li small{font-size:11px;color:var(--muted)}
@@ -31,15 +31,15 @@
 .ext-menu footer small{font-size:11px;color:var(--muted)}
 
 /* 扩展中心：一张卡片一个扩展，下面是实例开关。 */
-.extension-center{padding:0}
-.ext-center-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:16px 18px;border-bottom:1px solid var(--line)}
-.settings-card.extension-center .ext-center-head h3{display:flex;align-items:center;gap:8px;margin:0 0 6px;padding:0;border:0;font-size:15px;font-weight:600}
+.settings-card.extension-center{padding:0;border:0;background:transparent}
+.ext-center-head{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 0 14px}
+.settings-card.extension-center .ext-center-head h3{display:none}
 .ext-center-head h3 svg{width:16px;height:16px}
 .ext-center-head p{margin:0;max-width:760px;font-size:12px;line-height:1.6;color:var(--muted)}
 .ext-center-head .btn{flex:0 0 auto}
-.ext-list{display:flex;flex-direction:column;gap:10px;padding:14px 18px}
-.extension-center>.actions-note{margin:0;padding:0 18px 16px}
-.ext-card{border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:12px 14px}
+.ext-list{display:flex;flex-direction:column;gap:10px;padding:0}
+.extension-center>.actions-note{margin:12px 0 0;padding:0}
+.ext-card{border:1px solid var(--line);border-radius:var(--r);background:var(--panel);padding:12px 14px;transition:border-color .12s}.ext-card:hover{border-color:var(--line2)}
 .ext-card-head{display:flex;align-items:center;gap:12px}
 .ext-icon{width:32px;height:32px;border-radius:7px;object-fit:contain;flex:0 0 32px}
 .ext-icon.ext-letter{font-size:15px}
@@ -51,8 +51,8 @@
 .ext-instances .ext-label{padding-top:6px}
 .ext-chips{display:flex;flex-wrap:wrap;gap:6px;min-width:0}
 .ext-chip{display:inline-flex;align-items:center;gap:6px;max-width:240px;height:28px;padding:0 10px 0 6px;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--text);font-size:12px;cursor:pointer}
-.ext-chip:hover{border-color:var(--accent)}
-.ext-chip.on{background:var(--panel2);border-color:var(--accent)}
+.ext-chip:hover{border-color:var(--line2);background:var(--hover)}
+.ext-chip.on{background:var(--accent-weak);border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
 .ext-chip.changed{border-style:dashed;border-color:var(--amber)}
 .ext-check{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;border:1px solid var(--line);font-size:11px;line-height:1;color:#fff;flex:0 0 16px}
 .ext-chip.on .ext-check{background:var(--accent);border-color:var(--accent)}

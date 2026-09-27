@@ -54,7 +54,7 @@ function restoreScroll(key){const record=uiScrollMemory.get(uiScrollKey(key))||{
 
 // Keep keyboard focus when render() rebuilds the tab strip, sidebar or workspace header.
 const uiFocusAttributes=['data-tab','data-close','data-view','data-action','data-ux','data-filter'];
-function focusInfo(el){if(!el||el===document.body||!el.isConnected||!el.getAttribute)return null;const scope=el.closest('#tabs,#sidebar,#workspaceHead,.tab-end,.topbar,#content');const info={scope:scope?.id?'#'+scope.id:scope?.classList.contains('tab-end')?'.tab-end':scope?.classList.contains('topbar')?'.topbar':null};for(const attr of uiFocusAttributes){const value=el.getAttribute(attr);if(value!==null)return {...info,attr,value};}return el.id?{...info,id:el.id}:null;}
+function focusInfo(el){if(!el||el===document.body||!el.isConnected||!el.getAttribute)return null;const scope=el.closest('#tabs,#sidebar,#workspaceHead,.tab-end,.titlebar,#content');const info={scope:scope?.id?'#'+scope.id:scope?.classList.contains('tab-end')?'.tab-end':scope?.classList.contains('titlebar')?'.titlebar':null};for(const attr of uiFocusAttributes){const value=el.getAttribute(attr);if(value!==null)return {...info,attr,value};}return el.id?{...info,id:el.id}:null;}
 function findByFocusInfo(info){if(!info)return null;if(info.id)return document.getElementById(info.id);const root=info.scope?document.querySelector(info.scope):document;return root?.querySelector(`[${info.attr}="${CSS.escape(info.value)}"]`)||null;}
 function focusByInfo(info){const el=findByFocusInfo(info);if(el&&!el.disabled&&el.getClientRects().length){el.focus({preventScroll:true});return true;}return false;}
 function focusLost(){const el=document.activeElement;return !el||el===document.body||!el.isConnected;}
