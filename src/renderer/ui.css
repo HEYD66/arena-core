@@ -1,26 +1,26 @@
 /* Arena Core · 界面样式（2026-09 重构）
-   一个文件，两套主题 token。中性灰表面 + 一种强调绿，控件 30px，节点行 36px。
+   一个文件，两套主题 token。冷调石板灰表面 + 靛蓝强调色（配色「靛青石板」），控件 30px，节点行 36px。
    只影响软件界面，不影响网页内容、实例会话或指纹。 */
 
 /* ── 1. Tokens ─────────────────────────────────────────────── */
 :root{
  color-scheme:light;
- --bg:#f3f4f6;--panel:#ffffff;--panel2:#f6f7f9;--hover:#eceef1;--line:#e1e4e8;--line2:#cdd3d9;
- --text:#1b2127;--muted:#56616b;--dim:#5b6670;
- --accent:#127457;--accent-hover:#0d634a;--accent-weak:#e4f1ec;--accent-text:#0f6a4f;--on-accent:#ffffff;
- --green:#16734f;--amber:#8a5a0e;--amber-weak:#fbf2e2;--red:#b4334a;--red-solid:#b8364c;--red-hover:#a02d41;--red-weak:#fbecef;
+ --bg:#f4f5f8;--panel:#ffffff;--panel2:#f7f8fa;--hover:#eef0f4;--line:#e3e6ec;--line2:#cfd4dd;
+ --text:#171a21;--muted:#596070;--dim:#5d6474;
+ --accent:#4a51c7;--accent-hover:#3e44b0;--accent-weak:#eceefd;--accent-text:#3f46b8;--on-accent:#ffffff;
+ --green:#177a52;--amber:#8a5a0e;--amber-weak:#fbf2e2;--red:#b4334a;--red-solid:#b8364c;--red-hover:#a02d41;--red-weak:#fbecef;
  --purple:var(--accent);
- --shadow-sm:0 1px 2px rgba(16,24,32,.06);--shadow:0 1px 2px rgba(16,24,32,.06),0 8px 24px rgba(16,24,32,.08);--shadow-lg:0 24px 64px rgba(16,24,32,.18);
- --scrim:rgba(17,24,31,.38);
+ --shadow-sm:0 1px 2px rgba(20,24,40,.06);--shadow:0 1px 2px rgba(20,24,40,.06),0 8px 24px rgba(20,24,40,.08);--shadow-lg:0 24px 64px rgba(20,24,40,.18);
+ --scrim:rgba(15,17,28,.40);
  --r:8px;--r-sm:6px;--h:30px;--h-sm:26px;
  font-family:"Segoe UI Variable Text","Segoe UI","Microsoft YaHei UI","Microsoft YaHei","PingFang SC",system-ui,sans-serif;
  font-size:13px;line-height:1.5;color:var(--text);background:var(--bg);font-synthesis:none;-webkit-font-smoothing:antialiased;
 }
 :root[data-theme="dark"]{
  color-scheme:dark;
- --bg:#111417;--panel:#181c20;--panel2:#1e2328;--hover:#262c32;--line:#2b3238;--line2:#3b434b;
- --text:#e5e9ec;--muted:#a4aeb6;--dim:#9ba5ad;
- --accent:#1a7a5b;--accent-hover:#20896a;--accent-weak:#16302a;--accent-text:#5fcfa7;--on-accent:#ffffff;
+ --bg:#0f1115;--panel:#16181e;--panel2:#1c1f26;--hover:#23272f;--line:#282c35;--line2:#373c47;
+ --text:#e7e9ee;--muted:#9ea4b3;--dim:#979dac;
+ --accent:#555cd3;--accent-hover:#4b52c6;--accent-weak:#1f2240;--accent-text:#a8adff;--on-accent:#ffffff;
  --green:#5fcf9d;--amber:#e3ae55;--amber-weak:#33291a;--red:#ff9dac;--red-solid:#b0384c;--red-hover:#c24459;--red-weak:#3a1d24;
  --shadow-sm:0 1px 2px rgba(0,0,0,.4);--shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px rgba(0,0,0,.35);--shadow-lg:0 24px 64px rgba(0,0,0,.55);
  --scrim:rgba(0,0,0,.55);
