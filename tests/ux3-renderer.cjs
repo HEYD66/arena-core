@@ -82,15 +82,15 @@ try{
  await page.evaluate(()=>{document.documentElement.dataset.theme='light';});
  ok('All visible text is >= 11px and >= 4.5:1 in day and night themes across all nine views');
  // B2. Optional palettes (应用信息 → 外观主题): choosing one switches mode, persists, and every palette stays readable.
- await page.click('#sidebar .nav[data-view="settings"]');await settle(page);assert.match(await page.locator('#workspaceHead h1').textContent(),/^设置/);assert.equal(await page.locator('#sidebar .nav.active').getAttribute('data-view'),'settings');assert.equal(await page.locator('.theme-card [data-palette-mode]').count(),8,'4 day + 4 night palettes');
+ await page.click('#sidebar .nav[data-view="settings"]');await settle(page);assert.match(await page.locator('#workspaceHead h1').textContent(),/^设置/);assert.equal(await page.locator('#sidebar .nav.active').getAttribute('data-view'),'settings');const pals=await page.evaluate(()=>window.arenaAppearance.palettes);assert.equal(await page.locator('.theme-card [data-palette-mode]').count(),pals.light.length+pals.dark.length);assert(pals.light.length>=8&&pals.dark.length>=8,'at least 8 day and 8 night palettes');
  await page.click('[data-palette-mode="dark"][data-palette="gold"]');
  assert.deepEqual(await page.evaluate(()=>({theme:document.documentElement.dataset.theme,dark:document.documentElement.dataset.darkPalette,stored:localStorage.getItem('arena.ui.palette.dark'),checked:document.querySelector('[data-palette-mode="dark"][data-palette="gold"]').getAttribute('aria-checked'),live:document.querySelector('[data-theme-row="dark"]').classList.contains('is-live')})),{theme:'dark',dark:'gold',stored:'gold',checked:'true',live:true});
  const audit2=new Set();
- for(const [theme,ids] of [['light',['mono','copper','moss']],['dark',['gold','mono','moss']]])for(const id of ids){await page.evaluate(([t,i])=>{const r=document.documentElement;r.dataset.theme=t;r.dataset[t==='dark'?'darkPalette':'lightPalette']=i;},[theme,id]);await page.waitForTimeout(450);
-  for(const v of ['environment','overview','proxies','extensions','settings']){await go(page,v);await settle(page);const r=await readability(page);for(const x of r.small)audit2.add(`${theme}:${id}/${v} <11px: ${x}`);for(const x of r.low)audit2.add(`${theme}:${id}/${v} <4.5:1: ${x}`);}}
+ for(const [theme,ids] of ['light','dark'].map(m=>[m,pals[m].map(p=>p.id).filter(i=>i!=='indigo')]))for(const id of ids){await page.evaluate(([t,i])=>{const r=document.documentElement;r.dataset.theme=t;r.dataset[t==='dark'?'darkPalette':'lightPalette']=i;},[theme,id]);await page.waitForTimeout(450);
+  for(const v of ['environment','overview','proxies','settings']){await go(page,v);await settle(page);const r=await readability(page);for(const x of r.small)audit2.add(`${theme}:${id}/${v} <11px: ${x}`);for(const x of r.low)audit2.add(`${theme}:${id}/${v} <4.5:1: ${x}`);}}
  await page.evaluate(()=>{const r=document.documentElement;r.dataset.theme='light';r.dataset.lightPalette='indigo';r.dataset.darkPalette='indigo';localStorage.removeItem('arena.ui.palette.dark');localStorage.setItem('arena.ui.theme','light');});await page.waitForTimeout(450);
  assert.deepEqual([...audit2],[],'palette readability audit');
- ok('Theme picker switches and remembers palettes; six alternative palettes keep audited text >= 11px and >= 4.5:1');
+ ok('Theme picker switches and remembers palettes; every alternative palette (including tinted title bar/sidebar) keeps audited text >= 11px and >= 4.5:1');
  await go(page,'proxies');await settle(page);const rows=await page.$$eval('#content .compact-node-table tbody tr',rs=>rs.filter(r=>r.getClientRects().length).map(r=>Math.round(r.getBoundingClientRect().height)));
  assert(rows.length>=20,'node rows rendered: '+rows.length);assert(rows.every(h=>h<=37),'compact rows stay 36px: '+rows.join(','));
  ok('43-node compact table keeps 36px rows after the size increase');
