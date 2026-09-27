@@ -1,7 +1,10 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
 const {atomic}=require('./store.cjs');
-const LIMIT=100*1024*1024;
+const LIMIT=500*1024*1024,ENTRY_LIMIT=50000,DEPTH_LIMIT=64;
+// Development-only folders/files that an unpacked extension never needs at runtime; skipped on import and reported.
+const SKIP_DIRS=new Set(['.git','.svn','.hg','.vscode','.idea','node_modules','__pycache__']),SKIP_FILES=new Set(['.DS_Store','Thumbs.db','desktop.ini']);
+const sizeText=b=>b>=1024**3?(b/1024**3).toFixed(1)+' GB':b>=1024**2?(b/1024**2).toFixed(b>=100*1024**2?0:1).replace(/\.0$/,'')+' MB':Math.max(1,Math.ceil(b/1024))+' KB';
 function localPage(value){if(typeof value!=='string'||!value||value.length>1024||/[\\%?#\x00-\x1f]/.test(value)||value.startsWith('/')||value.includes(':')||value.split('/').some(x=>x==='..'||x==='.'||!x))throw Error('扩展页面必须是扩展目录内的相对路径');return value;}
 function inspect(folder){const file=path.join(folder,'manifest.json');if(!fs.existsSync(file)||fs.statSync(file).size>1024*1024)throw Error('请选择包含manifest.json的解压扩展文件夹（清单上限1MB）');let m;try{m=JSON.parse(fs.readFileSync(file,'utf8'));}catch{throw Error('扩展manifest.json不是有效JSON');}if(![2,3].includes(m.manifest_version)||typeof m.name!=='string'||!m.name.trim()||m.name.length>200||typeof m.version!=='string'||m.version.length>50)throw Error('扩展名称、版本或manifest_version无效');
  const entries={};for(const [key,value]of Object.entries({popup:m.action?.default_popup||m.browser_action?.default_popup||m.page_action?.default_popup,options:m.options_ui?.page||m.options_page})){if(value){entries[key]=localPage(value);if(!fs.statSync(path.join(folder,entries[key])).isFile())throw Error('扩展界面文件不存在');}}
@@ -22,8 +25,30 @@ class ExtensionCatalog{
  get(id){const row=this.data.items.find(x=>x.id===id);if(!row)throw Error('扩展不存在');return row;}
  folder(id){this.get(id);return path.join(this.base,id);}
  stage(source){if(this.data.items.length>=20)throw Error('扩展上限20个');const id='ext-'+crypto.randomUUID(),dest=path.join(this.base,id);let count=0,bytes=0;const digest=crypto.createHash('sha256');
- const walk=(src,out,rel='')=>{if(++count>10000||rel.split('/').length>64)throw Error('扩展上限10000目录/文件，目录深度64');const st=fs.lstatSync(src);if(st.isSymbolicLink())throw Error('扩展不允许符号链接或目录联接');if(st.isDirectory()){fs.mkdirSync(out);for(const n of fs.readdirSync(src).sort())walk(path.join(src,n),path.join(out,n),rel+'/'+n);}else if(st.isFile()){if((bytes+=st.size)>LIMIT)throw Error('扩展上限100MB/10000文件');const b=fs.readFileSync(src);if(b.length!==st.size)throw Error('扩展文件正在改变，请关闭编辑程序后重试');digest.update(rel).update('\0').update(b);fs.writeFileSync(out,b,{flag:'wx'});}else throw Error('扩展包含不支持的文件类型');};
- try{if(!fs.lstatSync(source).isDirectory())throw Error('请选择解压后的扩展文件夹');const relative=path.relative(fs.realpathSync(source),dest);if(!relative.startsWith('..'+path.sep)&&relative!=='..'&&!path.isAbsolute(relative))throw Error('不能导入包含应用扩展存储目录的父文件夹');walk(source,dest);const info=inspect(dest),sha256=digest.digest('hex');if(this.data.items.some(x=>x.sha256===sha256||info.key&&x.key===info.key))throw Error('此扩展或同一签名的版本已导入；请先停用并移除旧版本');return {id,...info,sha256,bytes,files:count,importedAt:new Date().toISOString()};}catch(e){fs.rmSync(dest,{recursive:true,force:true});throw e;}}
+ try{if(!fs.lstatSync(source).isDirectory())throw Error('请选择解压后的扩展文件夹');const relative=path.relative(fs.realpathSync(source),dest);if(!relative.startsWith('..'+path.sep)&&relative!=='..'&&!path.isAbsolute(relative))throw Error('不能导入包含应用扩展存储目录的父文件夹');
+  if(!fs.existsSync(path.join(source,'manifest.json'))){const found=[];try{for(const n of fs.readdirSync(source).sort()){const d=path.join(source,n);try{if(fs.lstatSync(d).isDirectory()&&fs.existsSync(path.join(d,'manifest.json')))found.push(n);}catch{}if(found.length>=8)break;}}catch{}
+   throw Error('请选择包含manifest.json的解压扩展文件夹：所选文件夹的根目录没有 manifest.json'+(found.length?'。里面这些子文件夹是扩展，请选其中一个：'+found.join('、'):''));}
+  // node_modules is only skipped when the manifest does not point into it.
+  const keepModules=fs.readFileSync(path.join(source,'manifest.json'),'utf8').includes('node_modules'),skip=n=>SKIP_DIRS.has(n)&&!(n==='node_modules'&&keepModules);
+  // Pass 1: sizes only, so an oversize folder is rejected before anything is copied and the message can say why.
+  const top=new Map(),skipped=new Map();
+  const scan=(src,rel,depth,bucket)=>{if(depth>DEPTH_LIMIT)throw Error('扩展目录层级超过'+DEPTH_LIMIT+'层');const st=fs.lstatSync(src);if(st.isSymbolicLink())throw Error('扩展不允许符号链接或目录联接');count++;
+   if(st.isDirectory()){for(const n of fs.readdirSync(src)){const child=path.join(src,n),r=rel?rel+'/'+n:n,isDir=fs.lstatSync(child).isDirectory(),b=bucket??(isDir?n:null);
+     if(isDir?skip(n):SKIP_FILES.has(n)){let size=0;const measure=x=>{const t=fs.lstatSync(x);if(t.isSymbolicLink())return;if(t.isDirectory())for(const m of fs.readdirSync(x))measure(path.join(x,m));else size+=t.size;};try{measure(child);}catch{}skipped.set(r,size);continue;}
+     scan(child,r,depth+1,b);}}
+   else if(st.isFile()){bytes+=st.size;top.set(bucket,(top.get(bucket)||0)+st.size);}else throw Error('扩展包含不支持的文件类型');};
+  scan(source,'',0,null);count--;
+  if(bytes>LIMIT||count>ENTRY_LIMIT){const biggest=[...top].sort((a,b)=>b[1]-a[1]).slice(0,3).map(([n,b])=>(n??'根目录文件')+'（'+sizeText(b)+'）').join('、');
+   throw Error(`扩展文件夹共 ${sizeText(bytes)} / ${count} 个文件和目录，超过上限 500MB / ${ENTRY_LIMIT} 个。占用最多：${biggest}`);}
+  // Pass 2: stream-copy in chunks (large model files never sit in memory) and hash exactly what was copied.
+  const buffer=Buffer.allocUnsafe(4*1024*1024);
+  const copy=(src,out,rel)=>{const st=fs.lstatSync(src);if(st.isSymbolicLink())throw Error('扩展不允许符号链接或目录联接');
+   if(st.isDirectory()){fs.mkdirSync(out);for(const n of fs.readdirSync(src).sort()){const child=path.join(src,n),r=rel+'/'+n;if(skipped.has(r.slice(1)))continue;copy(child,path.join(out,n),r);}}
+   else if(st.isFile()){const input=fs.openSync(src,'r'),output=fs.openSync(out,'wx');let total=0;digest.update(rel).update('\0');try{for(;;){const n=fs.readSync(input,buffer,0,buffer.length,null);if(!n)break;total+=n;digest.update(buffer.subarray(0,n));fs.writeSync(output,buffer,0,n);}}finally{fs.closeSync(input);fs.closeSync(output);}if(total!==st.size)throw Error('扩展文件正在改变，请关闭编辑程序后重试');}
+   else throw Error('扩展包含不支持的文件类型');};
+  copy(source,dest,'');
+  const info=inspect(dest),sha256=digest.digest('hex');if(this.data.items.some(x=>x.sha256===sha256||info.key&&x.key===info.key))throw Error('此扩展或同一签名的版本已导入；请先停用并移除旧版本');
+  return {id,...info,sha256,bytes,files:count,skipped:[...skipped].map(([name,size])=>({name,size})),importedAt:new Date().toISOString()};}catch(e){fs.rmSync(dest,{recursive:true,force:true});throw e;}}
  accept(row){this.commit({...this.data,items:[...this.data.items,row]});}
  discard(row){fs.rmSync(path.join(this.base,row.id),{recursive:true,force:true});}
  setEnabled(instanceId,id,enabled){this.get(id);if(typeof enabled!=='boolean')throw Error('启用状态无效');const set=new Set(this.data.enabled[instanceId]||[]);enabled?set.add(id):set.delete(id);this.commit({...this.data,enabled:{...this.data.enabled,[instanceId]:[...set]}});}
@@ -31,4 +56,4 @@ class ExtensionCatalog{
  forget(id){const enabled={...this.data.enabled};delete enabled[id];this.commit({...this.data,enabled});}
  remove(id){const row=this.get(id);if(Object.values(this.data.enabled).some(list=>list.includes(id)))throw Error('请先在所有实例中停用此扩展');this.commit({...this.data,items:this.data.items.filter(x=>x.id!==id)});this.discard(row);}
 }
-module.exports={ExtensionCatalog,inspect,localPage,extensionIcon};
+module.exports={ExtensionCatalog,inspect,localPage,extensionIcon,sizeText};
