@@ -24,7 +24,7 @@ class ExtensionCatalog{
  commit(data){atomic(this.file,data);this.data=data;}
  get(id){const row=this.data.items.find(x=>x.id===id);if(!row)throw Error('扩展不存在');return row;}
  folder(id){this.get(id);return path.join(this.base,id);}
- stage(source){if(this.data.items.length>=20)throw Error('扩展上限20个');const id='ext-'+crypto.randomUUID(),dest=path.join(this.base,id);let count=0,bytes=0;const digest=crypto.createHash('sha256');
+ stage(source,replacing=null){if(!replacing&&this.data.items.length>=20)throw Error('扩展上限20个');const id='ext-'+crypto.randomUUID(),dest=path.join(this.base,id);let count=0,bytes=0;const digest=crypto.createHash('sha256');
  try{if(!fs.lstatSync(source).isDirectory())throw Error('请选择解压后的扩展文件夹');const relative=path.relative(fs.realpathSync(source),dest);if(!relative.startsWith('..'+path.sep)&&relative!=='..'&&!path.isAbsolute(relative))throw Error('不能导入包含应用扩展存储目录的父文件夹');
   if(!fs.existsSync(path.join(source,'manifest.json'))){const found=[];try{for(const n of fs.readdirSync(source).sort()){const d=path.join(source,n);try{if(fs.lstatSync(d).isDirectory()&&fs.existsSync(path.join(d,'manifest.json')))found.push(n);}catch{}if(found.length>=8)break;}}catch{}
    throw Error('请选择包含manifest.json的解压扩展文件夹：所选文件夹的根目录没有 manifest.json'+(found.length?'。里面这些子文件夹是扩展，请选其中一个：'+found.join('、'):''));}
@@ -47,9 +47,17 @@ class ExtensionCatalog{
    else if(st.isFile()){const input=fs.openSync(src,'r'),output=fs.openSync(out,'wx');let total=0;digest.update(rel).update('\0');try{for(;;){const n=fs.readSync(input,buffer,0,buffer.length,null);if(!n)break;total+=n;digest.update(buffer.subarray(0,n));fs.writeSync(output,buffer,0,n);}}finally{fs.closeSync(input);fs.closeSync(output);}if(total!==st.size)throw Error('扩展文件正在改变，请关闭编辑程序后重试');}
    else throw Error('扩展包含不支持的文件类型');};
   copy(source,dest,'');
-  const info=inspect(dest),sha256=digest.digest('hex');if(this.data.items.some(x=>x.sha256===sha256||info.key&&x.key===info.key))throw Error('此扩展或同一签名的版本已导入；请先停用并移除旧版本');
-  return {id,...info,sha256,bytes,files:count,skipped:[...skipped].map(([name,size])=>({name,size})),importedAt:new Date().toISOString()};}catch(e){fs.rmSync(dest,{recursive:true,force:true});throw e;}}
+  const info=inspect(dest),sha256=digest.digest('hex');if(this.data.items.some(x=>x.id!==replacing&&(x.sha256===sha256||info.key&&x.key===info.key)))throw Error('此扩展或同一签名的版本已导入；请先停用并移除旧版本');
+  return {id,...info,source:path.resolve(source),sha256,bytes,files:count,skipped:[...skipped].map(([name,size])=>({name,size})),importedAt:new Date().toISOString()};}catch(e){fs.rmSync(dest,{recursive:true,force:true});throw e;}}
  accept(row){this.commit({...this.data,items:[...this.data.items,row]});}
+ // Refresh in place: the package folder path (and so the Chromium extension ID and its saved data) stays the same.
+ replace(id,row){const old=this.get(id),dir=path.join(this.base,id),staged=path.join(this.base,row.id),trash=path.join(this.base,id+'.old-'+Date.now());
+  try{fs.renameSync(dir,trash);}catch{throw Error('扩展文件被占用，无法替换；请关闭扩展面板或相关实例后重试');}
+  try{fs.renameSync(staged,dir);}catch{fs.renameSync(trash,dir);throw Error('新版本文件无法放入扩展目录，已保留旧版本');}
+  const next={...row,id,importedAt:old.importedAt,updatedAt:new Date().toISOString()};
+  try{this.commit({...this.data,items:this.data.items.map(x=>x.id===id?next:x)});}catch(e){fs.renameSync(dir,staged);fs.renameSync(trash,dir);throw e;}
+  fs.rmSync(trash,{recursive:true,force:true});return next;}
+ setSource(id,source){this.get(id);this.commit({...this.data,items:this.data.items.map(x=>x.id===id?{...x,source}:x)});}
  discard(row){fs.rmSync(path.join(this.base,row.id),{recursive:true,force:true});}
  setEnabled(instanceId,id,enabled){this.get(id);if(typeof enabled!=='boolean')throw Error('启用状态无效');const set=new Set(this.data.enabled[instanceId]||[]);enabled?set.add(id):set.delete(id);this.commit({...this.data,enabled:{...this.data.enabled,[instanceId]:[...set]}});}
  enabled(id){return this.data.enabled[id]||[];}

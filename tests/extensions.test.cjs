@@ -20,3 +20,11 @@ test('development folders are skipped and reported; a parent folder names the ex
  const row=c.stage(s);const copied=fs.readdirSync(path.join(c.base,row.id)).sort();assert.deepEqual(copied,['content.js','manifest.json','model','popup.html']);assert.deepEqual(row.skipped.map(x=>x.name).sort(),['.git','.vscode','Thumbs.db','node_modules']);assert.equal(row.skipped.find(x=>x.name==='.git').size,2048);assert.equal(fs.statSync(path.join(c.base,row.id,'model/weights.bin')).size,4096);c.discard(row);
  const m=JSON.parse(fs.readFileSync(path.join(s,'manifest.json')));m.content_scripts[0].js=['node_modules/pkg/index.js'];fs.writeFileSync(path.join(s,'manifest.json'),JSON.stringify(m));const kept=c.stage(s);assert(fs.existsSync(path.join(c.base,kept.id,'node_modules/pkg/index.js')),'node_modules kept when the manifest references it');c.discard(kept);
  const parent=path.join(root,'store');fs.mkdirSync(parent);fs.cpSync(s,path.join(parent,'ext-one'),{recursive:true});fs.mkdirSync(path.join(parent,'notes'));assert.throws(()=>c.stage(parent),/根目录没有 manifest\.json。里面这些子文件夹是扩展，请选其中一个：ext-one$/);}));
+test('refresh replaces files in the same package folder, keeps id and enable list, and remembers the source',()=>fixture((c,s)=>{const row=c.stage(s);assert.equal(row.source,path.resolve(s));c.accept(row);c.setEnabled('inst-a',row.id,true);const folder=c.folder(row.id);
+ const same=c.stage(s,row.id);assert.equal(same.sha256,row.sha256,'unchanged folder hashes the same');assert.doesNotThrow(()=>c.discard(same));
+ const m=JSON.parse(fs.readFileSync(path.join(s,'manifest.json')));m.version='2.0';fs.writeFileSync(path.join(s,'manifest.json'),JSON.stringify(m));fs.writeFileSync(path.join(s,'content.js'),'console.log("v2")');
+ const next=c.stage(s,row.id);const updated=c.replace(row.id,next);
+ assert.equal(updated.id,row.id);assert.equal(updated.version,'2.0');assert.equal(updated.importedAt,row.importedAt);assert(updated.updatedAt);assert.equal(c.folder(row.id),folder);
+ assert.equal(fs.readFileSync(path.join(folder,'content.js'),'utf8'),'console.log("v2")');assert.deepEqual(c.enabled('inst-a'),[row.id]);assert.equal(c.data.items.length,1);
+ assert.deepEqual(fs.readdirSync(c.base).sort(),[row.id],'staging and old copies are cleaned up');
+ c.setSource(row.id,'D:\\\\moved');assert.equal(c.get(row.id).source,'D:\\\\moved');}));

@@ -385,21 +385,37 @@ input[aria-invalid="true"],select[aria-invalid="true"]{border-color:var(--red)!i
 .panel-head h3,.settings-card .panel-head h3{min-height:0;margin:0;padding:0;border:0;font-size:12px;font-weight:600;color:var(--muted)}
 .library-sources{display:flex;flex-direction:column}
 .empty-sources{margin:0;padding:14px 12px}
-.source-group{border-bottom:1px solid var(--line)}
-.source-group>summary{display:flex;align-items:flex-start;gap:8px;padding:10px 12px;cursor:pointer;list-style:none}
+.library-sources{padding:6px;gap:6px}
+.source-group{border:1px solid var(--line);border-radius:8px;background:var(--panel2);overflow:hidden;transition:border-color .12s}
+.source-group:hover{border-color:var(--line-strong,var(--muted))}
+.source-group[open]{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.source-group>summary{display:flex;align-items:center;gap:10px;padding:9px 10px;cursor:pointer;list-style:none}
 .source-group>summary::-webkit-details-marker{display:none}
-.source-group>summary:hover{background:var(--panel2)}
-.source-group[open]>summary{background:var(--accent-weak);box-shadow:inset 3px 0 0 var(--accent)}
+.source-group[open]>summary{background:var(--accent-weak)}
+.source-badge{flex:none;width:28px;height:28px;border-radius:7px;display:grid;place-items:center;color:#fff;font:700 13px/1 "Segoe UI",system-ui,sans-serif}
 .source-group>summary>div{flex:1;min-width:0}
-.source-group>summary b{display:block;font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.source-group>summary small{display:block;margin-top:2px;font-size:11px;color:var(--muted);line-height:1.5}
+.source-group>summary b{display:block;font-size:13.5px;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.source-group>summary small{display:block;margin-top:1px;font-size:11px;color:var(--muted);line-height:1.45;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.source-kind{flex:none;font-size:11px;line-height:18px;padding:0 6px;border-radius:9px;border:1px solid var(--line);color:var(--muted);background:var(--panel)}
+.source-chevron{flex:none;width:14px;height:14px;color:var(--muted);transition:transform .15s}
+.source-group[open] .source-chevron{transform:rotate(90deg);color:var(--accent-text,var(--accent))}
 .source-group>summary time{display:none}
-.source-group-body{padding:8px 12px 10px;background:var(--panel)}
+.source-group-body{padding:8px 10px 10px;background:var(--panel);border-top:1px solid var(--line)}
 .source-group-body>.subscription-actions{gap:4px}
 .source-host{flex:1 1 100%;min-width:0;margin-bottom:2px;font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .source-group-body .actions-note{font-size:11px}
-.source-hint{margin-top:8px;font-size:12px;color:var(--amber)}
-.source-hint>div{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:4px}
+.source-changes{margin:6px 0 0;cursor:help}
+.source-hint{margin-top:8px;border:1px solid var(--line);border-radius:6px;font-size:11.5px}
+.source-hint>summary{display:flex;align-items:center;gap:8px;padding:5px 8px;cursor:pointer;list-style:none}
+.source-hint>summary::-webkit-details-marker{display:none}
+.source-hint-line{flex:1;min-width:0;color:var(--amber);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.source-hint>summary em{flex:none;font-style:normal;font-size:11px;color:var(--muted)}
+.source-hint>summary em::after{content:" ▸"}
+.source-hint[open]>summary em::after{content:" ▾"}
+.source-hint>p{margin:0;padding:6px 8px 2px;font-size:11px;color:var(--muted);border-top:1px solid var(--line)}
+.source-hint>div{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:3px 8px;color:var(--amber)}
+.source-hint>div:last-child{padding-bottom:7px}
+.source-hint>div>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .source-form{padding:12px}
 .panel-subhead{display:flex;align-items:center;justify-content:space-between;margin:0 0 8px;font-size:12px;font-weight:600;color:var(--muted)}
 .source-form .library-form{flex-direction:column;align-items:stretch;gap:10px}

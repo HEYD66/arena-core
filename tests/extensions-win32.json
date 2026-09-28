@@ -1,13 +1,14 @@
 {
   "platform": "win32",
   "electron": "44.4.5",
-  "passed": 12,
+  "passed": 13,
   "results": [
     "Trusted-folder import requires consent, copies package and never auto-enables or starts instances",
     "Enable cancellation is safe; confirming stops only the named target and saves selection",
     "Content scripts run only in enabled instance; extension panel shares its session but has no control bridge or Node",
     "Same extension in two persistent sessions keeps chrome.storage.local isolated",
     "Stopping unloads extension and panels; restarting restores selection and storage without changing environment",
+    "Refresh re-reads the source folder: unchanged is a no-op, an update needs consent, stops only instances using it and keeps its storage",
     "Disabling removes residual content scripts on restart; removal refuses extensions still used elsewhere",
     "Unreferenced extension removal deletes only its owned package",
     "An invalid enabled package blocks instance startup with an explicit extension error",

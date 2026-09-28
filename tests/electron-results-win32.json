@@ -223,7 +223,7 @@
   "scale": {
     "running": 6,
     "workload": "local HTML fixtures; direct; no live websites",
-    "workingSetKiB": 1278920
+    "workingSetKiB": 1456996
   },
   "errors": []
 }
