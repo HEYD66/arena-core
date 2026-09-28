@@ -1,7 +1,7 @@
 {
   "platform": "win32",
   "electron": "44.4.5",
-  "passed": 11,
+  "passed": 12,
   "results": [
     "Trusted-folder import requires consent, copies package and never auto-enables or starts instances",
     "Enable cancellation is safe; confirming stops only the named target and saves selection",
@@ -11,6 +11,7 @@
     "Disabling removes residual content scripts on restart; removal refuses extensions still used elsewhere",
     "Unreferenced extension removal deletes only its owned package",
     "An invalid enabled package blocks instance startup with an explicit extension error",
+    "Extension menu keeps a still frame of the page visible instead of blanking it",
     "Enabled extension preserves fixed viewport DPR 2 and actual corner mouse coordinates",
     "Extension background fetch uses its isolated Mihomo; core failure unloads it without direct fallback",
     "Extension management fits three window sizes and night mode"

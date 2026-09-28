@@ -45,6 +45,7 @@ function installIPC(window,controller){
     case 'rename':controller.store.update(id,{name:message.name});controller.emit();break;
     case 'activate':controller.choose(id??null);break;
     case 'layout':controller.layout(id,message.bounds);break;
+    case 'browser-snapshot':return {ok:true,value:await controller.capturePageFrame(id)};
     case 'start':await controller.start(id);break;
     case 'stop':await controller.stop(id);break;
     case 'remove':await controller.remove(id);break;

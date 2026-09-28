@@ -307,6 +307,7 @@ input[aria-invalid="true"],select[aria-invalid="true"]{border-color:var(--red)!i
 .quick-manage{width:26px;height:26px}
 .quick-manage svg{width:15px;height:15px}
 .browser-page{position:relative;flex:1;min-height:0;display:flex;flex-direction:column;background:var(--bg);overflow:auto}
+.browser-page>.page-snapshot{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:1;pointer-events:none;user-select:none}
 #browserHost{min-height:200px}
 .browser-alert{display:flex;align-items:center;gap:8px;padding:6px 12px;border-top:1px solid color-mix(in srgb,var(--red) 30%,var(--line));background:var(--red-weak);color:var(--red);font-size:12px;flex-shrink:0}
 .browser-alert span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
