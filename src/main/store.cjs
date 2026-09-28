@@ -15,8 +15,9 @@ class Store {
  remove(id){this.get(id);this.commit({...this.data,instances:this.list().filter(x=>x.id!==id)});}
  proxyFile(id){this.get(id);return path.join(this.dir,'proxy-sources',id+'.json');}
  importNodes(id,text){const nodes=parseNodes(text);this.saveNodes(id,nodes,null);return nodes.map(n=>n.name);}
- saveNodes(id,nodes,subscription,assignment=null){atomic(this.proxyFile(id),{version:1,nodes,subscription,assignment});}
- source(id){const p=this.proxyFile(id);if(!fs.existsSync(p))return {nodes:[],subscription:null};const data=JSON.parse(fs.readFileSync(p,'utf8'));if(Array.isArray(data))return {nodes:data,subscription:null};if(data.version!==1||!Array.isArray(data.nodes))throw Error('节点配置格式无效，请重新导入');return data;}
+ saveNodes(id,nodes,subscription,assignment=null){this.sourceCache?.delete(id);atomic(this.proxyFile(id),{version:1,nodes,subscription,assignment});}
+ // 状态推送很频繁：节点文件按修改时间和大小缓存，未变化时不再重复读取解析。
+ source(id){const p=this.proxyFile(id);let st;try{st=fs.statSync(p);}catch{this.sourceCache?.delete(id);return {nodes:[],subscription:null};}const hit=this.sourceCache?.get(id);if(hit&&hit.mtime===st.mtimeMs&&hit.size===st.size)return hit.data;const raw=JSON.parse(fs.readFileSync(p,'utf8'));let data;if(Array.isArray(raw))data={nodes:raw,subscription:null};else{if(raw.version!==1||!Array.isArray(raw.nodes))throw Error('节点配置格式无效，请重新导入');data=raw;}(this.sourceCache??=new Map()).set(id,{mtime:st.mtimeMs,size:st.size,data});return data;}
  subscriptionSummary(id){const sub=this.source(id).subscription;if(!sub)return null;return {host:new URL(sub.url).host,updatedAt:sub.updatedAt};}
 
  nodes(id){return this.source(id).nodes;}

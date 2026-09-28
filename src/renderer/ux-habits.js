@@ -23,7 +23,8 @@ function restoreUiState(){
  const sources=new Set([...(state.library||[]).map(x=>x.id),...(state.events||[]).map(x=>x.sourceId).filter(Boolean)]);
  librarySort=uiOneOf(f.librarySort,['original','latency','favorite','name'],librarySort);
  libraryOnly=uiOneOf(f.libraryOnly,['all','favorites','available'],libraryOnly);
- libraryConcurrency=uiOneOf(f.libraryConcurrency,[1,2,3,4,5,6],libraryConcurrency);
+ libraryConcurrency=uiOneOf(f.libraryConcurrency,[1,2,3,4,5,6,8,10,12,16],libraryConcurrency);
+ libraryMinSuccess=uiOneOf(f.libraryMinSuccess,[0,1,2,3,5,10],libraryMinSuccess);
  if(typeof f.libraryIncludeHints==='boolean')libraryIncludeHints=f.libraryIncludeHints;
  if((state.library||[]).some(x=>x.id===f.librarySource))librarySource=f.librarySource;
  librarySearch=uiText(f.librarySearch,librarySearch);
@@ -40,7 +41,7 @@ function restoreUiState(){
 function saveUiState(){
  clearTimeout(uiSaveTimer);uiSaveTimer=null;if(!uiReady)return;
  const value={v:1,savedAt:new Date().toISOString(),localOpen:[...localOpen],activeId,view:view==='favorites'?'proxies':view,advancedEnvironmentOpen,
-  filters:{librarySort,libraryOnly,libraryConcurrency,libraryIncludeHints,librarySource,librarySearch,globalLogLevel,globalLogScope,globalLogInstance,globalLogSource,filter,search,favoriteTab}};
+  filters:{librarySort,libraryOnly,libraryConcurrency,libraryMinSuccess,libraryIncludeHints,librarySource,librarySearch,globalLogLevel,globalLogScope,globalLogInstance,globalLogSource,filter,search,favoriteTab}};
  try{localStorage.setItem(UI_STATE_KEY,JSON.stringify(value));}catch{}
 }
 function scheduleUiSave(){if(!uiReady)return;clearTimeout(uiSaveTimer);uiSaveTimer=setTimeout(saveUiState,200);}

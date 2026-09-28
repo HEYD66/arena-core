@@ -1,0 +1,14 @@
+{
+  "platform": "win32",
+  "electron": "44.4.5",
+  "passed": 6,
+  "results": [
+    "window.open popup is an independent window with the instance timezone, language, UA, session and a working opener",
+    "Links opened from inside a popup load in that popup",
+    "At most four popups per instance; extra ones open in the instance page instead",
+    "Ordinary new-tab links keep opening in the instance page",
+    "Stopping the instance closes its popups",
+    "Deleting an instance removes its runtime folder now and leaves browser data for the next-start cleanup"
+  ],
+  "errors": []
+}

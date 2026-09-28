@@ -116,6 +116,9 @@ try{
  await go(page,'proxies');await page.evaluate(()=>{const c=document.querySelector('#content');c.scrollTop=Math.min(320,c.scrollHeight-c.clientHeight);});const top=await page.evaluate(()=>document.querySelector('#content').scrollTop);
  await go(page,'overview');await go(page,'proxies');await settle(page);assert(Math.abs(await page.evaluate(()=>document.querySelector('#content').scrollTop)-top)<=2,'scroll restored');
  ok('Scroll position is remembered per page within the run');
+ const stoppedId=await page.evaluate(()=>state.instances.find(i=>i.status==='stopped').id);await page.evaluate(id=>{localOpen.add(id);render(true);},stoppedId);const stopsBefore=current.calls.filter(c=>c.action==='stop').length;
+ await page.locator(`[data-close="${stoppedId}"]`).click();await page.waitForFunction(id=>!localOpen.has(id),stoppedId);assert.equal(await page.locator('#modalBackdrop').isHidden(),true);assert.equal(current.calls.filter(c=>c.action==='stop').length,stopsBefore);
+ ok('Closing the tab of a stopped instance needs no confirmation and sends no stop');
  assert.deepEqual(errors,[]);await current.context.close();
  current=await openApp(browser,{storage:JSON.stringify({v:1,view:'no-such-view',activeId:'gone',localOpen:['gone','inst-2'],filters:{librarySort:'evil',libraryConcurrency:99,librarySource:'gone',globalLogInstance:'gone',filter:'x',favoriteTab:'?'}})});({page,errors}=current);
  const stale=await page.evaluate(()=>({view,activeId,open:[...localOpen],librarySort,libraryConcurrency,librarySource,globalLogInstance,filter,favoriteTab}));

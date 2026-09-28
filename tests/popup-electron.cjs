@@ -1,0 +1,36 @@
+'use strict';
+// 弹出窗口：网页用 window.open 打开的小窗口（登录、授权等）成为独立窗口，并与实例共用同一登录、代理和环境。
+const {app,BrowserWindow}=require('electron'),fs=require('node:fs'),path=require('node:path'),os=require('node:os'),http=require('node:http'),assert=require('node:assert/strict');
+const root=fs.mkdtempSync(path.join(os.tmpdir(),'arena-popup-'));app.setPath('userData',root);app.commandLine.appendSwitch('disable-features','CalculateNativeWinOcclusion');app.commandLine.appendSwitch('disable-background-networking');if(process.platform==='linux')app.commandLine.appendSwitch('disable-gpu');
+const {Controller}=require('../src/main/controller.cjs'),{orphans}=require('../src/main/cleanup.cjs');
+let win,c,server;const results=[],errors=[],hits=[];const wait=async(fn,label)=>{for(let i=0;i<300;i++){if(await fn())return;await new Promise(r=>setTimeout(r,40));}throw Error('Timeout '+label);};const ok=name=>{results.push(name);console.log('PASS '+name);};setTimeout(()=>app.exit(2),120000).unref();
+const reporter="<script>if(window.opener)opener.postMessage({tz:Intl.DateTimeFormat().resolvedOptions().timeZone,lang:navigator.language,ua:navigator.userAgent,path:location.pathname+location.search},'*')</script>";
+app.whenReady().then(async()=>{try{
+ server=http.createServer((req,res)=>{hits.push({url:req.url,ua:req.headers['user-agent']||'',lang:req.headers['accept-language']||''});res.setHeader('Content-Type','text/html; charset=utf-8');
+  if(req.url.startsWith('/home'))return res.end("<!doctype html><title>Popup home</title><script>window.__msgs=[];addEventListener('message',e=>window.__msgs.push(e.data))</script><h1>HOME</h1>");
+  res.end('<!doctype html><title>'+req.url+'</title>'+reporter+'<h1>'+req.url+'</h1>');});
+ await new Promise(r=>server.listen(0,'127.0.0.1',r));const url='http://127.0.0.1:'+server.address().port;
+ win=new BrowserWindow({width:1280,height:860,show:true,webPreferences:{sandbox:true,nodeIntegration:false,contextIsolation:true,backgroundThrottling:false}});await win.loadURL('about:blank');
+ c=new Controller(win,root,path.join(__dirname,'../resources/mihomo',process.platform==='win32'?'mihomo.exe':'mihomo'));
+ const a=c.store.list()[0]||c.store.create('Popup fixture');c.store.update(a.id,{url:url+'/home',network:{mode:'direct',nodeName:''},environment:{...c.store.get(a.id).environment,timezone:'Pacific/Auckland',language:'en-GB',userAgent:'FacetPopupUA/1.0'}});
+ await c.start(a.id);const r=c.runtimes.get(a.id),wc=r.view.webContents;await wait(()=>wc.getURL()===url+'/home'&&!wc.isLoading(),'home loaded');
+ const inMain=code=>wc.executeJavaScript(code,true);const popups=()=>[...(r.popups||[])].filter(w=>!w.isDestroyed());
+ await inMain(`window.open(${JSON.stringify(url+'/popup?first')},'login','popup,width=480,height=560');true`);
+ await wait(()=>popups().length===1,'popup window');const pop=popups()[0],pwc=pop.webContents;await wait(async()=>(await inMain('window.__msgs.length'))>0,'popup reported through opener');
+ const msg=(await inMain('window.__msgs'))[0];assert.deepEqual(msg,{tz:'Pacific/Auckland',lang:'en-GB',ua:'FacetPopupUA/1.0',path:'/popup?first'});
+ const last=hits.filter(h=>h.url==='/popup?first').at(-1);assert.equal(last.ua,'FacetPopupUA/1.0');assert.match(last.lang,/^en-GB/);
+ assert.equal(pwc.session,wc.session,'same login session');assert.equal(pop.getParentWindow(),win);assert.equal(wc.getURL(),url+'/home','main page stays put');assert.equal(BrowserWindow.getAllWindows().length,2);
+ ok('window.open popup is an independent window with the instance timezone, language, UA, session and a working opener');
+ await pwc.executeJavaScript(`window.open(${JSON.stringify(url+'/nested')});true`,true);await wait(()=>pwc.getURL()===url+'/nested','nested open stays in popup');assert.equal(popups().length,1);assert.equal(wc.getURL(),url+'/home');
+ ok('Links opened from inside a popup load in that popup');
+ for(const n of [2,3,4])await inMain(`window.open(${JSON.stringify(url+'/popup?n'+n)},'p${n}','popup,width=420,height=500');true`);await wait(()=>popups().length===4,'four popups');
+ await inMain(`window.open(${JSON.stringify(url+'/popup?over')},'p5','popup,width=420,height=500');true`);await wait(()=>wc.getURL()===url+'/popup?over','over the limit opens in the page');assert.equal(popups().length,4);
+ ok('At most four popups per instance; extra ones open in the instance page instead');
+ await wc.loadURL(url+'/home');await inMain(`window.open(${JSON.stringify(url+'/tab')});true`);await wait(()=>wc.getURL()===url+'/tab','plain new tab opens in page');assert.equal(popups().length,4);
+ ok('Ordinary new-tab links keep opening in the instance page');
+ const all=popups();await c.stop(a.id);assert(all.every(w=>w.isDestroyed()),'popups closed with the instance');assert.equal(BrowserWindow.getAllWindows().length,1);
+ ok('Stopping the instance closes its popups');
+ const b=c.store.create('Removed fixture');fs.mkdirSync(path.join(root,'core-runtime',b.id),{recursive:true});fs.mkdirSync(path.join(root,'Partitions','arena-core-'+b.id,'Cache'),{recursive:true});
+ await c.remove(b.id);assert.equal(fs.existsSync(path.join(root,'core-runtime',b.id)),false);const left=orphans(root,c.store.list().map(x=>x.id)).filter(p=>p.includes(b.id));assert(left.every(p=>p.includes('Partitions')),left.join());
+ ok('Deleting an instance removes its runtime folder now and leaves browser data for the next-start cleanup');
+}catch(e){errors.push(e.stack||String(e));console.error(e);}finally{try{await c?.closeAll();}catch(e){errors.push(e.message);}win?.destroy();server?.close();const report={platform:process.platform,electron:process.versions.electron,passed:results.length,results,errors};fs.writeFileSync(path.join(__dirname,`popup-${process.platform}.json`),JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report,null,2));app.exit(errors.length?1:0);}});

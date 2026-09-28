@@ -1,7 +1,7 @@
 {
   "platform": "win32",
   "backend": "simulated IPC (self-contained)",
-  "passed": 12,
+  "passed": 13,
   "results": [
     "One management entry; the sidebar stays the same on global pages and only the right side and highlight change; footer is version + Mihomo only",
     "All visible text is >= 11px and >= 4.5:1 in day and night themes across all nine views",
@@ -9,6 +9,7 @@
     "43-node compact table keeps 36px rows after the size increase",
     "Tabs, active instance, page, filters, sort, concurrency and advanced section survive a restart; nothing is started",
     "Scroll position is remembered per page within the run",
+    "Closing the tab of a stopped instance needs no confirmation and sends no stop",
     "Stale ids, unknown views, invalid values and corrupt storage fall back safely",
     "Ctrl+Tab, Ctrl+Shift+Tab, Ctrl+1..9 and arrow/Home/End in the tab strip; focus survives re-render",
     "Ctrl+L, Ctrl+T, Esc returns focus to the opener, sidebar focus kept after navigation, no Ctrl+W",

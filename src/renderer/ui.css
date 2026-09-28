@@ -629,3 +629,22 @@ input[aria-invalid="true"],select[aria-invalid="true"]{border-color:var(--red)!i
  .details-head .subscription-actions{flex-wrap:wrap}
  .address-input{min-width:110px}
 }
+/* 代理管理：添加/编辑节点源平时收起；检测统计；分配对话框里的实例列表 */
+.source-form>summary{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:30px;margin:0;padding:4px 2px;border-radius:6px;font-size:12px;font-weight:600;color:var(--accent-text,var(--accent));cursor:pointer;list-style:none}
+.source-form>summary::-webkit-details-marker{display:none}
+.source-form>summary:hover{background:var(--accent-weak)}
+.source-form[open]>summary{margin-bottom:8px}
+.source-form[open]>summary .source-chevron{transform:rotate(90deg)}
+.source-form>.inline-help{margin-top:8px}
+.node-stat{flex-shrink:0;margin-left:6px;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.node-stat:empty{display:none}
+.node-stat.good{color:var(--green)}
+.node-stat.bad{color:var(--red)}
+.node-result.saved,.node-result.saved.success,.node-result.saved.failure{color:var(--muted)}
+.compact-node-table th.col-check input,.compact-node-table td:first-child input{vertical-align:middle}
+.assign-targets{display:grid;gap:6px;max-height:300px;margin:12px 0 0;padding:0;border:0;overflow:auto}
+.assign-target{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:2px 10px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;cursor:pointer}
+.assign-target:hover{background:var(--panel2)}
+.assign-target:has(input:checked){border-color:var(--accent);background:var(--accent-weak)}
+.assign-target .assign-name{overflow:hidden;font-weight:600;text-overflow:ellipsis;white-space:nowrap}
+.assign-target small{grid-column:2/4;overflow:hidden;color:var(--muted);font-size:11px;text-overflow:ellipsis;white-space:nowrap}

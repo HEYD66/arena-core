@@ -19,7 +19,7 @@ app.whenReady().then(async()=>{
  const binary=path.join(app.isPackaged?process.resourcesPath:path.join(__dirname,'../../resources'),'mihomo',process.platform==='win32'?'mihomo.exe':'mihomo');
  controller=new Controller(window,app.getPath('userData'),binary);
  require('./ipc.cjs').installIPC(window,controller);
- window.on('close',event=>{if(quitting)return;event.preventDefault();if(closing)return;closing=true;controller.closeAll().then(()=>{quitting=true;app.quit();}).catch(e=>{closing=false;dialog.showErrorBox('暂不能退出',e.message);});});
+ window.on('close',event=>{if(quitting)return;event.preventDefault();if(closing)return;closing=true;require('./exit-guard.cjs').confirmExit(controller,window,dialog,app.getPath('userData')).catch(()=>true).then(go=>{if(!go){closing=false;return;}return controller.closeAll().then(()=>{quitting=true;app.quit();});}).catch(e=>{closing=false;dialog.showErrorBox('暂不能退出',e.message);});});
  app.on('before-quit',event=>{if(!quitting&&window&&!window.isDestroyed()){event.preventDefault();window.close();}});
  await window.loadFile(path.join(__dirname,'../renderer/index.html'));
  console.log('千面 Facet 0.2.0 ready; instances are not auto-started.');

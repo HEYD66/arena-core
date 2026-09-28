@@ -36,12 +36,13 @@ function installIPC(window,controller){
      if(action==='library-restore-nodes')controller.library.restoreNodes(message.sourceId);
      if(action==='library-save')value=await controller.library.save({id:message.sourceId,name:message.name,url:message.url});
      if(action==='library-rename')controller.library.rename(message.sourceId,message.name);
-     if(action==='library-remove')controller.library.remove(message.sourceId);
+     if(action==='library-remove'){controller.library.remove(message.sourceId);controller.diagnostics.history.clear(message.sourceId);}
      if(action==='library-file'){const picked=await dialog.showOpenDialog(window,{title:'导入到全局代理库',properties:['openFile'],filters:[{name:'Clash YAML / JSON',extensions:['yaml','yml','json']}]});if(picked.canceled)return {cancelled:true};const file=picked.filePaths[0];if(fs.statSync(file).size>2*1024*1024)throw Error('配置文件上限2MB');value=await controller.library.save({name:message.name||'本地节点',text:fs.readFileSync(file,'utf8')});}
      if(!['library-rename','library-hint'].includes(action)){const changed=message.sourceId||value;for(const [key,r]of controller.diagnostics.results)if(r.sourceId===changed)controller.diagnostics.results.delete(key);}controller.workspace.log('subscription','节点源操作完成：'+action);controller.emit();return value;
     })};
     case 'library-assign':return {ok:true,value:await controller.queue(id,async()=>{controller.store.get(id);const node=controller.library.node(message.sourceId,message.name);await controller.stopInner(id);controller.store.saveNodes(id,[node],null,{sourceId:message.sourceId,name:node.name});controller.store.update(id,{network:{mode:'mihomo',nodeName:node.name}});controller.log(id,'已从全局库分配节点；当前实例已停止，请手动启动');})};
     case 'diagnostic-start':return {ok:true,value:controller.diagnostics.run(message.items,message.kind,message.concurrency??3)};
+    case 'diagnostic-history-clear':{if(typeof message.sourceId!=='string'||!message.sourceId)throw Error('请选择节点源');const cleared=controller.diagnostics.history.clear(message.sourceId);controller.diagnostics.history.flush();controller.emit();return {ok:true,value:{cleared}};}
     case 'diagnostic-cancel':controller.diagnostics.cancel();break;
 
     case 'create':{const value=await require('./operations.cjs').createInstance(controller,message);return {ok:true,value:message.detailed?value:value.id};}
@@ -62,7 +63,7 @@ function installIPC(window,controller){
      const file=picked.filePaths[0];if(fs.statSync(file).size>2*1024*1024)throw Error('配置文件上限2MB');const text=fs.readFileSync(file,'utf8');const nodes=await controller.queue(id,async()=>{await controller.stopInner(id);const names=controller.store.importNodes(id,text);controller.log(id,`已导入 ${names.length} 个节点；请保存网络模式后启动`);return names;});return {ok:true,value:{nodes}};}
     default:throw Error('不支持的操作');
    }return {ok:true};
-  }catch(e){controller.workspace.log('application','操作失败：'+require('./workspace.cjs').redact(e.message),'ERROR');controller.emit();return {ok:false,error:e.message};}
+  }catch(e){controller.workspace.log('application','操作失败：'+require('./workspace.cjs').redact(e.message),'ERROR');controller.emit();return {ok:false,error:e.message};}finally{controller.flushEmit?.();}
  });
 return ()=>ipcMain.removeHandler('core:request');
 }
