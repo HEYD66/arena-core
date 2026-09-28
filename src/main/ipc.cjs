@@ -1,5 +1,5 @@
 'use strict';
-const {ipcMain,dialog,clipboard}=require('electron');const fs=require('node:fs'),path=require('node:path');const {sizeText}=require('./extension-catalog.cjs');
+const {ipcMain,dialog,clipboard,shell}=require('electron');const {refreshOne,refreshAll,reveal}=require('./extension-refresh.cjs');const fs=require('node:fs'),path=require('node:path');const {sizeText}=require('./extension-catalog.cjs');
 function installIPC(window,controller){
  ipcMain.handle('core:request',async(event,message)=>{
   try{if(window.isDestroyed()||controller.disposing)return {ok:false,error:'应用正在关闭'};const controls=window.webContents;if(!controls||controls.isDestroyed())return {ok:false,error:'控制窗口已关闭'};if(event.sender!==controls||event.senderFrame!==controls.mainFrame)throw Error('拒绝非控制界面调用');
@@ -12,21 +12,9 @@ function installIPC(window,controller){
     case 'quick-link-move':controller.workspace.moveQuickLink(message.linkId,message.direction);controller.emit();break;
     case 'quick-link-open':await controller.navigate(id,controller.workspace.quickLink(message.linkId).url);break;
     case 'extension-import':return {ok:true,value:await controller.queue('extensions',async()=>{const pick=await dialog.showOpenDialog(window,{title:'选择包含manifest.json的解压扩展文件夹',properties:['openDirectory']});if(pick.canceled)return {cancelled:true};if(controller.disposing)throw Error('应用正在退出');const catalog=controller.extensions.catalog,row=catalog.stage(pick.filePaths[0]);try{const answer=await dialog.showMessageBox(window,{type:'warning',title:'确认导入浏览器扩展',message:row.name+' · '+row.version,detail:'扩展可能读取或修改网页内容。只导入可信来源；导入后默认不启用。\n声明权限：'+row.permissions.join(', ')+'\n可选权限：'+row.optionalPermissions.join(', ')+'\n内容脚本范围：'+row.matches.join(', ')+'\n大小：'+sizeText(row.bytes)+' · '+row.files+' 个文件和目录'+(row.skipped?.length?'\n已跳过开发用文件夹/文件（扩展运行用不到）：'+row.skipped.map(x=>x.name+'（'+sizeText(x.size)+'）').join('、'):'')+'\n'+row.warnings.join('\n'),buttons:['取消','信任并导入'],defaultId:0,cancelId:0,noLink:true});if(answer.response!==1||controller.disposing){catalog.discard(row);return {cancelled:true};}catalog.accept(row);controller.emit();return {id:row.id};}catch(e){catalog.discard(row);throw e;}})};
-    case 'extension-refresh':return {ok:true,value:await controller.queue('extensions',async()=>{const catalog=controller.extensions.catalog,old=catalog.get(message.extensionId);let source=old.source&&fs.existsSync(path.join(old.source,'manifest.json'))?old.source:null;
-     if(!source){const pick=await dialog.showOpenDialog(window,{title:`选择「${old.name}」的解压文件夹（之后刷新会记住这个位置）`,defaultPath:old.source&&fs.existsSync(old.source)?old.source:undefined,properties:['openDirectory']});if(pick.canceled)return {cancelled:true};source=pick.filePaths[0];}
-     if(controller.disposing)throw Error('应用正在退出');const row=catalog.stage(source,old.id);let replaced=false;
-     try{if(old.key&&row.key!==old.key)throw Error(`所选文件夹不是「${old.name}」（扩展签名 key 不同）`);
-      if(row.sha256===old.sha256){catalog.setSource(old.id,row.source);return {unchanged:true,version:old.version};}
-      const users=controller.store.list().filter(x=>catalog.enabled(x.id).includes(old.id)),running=users.filter(x=>{const r=controller.runtimes.get(x.id);return !!r&&r.status!=='stopped';});
-      const added=(a,b)=>(a||[]).filter(x=>!(b||[]).includes(x)),plus=added(row.permissions,old.permissions),minus=added(old.permissions,row.permissions),scope=added(row.matches,old.matches);
-      const detail=[`来源：${row.source}`,`版本：${old.version} → ${row.version}`+(row.name!==old.name?`；名称：${old.name} → ${row.name}`:''),plus.length?'新增权限：'+plus.join(', '):'',minus.length?'移除权限：'+minus.join(', '):'',scope.length?'新增内容脚本范围：'+scope.join(', '):'','大小：'+sizeText(row.bytes)+' · '+row.files+' 个文件和目录',row.skipped?.length?'已跳过开发用文件夹/文件：'+row.skipped.map(x=>x.name).join('、'):'',running.length?`将停止正在运行的实例：${running.map(x=>x.name).join('、')}（更新后需手动启动）`:'没有正在运行的实例使用它，不会停止任何实例',users.length?'启用范围不变：'+users.map(x=>x.name).join('、'):'',  '各实例中扩展已保存的数据保留不变。',...row.warnings].filter(Boolean).join('\n');
-      const answer=await dialog.showMessageBox(window,{type:plus.length||scope.length?'warning':'question',title:'更新浏览器扩展',message:`更新「${old.name}」到 ${row.version}？`,detail,buttons:['取消','更新'],defaultId:1,cancelId:0,noLink:true});
-      if(answer.response!==1||controller.disposing)return {cancelled:true};
-      for(const x of running)await controller.queue(x.id,()=>controller.stopInner(x.id));
-      catalog.replace(old.id,row);replaced=true;controller.extensions.icons.delete(old.id);
-      for(const x of running)controller.log(x.id,`扩展「${row.name}」已更新到 ${row.version}；当前实例已停止，请手动启动`);controller.emit();
-      return {updated:true,from:old.version,version:row.version,stopped:running.map(x=>x.name)};}
-     finally{if(!replaced)catalog.discard(row);}})};
+    case 'extension-refresh':return {ok:true,value:await controller.queue('extensions',()=>refreshOne(controller,window,dialog,message.extensionId))};
+    case 'extension-refresh-all':return {ok:true,value:await controller.queue('extensions',()=>refreshAll(controller,window,dialog))};
+    case 'extension-reveal':await reveal(controller,shell,message.extensionId);break;
     case 'extension-configure':if(message.confirmed!==true)throw Error('请确认仅停止目标实例后更改扩展');await controller.queue('extensions',()=>controller.extensions.configure(id,message.extensionId,message.enabled));break;
     case 'extension-remove':if(message.confirmed!==true)throw Error('请确认移除扩展');await controller.queue('extensions',()=>controller.extensions.catalog.remove(message.extensionId));controller.emit();break;
     case 'extension-open':await controller.queue(id,()=>controller.extensions.open(id,message.extensionId,message.kind));break;

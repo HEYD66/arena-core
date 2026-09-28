@@ -1,12 +1,14 @@
 {
   "platform": "win32",
   "backend": "simulated IPC (self-contained)",
-  "passed": 7,
+  "passed": 9,
   "results": [
     "Extensions live in the address row: real icon or letter, grey until started, click opens the panel directly",
     "Puzzle menu: panels and settings per extension, survives re-render, Esc returns focus, links to the extension center",
-    "Extension-first cards: tick instances, one confirmation lists what gets stopped, cancel and toggle-back are free",
-    "Remove only when unused, with confirmation; import unchanged",
+    "Chrome-style grid: icon, name, version, description, ID and source; search filters without losing focus",
+    "「启用于」pop-over: tick instances, one confirmation lists what gets stopped, cancel/Esc/outside click are free",
+    "Detail page: instances with enable state and panel/settings, ID, source folder, permissions; back returns to the grid",
+    "全部更新 reports versions and stopped instances; remove only when unused, with confirmation; import unchanged",
     "Extension center, toolbar and menu: text >= 11px and >= 4.5:1 in day and night",
     "Global pages keep the same sidebar; 停止当前实例 is a filled button as prominent as 启动",
     "1024×768, 1280×800, 1440×960 with 8 enabled extensions: no overflow, address field stays usable"

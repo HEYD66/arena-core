@@ -8,7 +8,7 @@ const ICON='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAA
 
 function fixture({extra=0}={}){
  const instances=[['inst-1','主工作区','running'],['inst-2','2','stopped'],['inst-3','实例 1','stopped']].map(([id,name,status])=>({id,name,status,url:'https://example.test/',currentURL:'https://example.test/',network:{mode:'direct',nodeName:''},environment:{language:'zh-CN',timezone:'Asia/Tokyo'},nodes:[],logs:[],assignment:{status:'未关联来源'},pageState:'未打开网页',error:''}));
- const ext=(id,name,icon,enabled,{loaded=[],error={},entries={popup:'popup.html',options:'options.html'}}={})=>({id,name,icon,version:'1.8.0',manifestVersion:3,bytes:529408,permissions:['storage'],optionalPermissions:[],matches:['https://arena.ai/*'],entries,warnings:['Electron仅支持部分扩展API；已加载不代表功能全部兼容。'],compatibilityNotice:'',
+ const ext=(id,name,icon,enabled,{loaded=[],error={},entries={popup:'popup.html',options:'options.html'}}={})=>({id,name,icon,version:'1.8.0',manifestVersion:3,bytes:529408,permissions:['storage'],optionalPermissions:[],matches:['https://arena.ai/*'],entries,warnings:['Electron仅支持部分扩展API；已加载不代表功能全部兼容。'],compatibilityNotice:'',description:name+' 的描述：在网页上提供辅助功能。',source:'D:\\ext\\'+id,chromeId:loaded.length?'abcdefghijklmnopabcdefghijklmnop':'',files:12,importedAt:'2026-09-28T01:02:03.000Z',
   instances:instances.map(x=>({id:x.id,enabled:enabled.includes(x.id),loaded:loaded.includes(x.id),error:error[x.id]||''}))});
  const extensions=[ext('ext-a','Arena 模型抽卡助手',ICON,['inst-1','inst-3'],{loaded:['inst-1']}),ext('ext-b','Arena 对话导出',null,['inst-1','inst-3'],{loaded:['inst-1'],entries:{popup:'popup.html'}}),ext('ext-c','Unused Tool',null,[],{})];
  for(let i=0;i<extra;i++)extensions.push(ext('ext-x'+i,'Extra '+i,i%2?ICON:null,['inst-1'],{loaded:['inst-1']}));
@@ -17,7 +17,7 @@ function fixture({extra=0}={}){
 async function openApp(browser,{size=[1440,960],data=fixture()}={}){
  const context=await browser.newContext({viewport:{width:size[0],height:size[1]}}),page=await context.newPage(),errors=[],calls=[];let snap=data;
  page.on('pageerror',e=>errors.push(e.message));
- await page.exposeFunction('__extRequest',async(action,m={})=>{calls.push({action,...m});switch(action){case 'snapshot':return {ok:true,value:snap};case 'activate':case 'layout':case 'extension-open':case 'extension-import':return {ok:true};
+ await page.exposeFunction('__extRequest',async(action,m={})=>{calls.push({action,...m});switch(action){case 'snapshot':return {ok:true,value:snap};case 'activate':case 'layout':case 'extension-open':case 'extension-import':case 'extension-reveal':return {ok:true};case 'extension-refresh-all':return {ok:true,value:{updated:[{name:'Arena 对话导出',from:'1.8.0',version:'1.9.0'}],unchanged:[],noSource:[],failed:[],stopped:['主工作区']}};
   case 'extension-configure':await new Promise(r=>setTimeout(r,30));snap={...snap,instances:snap.instances.map(x=>x.id===m.id?{...x,status:'stopped'}:x),extensions:snap.extensions.map(e=>e.id!==m.extensionId?e:{...e,instances:e.instances.map(i=>i.id===m.id?{...i,enabled:m.enabled,loaded:false}:i)})};return {ok:true};
   case 'extension-remove':snap={...snap,extensions:snap.extensions.filter(e=>e.id!==m.extensionId)};return {ok:true};
   default:return {ok:false,error:'Unmocked action '+action};}});
@@ -66,28 +66,48 @@ try{
  await page.keyboard.press('Escape');assert.equal(await page.locator('#extensionMenu[open]').count(),0);assert.equal(await page.evaluate(()=>document.activeElement.classList.contains('ext-puzzle')),true);assert.notEqual(lastLayout().bounds,null);
  await page.locator('.ext-puzzle').click();await page.locator('#extensionMenu [data-view="extensions"]').click();await page.waitForFunction(()=>view==='extensions');assert.equal(await page.locator('#extensionMenu[open]').count(),0);
  ok('Puzzle menu: panels and settings per extension, survives re-render, Esc returns focus, links to the extension center');
- // Extension center.
+ // Extension center: Chrome-style grid.
  assert.match(await page.locator('#workspaceHead h1').innerText(),/扩展中心/);assert.match(await page.locator('#sidebar [data-view="extensions"]').innerText(),/扩展中心/);
- assert.equal(await page.locator('.ext-card').count(),3);assert.equal(await page.locator('.ext-card').first().locator('.ext-chip').count(),3);
+ assert.equal(await page.locator('.ext-grid .ext-card').count(),3);assert.equal(await page.locator('.ext-card .ext-chip').count(),0,'instance toggles live in the pop-over');
  const cardA=page.locator('[data-extension-card="ext-a"]');
+ assert.match(await cardA.locator('.ext-desc').innerText(),/描述/);assert.match(await cardA.locator('.ext-source').innerText(),/D:\\ext\\ext-a/);assert.match(await cardA.locator('.ext-enable').innerText(),/启用于 2\/3/);
+ for(const sel of ['[data-extension="detail"]','[data-extension="remove"]','[data-extension="refresh"]','[data-extension="enable-menu"]'])assert.equal(await cardA.locator('.ext-card-foot '+sel).count()>=1,true,sel);
+ await page.locator('#extSearch').fill('导出');assert.equal(await page.locator('.ext-grid .ext-card').count(),1);assert.equal(await page.evaluate(()=>document.activeElement.id),'extSearch','typing keeps focus');await page.evaluate(()=>render());assert.equal(await page.evaluate(()=>document.activeElement.id),'extSearch','re-render keeps focus');
+ await page.locator('#extSearch').fill('nothing-matches');assert.match(await page.locator('.ext-grid').innerText(),/没有匹配/);await page.locator('#extSearch').fill('');assert.equal(await page.locator('.ext-grid .ext-card').count(),3);
+ ok('Chrome-style grid: icon, name, version, description, ID and source; search filters without losing focus');
+ await cardA.locator('[data-extension="enable-menu"]').click();assert.equal(await cardA.locator('.ext-pop .ext-chip').count(),3);assert.equal(await cardA.locator('[data-extension="enable-menu"]').getAttribute('aria-expanded'),'true');
  await cardA.locator('.ext-chip[data-instance-id="inst-2"]').click();await cardA.locator('.ext-chip[data-instance-id="inst-1"]').click();
- assert.match(await cardA.locator('.ext-pending').innerText(),/将启用：2；将停用：主工作区[\s\S]*会停止运行中的 主工作区/);
- assert.equal(await page.evaluate(()=>document.activeElement.dataset.instanceId),'inst-1','focus stays on the toggled chip');
- await cardA.locator('[data-extension="cancel"]').click();assert.equal(await cardA.locator('.ext-pending').count(),0);assert.equal(calls.filter(c=>c.action==='extension-configure').length,0);
+ assert.match(await cardA.locator('.ext-pop .ext-pending').innerText(),/将启用：2；将停用：主工作区[\s\S]*会停止运行中的 主工作区/);assert.match(await cardA.locator('.ext-enable').innerText(),/待应用 2/);
+ assert.equal(await page.evaluate(()=>document.activeElement.dataset.instanceId),'inst-1','focus stays on the toggled instance');
+ await cardA.locator('[data-extension="cancel"]').click();assert.equal(await cardA.locator('.ext-pending').count(),0);assert.equal(calls.filter(c=>c.action==='extension-configure').length,0);assert.equal(await cardA.locator('.ext-pop').count(),1,'cancel keeps the pop-over open');
  await cardA.locator('.ext-chip[data-instance-id="inst-2"]').click();await cardA.locator('.ext-chip[data-instance-id="inst-2"]').click();assert.equal(await cardA.locator('.ext-pending').count(),0,'toggling back clears the change');
- await cardA.locator('.ext-chip[data-instance-id="inst-2"]').click();await cardA.locator('.ext-chip[data-instance-id="inst-1"]').click();await cardA.locator('[data-extension="confirm"]').click();
+ await page.keyboard.press('Escape');assert.equal(await cardA.locator('.ext-pop').count(),0);assert.equal(await page.evaluate(()=>document.activeElement.dataset.extension),'enable-menu','Esc returns focus');
+ await cardA.locator('[data-extension="enable-menu"]').click();await page.mouse.click(5,5);assert.equal(await cardA.locator('.ext-pop').count(),0,'outside click closes');
+ await cardA.locator('[data-extension="enable-menu"]').click();await cardA.locator('.ext-chip[data-instance-id="inst-2"]').click();await cardA.locator('.ext-chip[data-instance-id="inst-1"]').click();await cardA.locator('[data-extension="confirm"]').click();
  await page.waitForFunction(()=>!extensionBusy);
  assert.deepEqual(calls.filter(c=>c.action==='extension-configure').map(({id,extensionId,enabled,confirmed})=>({id,extensionId,enabled,confirmed})),[{id:'inst-2',extensionId:'ext-a',enabled:true,confirmed:true},{id:'inst-1',extensionId:'ext-a',enabled:false,confirmed:true}]);
- assert.match(await page.locator('#toast').innerText(),/已保存/);assert.equal(await cardA.locator('.ext-pending').count(),0);
- assert.equal(await cardA.locator('.ext-chip.on').count(),2);
- ok('Extension-first cards: tick instances, one confirmation lists what gets stopped, cancel and toggle-back are free');
+ assert.match(await page.locator('#toast').innerText(),/已保存/);assert.equal(await cardA.locator('.ext-pop').count(),0,'pop-over closes after applying');assert.match(await cardA.locator('.ext-enable').innerText(),/启用于 2\/3/);
+ ok('「启用于」pop-over: tick instances, one confirmation lists what gets stopped, cancel/Esc/outside click are free');
+ // Detail page (the apply above stopped 主工作区 in the mock; start it again so panels are offered).
+ await page.evaluate(()=>{state.instances.find(x=>x.id==='inst-1').status='running';render(true);});
+ await page.locator('[data-extension-card="ext-b"] [data-extension="detail"]').first().click();await page.waitForSelector('.ext-detail');
+ assert.equal(await page.locator('.ext-grid').count(),0);assert.equal(await page.locator('.ext-detail .ext-inst-row').count(),3);assert.match(await page.locator('.ext-detail').innerText(),/abcdefghijklmnop[\s\S]*D:\\ext\\ext-b[\s\S]*storage[\s\S]*https:\/\/arena\.ai\/\*/);
+ assert.equal(await page.locator('.ext-detail [data-extension="open"][data-instance-id="inst-1"][data-kind="popup"]').count(),1);await page.locator('.ext-detail [data-extension="open"][data-kind="popup"]').click();await page.waitForTimeout(50);assert.equal(calls.filter(c=>c.action==='extension-open').at(-1).extensionId,'ext-b');
+ await page.locator('.ext-detail [data-extension="reveal"]').click();await page.waitForTimeout(50);assert(calls.some(c=>c.action==='extension-reveal'&&c.extensionId==='ext-b'));
+ await page.locator('.ext-detail .ext-chip[data-instance-id="inst-2"]').click();assert.match(await page.locator('.ext-detail .ext-pending').innerText(),/将启用：2/);await page.locator('.ext-detail [data-extension="cancel"]').click();
+ await page.evaluate(()=>render());assert.equal(await page.locator('.ext-detail').count(),1,'detail survives state updates');
+ await page.locator('[data-extension="back"]').click();assert.equal(await page.locator('.ext-grid .ext-card').count(),3);assert.equal(await page.evaluate(()=>document.activeElement.dataset.extensionId),'ext-b','back returns focus to the card');
+ await page.locator('[data-extension-card="ext-b"] [data-extension="detail"]').first().click();await go(page,'extensions');assert.equal(await page.locator('.ext-detail').count(),0,'navigating to the center shows the list');
+ ok('Detail page: instances with enable state and panel/settings, ID, source folder, permissions; back returns to the grid');
+ await page.locator('[data-extension="refresh-all"]').click();await page.waitForFunction(()=>!extensionBusy);assert(calls.some(c=>c.action==='extension-refresh-all'));assert.match(await page.locator('#toast').innerText(),/已更新 Arena 对话导出 1\.8\.0 → 1\.9\.0[\s\S]*已停止 主工作区/);
  assert.equal(await page.locator('[data-extension-card="ext-b"] [data-extension="remove"]').isDisabled(),true);
  await page.locator('[data-extension-card="ext-c"] [data-extension="remove"]').click();await page.locator('[data-extension-card="ext-c"] [data-extension="confirm"]').click();await page.waitForFunction(()=>!state.extensions.some(e=>e.id==='ext-c'));
  assert(calls.some(c=>c.action==='extension-remove'&&c.extensionId==='ext-c'));
  await page.locator('[data-extension="import"]').click();await page.waitForTimeout(50);assert(calls.some(c=>c.action==='extension-import'));
- ok('Remove only when unused, with confirmation; import unchanged');
+ ok('全部更新 reports versions and stopped instances; remove only when unused, with confirmation; import unchanged');
  // Readability, both themes, center + toolbar + menu.
- const audit=[];for(const theme of ['light','dark']){await page.evaluate(t=>{document.documentElement.dataset.theme=t;},theme);await page.waitForTimeout(450);await go(page,'extensions');await page.locator('[data-extension-card="ext-b"] [data-instance-id="inst-2"]').click();audit.push(...(await readability(page)).map(x=>theme+'/center '+x));await page.locator('[data-extension-card="ext-b"] [data-extension="cancel"]').click();
+ const audit=[];for(const theme of ['light','dark']){await page.evaluate(t=>{document.documentElement.dataset.theme=t;},theme);await page.waitForTimeout(450);await go(page,'extensions');await page.locator('[data-extension-card="ext-b"] [data-extension="enable-menu"]').click();await page.locator('[data-extension-card="ext-b"] [data-instance-id="inst-2"]').click();audit.push(...(await readability(page)).map(x=>theme+'/center '+x));await page.locator('[data-extension-card="ext-b"] [data-extension="cancel"]').click();await page.keyboard.press('Escape');
+  await page.locator('[data-extension-card="ext-a"] [data-extension="detail"]').first().click();audit.push(...(await readability(page)).map(x=>theme+'/detail '+x));await page.locator('[data-extension="back"]').click();
   await go(page,'browser','inst-1');await page.locator('.ext-puzzle').click();audit.push(...(await readability(page)).map(x=>theme+'/menu '+x));await page.keyboard.press('Escape');}
  assert.deepEqual(audit,[]);await page.evaluate(()=>{document.documentElement.dataset.theme='light';});
  ok('Extension center, toolbar and menu: text >= 11px and >= 4.5:1 in day and night');

@@ -30,50 +30,105 @@
 .ext-menu footer{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px 8px 14px;border-top:1px solid var(--line);background:var(--panel2)}
 .ext-menu footer small{font-size:11px;color:var(--muted)}
 
-/* 扩展中心：一张卡片一个扩展，下面是实例开关。 */
+/* 扩展中心（参考 Chrome 扩展程序页）：顶部搜索与操作，网格卡片，「启用于」弹层，详情页。 */
 .settings-card.extension-center{padding:0;border:0;background:transparent}
-.ext-center-head{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 0 14px}
-.settings-card.extension-center .ext-center-head h3{display:none}
-.ext-center-head h3 svg{width:16px;height:16px}
-.ext-center-head p{margin:0;max-width:760px;font-size:12px;line-height:1.6;color:var(--muted)}
-.ext-center-head .btn{flex:0 0 auto}
-.ext-list{display:flex;flex-direction:column;gap:10px;padding:0}
-.extension-center>.actions-note{margin:12px 0 0;padding:0}
-.ext-card{border:1px solid var(--line);border-radius:var(--r);background:var(--panel);padding:12px 14px;transition:border-color .12s}.ext-card:hover{border-color:var(--line2)}
-.ext-card-head{display:flex;align-items:center;gap:12px}
-.ext-icon{width:32px;height:32px;border-radius:7px;object-fit:contain;flex:0 0 32px}
-.ext-icon.ext-letter{font-size:15px}
-.ext-title{flex:1;min-width:0}
-.ext-title h4{margin:0;font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ext-title small{font-size:11px;color:var(--muted)}
-.ext-label{flex:0 0 auto;font-size:11px;color:var(--muted);min-width:44px}
-.ext-instances{display:flex;align-items:flex-start;gap:10px;margin-top:12px}
-.ext-instances .ext-label{padding-top:6px}
-.ext-chips{display:flex;flex-wrap:wrap;gap:6px;min-width:0}
-.ext-chip{display:inline-flex;align-items:center;gap:6px;max-width:240px;height:28px;padding:0 10px 0 6px;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--text);font-size:12px;cursor:pointer}
-.ext-chip:hover{border-color:var(--line2);background:var(--hover)}
-.ext-chip.on{background:var(--accent-weak);border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
+.ext-center-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ext-search{display:flex;align-items:center;gap:8px;flex:1 1 320px;max-width:520px;height:36px;padding:0 14px;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--muted)}
+.ext-search:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-weak)}
+.ext-search svg{width:15px;height:15px;flex:none;fill:none;stroke:currentColor;stroke-width:2}
+.ext-search input{flex:1;min-width:0;height:100%;border:0;outline:0;background:transparent;color:var(--text);font:inherit;font-size:13px}
+.ext-bar-gap{flex:1 1 0}
+.ext-center-bar .btn{flex:0 0 auto}
+.ext-center-note{margin:10px 0 0;font-size:12px;line-height:1.6;color:var(--muted)}
+.ext-grid-title{display:flex;align-items:baseline;gap:8px;margin:18px 0 10px;font-size:14px;font-weight:600}
+.ext-grid-title small{font-size:11px;font-weight:500;color:var(--muted)}
+.ext-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px;align-items:stretch}
+.ext-grid>.empty-list{grid-column:1/-1}
+.extension-center>.actions-note{margin:14px 0 0;padding:0}
+.ext-muted{color:var(--muted)}
+.ext-card{position:relative;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;background:var(--panel);transition:border-color .12s,box-shadow .12s;min-width:0}
+.ext-card:hover{border-color:var(--line2)}
+.ext-card.popping{z-index:6;border-color:var(--accent)}
+.ext-card-main{display:flex;gap:14px;padding:16px 16px 10px;flex:1;min-width:0}
+.ext-icon{width:40px;height:40px;border-radius:9px;object-fit:contain;flex:0 0 40px}
+.ext-icon.ext-letter{font-size:17px}
+.ext-card-text{flex:1;min-width:0}
+.ext-card-text h4{display:flex;align-items:baseline;gap:8px;margin:0;min-width:0;font-size:14px;font-weight:600}
+.ext-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.ext-version{flex:none;font-size:12px;font-weight:500;color:var(--muted)}
+.ext-desc{margin:5px 0 0;font-size:12px;line-height:1.55;color:var(--text2,var(--text));display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:37px}
+.ext-meta{margin:6px 0 0;font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ext-meta+.ext-meta{margin-top:2px}
+.ext-card>.ext-pending{margin:0 14px 8px}
+.ext-card-foot{display:flex;align-items:center;gap:6px;padding:8px 12px 12px}
+.ext-pill{border-radius:999px;padding:0 14px}
+.ext-error-pill{color:var(--red);border-color:color-mix(in srgb,var(--red) 45%,var(--line))}
+.ext-foot-gap{flex:1}
+.ext-icon-btn{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:1px solid transparent;border-radius:50%;background:transparent;color:var(--muted);cursor:pointer}
+.ext-icon-btn:hover:not(:disabled){background:var(--hover);color:var(--text)}
+.ext-icon-btn:disabled{opacity:.45;cursor:default}
+.ext-icon-btn svg,.btn svg.refresh{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2}
+.ext-enable{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px 0 12px;border:1px solid var(--line);border-radius:999px;background:var(--panel2);color:var(--text);font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap}
+.ext-enable:hover{border-color:var(--line2);background:var(--hover)}
+.ext-enable.on{background:var(--accent-weak);border-color:color-mix(in srgb,var(--accent) 45%,var(--line));color:var(--accent-text,var(--text))}
+.ext-enable.changed{border-style:dashed;border-color:var(--amber)}
+.ext-enable svg{width:13px;height:13px;transition:transform .15s}
+.ext-enable[aria-expanded="true"] svg{transform:rotate(180deg)}
+.ext-pop{position:absolute;right:10px;top:calc(100% - 8px);width:min(340px,calc(100% - 20px));border:1px solid var(--line);border-radius:10px;background:var(--panel);box-shadow:var(--shadow-lg);z-index:7;overflow:hidden}
+.ext-pop.up{top:auto;bottom:48px}
+.ext-pop header{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:9px 12px;border-bottom:1px solid var(--line)}
+.ext-pop header strong{font-size:12px}
+.ext-pop header small{font-size:11px;color:var(--muted)}
+.ext-pop-list{display:flex;flex-direction:column;gap:2px;padding:6px;max-height:260px;overflow:auto}
+.ext-pop-note{margin:0;padding:8px 12px 10px;font-size:11px;color:var(--muted);border-top:1px solid var(--line)}
+.ext-pop>.ext-pending{margin:0;border:0;border-top:1px solid var(--line);border-left:3px solid var(--amber);border-radius:0;flex-direction:column;align-items:stretch}
+.ext-pop>.ext-pending .subscription-actions{justify-content:flex-end}
+.ext-chip{display:inline-flex;align-items:center;gap:8px;min-width:0;height:32px;padding:0 10px 0 8px;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--text);font-size:12px;cursor:pointer;text-align:left}
+.ext-chip:hover{background:var(--hover)}
+.ext-chip.on{background:var(--accent-weak)}
 .ext-chip.changed{border-style:dashed;border-color:var(--amber)}
-.ext-check{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;border:1px solid var(--line);font-size:11px;line-height:1;color:#fff;flex:0 0 16px}
+.ext-check{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:4px;border:1px solid var(--line2,var(--line));font-size:11px;line-height:1;color:#fff;flex:0 0 16px}
 .ext-chip.on .ext-check{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
-.ext-chip-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.ext-chip-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.ext-toggle-state{flex:none;font-size:11px;color:var(--muted)}
+.ext-toggle-state.loaded{color:var(--green)}
+.ext-toggle-state.error{color:var(--red)}
+.ext-toggle-state.changed{color:var(--amber)}
 .ext-state{width:7px;height:7px;border-radius:50%;flex:0 0 7px;background:transparent}
 .ext-state.loaded{background:var(--green)}
 .ext-state.waiting{background:var(--muted);opacity:.6}
 .ext-state.error{background:var(--red)}
-.ext-pending{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px;padding:8px 10px 8px 12px;border:1px solid var(--line);border-left:3px solid var(--amber);border-radius:8px;background:var(--panel2)}
+.ext-pending{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px 8px 12px;border:1px solid var(--line);border-left:3px solid var(--amber);border-radius:8px;background:var(--panel2)}
 .ext-pending.danger{border-left-color:var(--red)}
 .ext-pending strong{display:block;font-size:12px;font-weight:600}
 .ext-pending small{display:block;margin-top:2px;font-size:11px;color:var(--muted)}
 .ext-pending .subscription-actions{flex:0 0 auto}
-.ext-loaded{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;margin-top:10px}
-.ext-open-group{display:inline-flex;align-items:center;gap:4px;font-size:12px}
-.ext-open-group b{font-weight:500;margin-right:2px}
-.ext-card .extension-error{margin:8px 0 0;font-size:12px}
-.ext-details{margin-top:10px}
-.ext-details summary{font-size:12px;color:var(--muted);cursor:pointer}
-.ext-details p{margin:6px 0 0;font-size:12px;color:var(--muted);word-break:break-word}
-@media(max-width:1100px){.ext-pending{flex-direction:column;align-items:stretch}.ext-pending .subscription-actions{justify-content:flex-end}}
-.ext-card-head .ext-refresh{display:inline-flex;align-items:center;gap:4px;margin-left:auto}
-.ext-card-head .ext-refresh svg{width:13px;height:13px}
-.ext-card-head .ext-refresh+[data-extension=remove]{margin-left:0}
+/* 详情页 */
+.ext-detail{display:flex;flex-direction:column;gap:12px;max-width:980px}
+.ext-detail-top .btn svg{width:14px;height:14px}
+.ext-detail-head{display:flex;align-items:flex-start;gap:16px;padding:18px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+.ext-icon-lg{width:56px;height:56px;flex:0 0 56px;border-radius:12px}
+.ext-icon-lg.ext-letter{font-size:22px}
+.ext-detail-title{flex:1;min-width:0}
+.ext-detail-title h3{margin:0;font-size:18px;font-weight:650;word-break:break-word}
+.ext-detail-title p{margin:6px 0 0;font-size:13px;line-height:1.6;color:var(--text2,var(--text))}
+.ext-detail-head .subscription-actions{flex:none;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.ext-detail-head .btn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2}
+.ext-detail>.ext-pending{margin:0}
+.ext-detail-section{padding:14px 18px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+.ext-detail-section h4{margin:0 0 8px;font-size:13px;font-weight:650}
+.ext-detail-section>p{margin:6px 0 0;font-size:12px;line-height:1.6}
+.ext-detail-errors{border-color:color-mix(in srgb,var(--red) 45%,var(--line))}
+.ext-detail-errors h4,.ext-detail-errors p{color:var(--red)}
+.ext-section-note{font-size:11px!important;color:var(--muted)}
+.ext-inst-list{display:flex;flex-direction:column;margin-top:8px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.ext-inst-row{display:flex;align-items:center;gap:8px;padding:4px 8px 4px 4px;min-height:40px}
+.ext-inst-row+.ext-inst-row{border-top:1px solid var(--line)}
+.ext-inst-row>.ext-chip{flex:1 1 auto;max-width:460px}
+.ext-inst-actions{margin-left:auto;display:flex;align-items:center;gap:4px;font-size:11px}
+.ext-detail-section>.ext-pending{margin-top:10px}
+.ext-kv{display:grid;grid-template-columns:110px minmax(0,1fr);gap:8px 14px;margin:0;font-size:12px}
+.ext-kv dt{color:var(--muted)}
+.ext-kv dd{margin:0;min-width:0;word-break:break-all}
+.ext-tag{display:inline-block;margin:0 4px 4px 0;padding:1px 8px;border:1px solid var(--line);border-radius:999px;background:var(--panel2);font-size:11px}
+@media(max-width:1100px){.ext-detail-head{flex-wrap:wrap}.ext-detail-head .subscription-actions{width:100%;justify-content:flex-start}}
