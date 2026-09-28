@@ -10,7 +10,7 @@ const locked=app.requestSingleInstanceLock();if(!locked)app.quit();
 let window,controller,quitting=false,closing=false;
 if(locked){app.on('second-instance',()=>{if(window){if(window.isMinimized())window.restore();window.show();window.focus();}});
 app.whenReady().then(async()=>{
- window=new BrowserWindow({width:1440,height:960,minWidth:960,minHeight:700,title:'Arena Core',backgroundColor:'#f5f8f7',autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,'preload.cjs'),sandbox:true,nodeIntegration:false,contextIsolation:true,webSecurity:true,webviewTag:false,backgroundThrottling:false,partition:'arena-core-controls'}});
+ window=new BrowserWindow({width:1440,height:960,minWidth:960,minHeight:700,title:'Arena Core',backgroundColor:'#f5f8f7',autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,'preload.cjs'),sandbox:true,nodeIntegration:false,contextIsolation:true,webSecurity:true,webviewTag:false,backgroundThrottling:false,partition:'persist:arena-core-controls'}});
  window.webContents.setWindowOpenHandler(()=>({action:'deny'}));window.webContents.on('will-navigate',event=>event.preventDefault());
  window.webContents.session.setPermissionRequestHandler((_wc,_permission,cb)=>cb(false));window.webContents.session.setPermissionCheckHandler(()=>false);
  const binary=path.join(app.isPackaged?process.resourcesPath:path.join(__dirname,'../../resources'),'mihomo',process.platform==='win32'?'mihomo.exe':'mihomo');
