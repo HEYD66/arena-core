@@ -8,7 +8,7 @@ async function downloadSubscription(value,{maxBytes=2*1024*1024,timeoutMs=20000,
   const transport=url.protocol==='https:'?https:http,agent=new transport.Agent({keepAlive:false,rejectUnauthorized:true});
   let req,body,settled=false;
   const done=(error,result)=>{if(settled)return;settled=true;body?.destroy();req?.destroy();agent.destroy();error?reject(error):resolve(result);};
-  req=transport.request(url,{method:'GET',agent,signal:abort.signal,headers:{'User-Agent':'clash.meta/1.19.31 ArenaCore/0.2.0','Accept':'application/yaml, text/yaml, application/json, text/plain, */*','Accept-Encoding':'gzip, deflate, br'}},res=>{
+  req=transport.request(url,{method:'GET',agent,signal:abort.signal,headers:{'User-Agent':'clash.meta/1.19.31 Facet/0.2.0','Accept':'application/yaml, text/yaml, application/json, text/plain, */*','Accept-Encoding':'gzip, deflate, br'}},res=>{
    const status=res.statusCode||0;
    if([301,302,303,307,308].includes(status)){const location=res.headers.location;res.destroy();if(!location)return done(safeError('订阅重定向缺少目标地址'));return done(null,{redirect:location});}
    if(status!==200){res.destroy();return done(safeError(`订阅服务器返回 HTTP ${status}，原配置未改变`));}

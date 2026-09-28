@@ -18,4 +18,4 @@ const server = http.createServer((req, res) => {
   fs.createReadStream(path.join(rendererDir, entry[0])).pipe(res);
 });
 const port = Number(process.env.PORT || 8081);
-server.listen(port, '0.0.0.0', () => console.log(`Arena Core UI preview on port ${port}. Static UI only; run npm start for desktop capabilities.`));
+server.listen(port, '0.0.0.0', () => console.log(`千面 Facet UI preview on port ${port}. Static UI only; run npm start for desktop capabilities.`));
