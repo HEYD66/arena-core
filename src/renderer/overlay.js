@@ -12,7 +12,10 @@ facetOverlay.onRender(({ html, attrs, label }) => {
   menu.innerHTML = html;
   menu.setAttribute("aria-label", label || "扩展");
   requestAnimationFrame(report);
-  if (!menu.contains(document.activeElement)) menu.querySelector("button:not([disabled])")?.focus();
+  menu.scrollTop = 0;
+  document.scrollingElement.scrollTop = 0;
+  // 聚焦以便键盘操作，但不滚动、不显示焦点框（鼠标打开时不应像已选中某个按钮）。
+  if (!menu.contains(document.activeElement)) menu.querySelector("button:not([disabled])")?.focus({ preventScroll: true, focusVisible: false });
 });
 document.addEventListener("click", (e) => {
   const b = e.target.closest("button");

@@ -9,7 +9,8 @@
 <style>
 html,body{background:transparent!important;margin:0!important;padding:0!important;min-height:0!important;height:auto!important;overflow:hidden!important}
 body{padding:8px!important}
-#menu.ext-menu{position:static;display:block;width:auto;max-height:calc(100vh - 16px);box-shadow:0 6px 18px rgba(0,0,0,.18)}
+/* 不按视口限高：浮层高度由主进程按菜单自然高度设置，若先限高会测到被截断的高度（首尾被裁掉）。 */
+#menu.ext-menu{position:static;display:block;width:auto;max-height:none;box-shadow:0 6px 18px rgba(0,0,0,.18)}
 </style>
 </head>
 <body>
