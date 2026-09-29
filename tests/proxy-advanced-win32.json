@@ -1,13 +1,14 @@
 {
   "platform": "win32",
   "electron": "44.4.5",
-  "passed": 5,
+  "passed": 6,
   "results": [
     "Region and protocol chips count nodes, filter the table together and reset",
     "Last 10 latency results show as a row sparkline and a detailed trend",
     "Batch assignment spreads selected nodes over several instances and cycles when nodes run out",
     "A dead node raises a visible proxy alert once, without switching node or falling back to direct",
-    "The alert clears when a page loads through the proxy and is not shown for stopped instances"
+    "The alert clears when a page loads through the proxy and is not shown for stopped instances",
+    "All sources view merges nodes with a source mark and works across subscriptions"
   ],
   "errors": []
 }

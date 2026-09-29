@@ -45,4 +45,21 @@ app.whenReady().then(async()=>{try{
  await c.start(a.id);const ra=c.runtimes.get(a.id);c.noteProxyIssue(a.id,ra,'测试提醒',true);assert(ra.proxyAlert);await c.navigate(a.id,'http://ok.facet.test/');await wait(()=>!ra.proxyAlert,'alert cleared after a successful proxied load',200);
  assert(c.workspace.events.some(e=>e.instanceId===a.id&&e.text.startsWith('代理连接已恢复')));await c.stop(b.id);assert.equal(c.snapshot().instances.find(x=>x.id===b.id).proxyAlert,'');
  ok('The alert clears when a page loads through the proxy and is not shown for stopped instances');
+ // 全部节点源：合并显示、标出来源；同名节点按来源区分；跨订阅删除和批量分配
+ await c.library.save({name:'第二订阅',text:JSON.stringify({proxies:[{name:'香港 01',type:'http',server:'127.0.0.1',port:good},{name:'新加坡 01',type:'http',server:'127.0.0.1',port:good}]})});const sid2=c.library.summaries().find(x=>x.id!==sid).id;c.emit();
+ await ui("route('proxies')");await wait(()=>ui("!!document.querySelector('#librarySource option[value=\"*\"]')&&!!document.querySelector('[data-source-group=\"*\"]')"),'all-sources entries');
+ await ui("const s=document.querySelector('#librarySource');s.value='*';s.dispatchEvent(new Event('change',{bubbles:true}))");await pause(300);
+ assert.equal(await ui("document.querySelectorAll('[data-library-node]').length"),7);assert.equal(await ui("document.querySelectorAll('tr[data-source] .node-source').length"),7);assert.equal(await ui("document.querySelector('[data-source-group=\"*\"]').open"),true);
+ assert.deepEqual(await ui("[...document.querySelectorAll('[data-lib=region]')].slice(0,2).map(b=>b.textContent)"),['全部7','香港3']);
+ assert.equal(await ui(`document.querySelector('tr[data-source="${sid2}"] .node-source').title`),'来自：第二订阅');
+ await ui("document.querySelectorAll('[data-library-node=\"香港 01\"]').forEach(e=>e.click())");await pause();assert.equal(await ui("document.querySelector('#librarySelectionCount').textContent"),'2');
+ await ui("document.querySelector('[data-lib=delete-selected]').click()");await pause();assert((await ui("document.querySelector('#modal .description').textContent")).includes('2 个节点源'));
+ await ui("document.querySelector('#modal [data-action=confirm]').click()");await wait(()=>c.library.summaries().every(x=>(x.excludedCount||0)>=1),'deleted across sources');
+ await wait(()=>ui("document.querySelectorAll('[data-library-node]').length===5"),'rows after delete');
+ await ui(`document.querySelector('tr[data-source="${sid}"] [data-library-node="JP02 Osaka"]').click();document.querySelector('tr[data-source="${sid2}"] [data-library-node="新加坡 01"]').click()`);await pause();
+ await ui("document.querySelector('[data-lib=assign-many]').click()");await pause();await ui("document.querySelector('[data-assign-all]').click()");await pause();
+ assert.deepEqual(await ui("[...document.querySelectorAll('[data-plan-for]')].map(e=>e.textContent)"),['→ JP02 Osaka','→ 新加坡 01','→ JP02 Osaka（共用）']);
+ await ui("document.querySelector('#modal [data-action=confirm]').click()");await wait(()=>c.store.get(b.id).network.nodeName==='新加坡 01'&&c.store.get(a.id).network.nodeName==='JP02 Osaka'&&c.store.get(d.id).network.nodeName==='JP02 Osaka','cross-source assign');
+ assert.deepEqual([a,b,d].map(x=>c.store.get(x.id).network.nodeName),['JP02 Osaka','新加坡 01','JP02 Osaka']);
+ ok('All sources view merges nodes with a source mark and works across subscriptions');
 }catch(e){errors.push(e.stack||String(e));console.error(e);}finally{try{await c?.closeAll();}catch(e){errors.push(e.message);}win?.destroy();proxy?.close();const report={platform:process.platform,electron:process.versions.electron,passed:results.length,results,errors};fs.writeFileSync(path.join(__dirname,`proxy-advanced-${process.platform}.json`),JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report,null,2));app.exit(errors.length?1:0);}});

@@ -404,6 +404,9 @@ input[aria-invalid="true"],select[aria-invalid="true"]{border-color:var(--red)!i
 .source-group-body>.subscription-actions{gap:4px}
 .source-host{flex:1 1 100%;min-width:0;margin-bottom:2px;font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .source-group-body .actions-note{font-size:11px}
+.source-badge-all{background:var(--panel);color:var(--text);border:1px solid var(--line-strong,var(--line))}
+.source-all .source-group-body .actions-note{flex:1 1 100%;margin:2px 0 0;color:var(--muted)}
+.node-source{flex:none;width:17px;height:17px;margin:0 5px 0 1px;border-radius:4px;display:inline-grid;place-items:center;color:#fff;font:700 11px/1 "Segoe UI",system-ui,sans-serif}
 .source-changes{margin:6px 0 0;cursor:help}
 .source-hint{margin-top:8px;border:1px solid var(--line);border-radius:6px;font-size:11.5px}
 .source-hint>summary{display:flex;align-items:center;gap:8px;padding:5px 8px;cursor:pointer;list-style:none}

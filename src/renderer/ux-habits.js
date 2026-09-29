@@ -26,7 +26,7 @@ function restoreUiState(){
  libraryConcurrency=uiOneOf(f.libraryConcurrency,[1,2,3,4,5,6,8,10,12,16],libraryConcurrency);
  libraryMinSuccess=uiOneOf(f.libraryMinSuccess,[0,1,2,3,5,10],libraryMinSuccess);
  if(typeof f.libraryIncludeHints==='boolean')libraryIncludeHints=f.libraryIncludeHints;
- if((state.library||[]).some(x=>x.id===f.librarySource))librarySource=f.librarySource;
+ if(f.librarySource==='*'&&(state.library||[]).length>1||(state.library||[]).some(x=>x.id===f.librarySource))librarySource=f.librarySource;
  librarySearch=uiText(f.librarySearch,librarySearch);
  globalLogLevel=uiOneOf(f.globalLogLevel,['all','INFO','WARN','ERROR'],globalLogLevel);
  globalLogScope=uiOneOf(f.globalLogScope,['all','application','instance','subscription','diagnostic'],globalLogScope);
