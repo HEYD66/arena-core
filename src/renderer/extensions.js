@@ -84,14 +84,30 @@ function extensionToolbarHTML(x){
 }
 function extensionPuzzleSVG(){return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 3.5a2 2 0 0 1 4 0V5h3.5A1.5 1.5 0 0 1 19 6.5V10h-1.5a2 2 0 0 0 0 4H19v3.5a1.5 1.5 0 0 1-1.5 1.5H14v-1.5a2 2 0 0 0-4 0V19H6.5A1.5 1.5 0 0 1 5 17.5V14h1.5a2 2 0 0 0 0-4H5V6.5A1.5 1.5 0 0 1 6.5 5H10z"/></svg>';}
 function extensionMenuDialog(){let d=document.getElementById('extensionMenu');if(!d){d=document.createElement('dialog');d.id='extensionMenu';d.className='ext-menu';d.setAttribute('data-browser-overlay','');d.setAttribute('aria-label','此实例的扩展');document.body.append(d);}return d;}
-function renderExtensionMenu(){
- const d=document.getElementById('extensionMenu');if(!d?.open)return;const x=state.instances.find(i=>i.id===extensionMenuFor);if(!x||view!=='browser'||x.id!==activeId){closeExtensionMenu();return;}
+// 扩展菜单：在桌面应用里用原生浮层显示（网页保持实时，不再截图冻结）；浏览器预览中仍用 HTML 对话框。
+function nativeExtensionMenu(){return !!window.arenaCore?.onOverlay;}
+let nativeMenuOpen=false,nativeMenuClosedAt=0,nativeMenuHTML='';
+function extensionMenuOpen(){return nativeExtensionMenu()?nativeMenuOpen:!!document.getElementById('extensionMenu')?.open;}
+function extensionMenuHTML(x){
  const rows=state.extensions||[],enabled=rows.filter(row=>extensionInfo(row,x.id).enabled),others=rows.length-enabled.length;
- d.innerHTML=`<header><strong>扩展</strong><small>${esc(x.name)}</small></header>${enabled.length?`<ul>${enabled.map(row=>{const info=extensionInfo(row,x.id),ready=info.loaded&&x.status==='running';return `<li>${extensionIconHTML(row,'ext-menu-icon')}<div><b>${esc(row.name)}</b><small class="${info.error?'extension-error':''}">${esc(info.error||(ready?'已加载':'等待实例启动'))}</small></div><span class="subscription-actions">${[['popup','面板'],['options','设置']].filter(([k])=>row.entries[k]).map(([k,label])=>`<button class="btn subtle tiny" data-extension="open" data-extension-id="${esc(row.id)}" data-instance-id="${esc(x.id)}" data-kind="${k}" ${ready?'':'disabled'}>${label}</button>`).join('')}</span></li>`;}).join('')}</ul>`:'<p class="ext-menu-empty">此实例还没有启用扩展。</p>'}${x.status!=='running'&&enabled.length?'<p class="ext-menu-note">扩展随实例启动加载；启动后可打开面板和设置。</p>':''}<footer>${others?`<small>另有 ${others} 个扩展未在此实例启用</small>`:'<small></small>'}<button class="btn soft tiny" data-view="extensions">${icon('box')}扩展中心</button></footer>`;
+ return `<header><strong>扩展</strong><small>${esc(x.name)}</small></header>${enabled.length?`<ul>${enabled.map(row=>{const info=extensionInfo(row,x.id),ready=info.loaded&&x.status==='running';return `<li>${extensionIconHTML(row,'ext-menu-icon')}<div><b>${esc(row.name)}</b><small class="${info.error?'extension-error':''}">${esc(info.error||(ready?'已加载':'等待实例启动'))}</small></div><span class="subscription-actions">${[['popup','面板'],['options','设置']].filter(([k])=>row.entries[k]).map(([k,label])=>`<button class="btn subtle tiny" data-extension="open" data-extension-id="${esc(row.id)}" data-instance-id="${esc(x.id)}" data-kind="${k}" ${ready?'':'disabled'}>${label}</button>`).join('')}</span></li>`;}).join('')}</ul>`:'<p class="ext-menu-empty">此实例还没有启用扩展。</p>'}${x.status!=='running'&&enabled.length?'<p class="ext-menu-note">扩展随实例启动加载；启动后可打开面板和设置。</p>':''}<footer>${others?`<small>另有 ${others} 个扩展未在此实例启用</small>`:'<small></small>'}<button class="btn soft tiny" data-view="extensions">${icon('box')}扩展中心</button></footer>`;
 }
-function positionExtensionMenu(){const d=document.getElementById('extensionMenu'),b=$('.ext-puzzle');if(!d?.open||!b)return;const r=b.getBoundingClientRect(),w=Math.min(340,innerWidth-16);d.style.width=w+'px';d.style.left=Math.max(8,Math.min(r.right-w,innerWidth-w-8))+'px';d.style.top=(r.bottom+6)+'px';}
-function openExtensionMenu(id){const d=extensionMenuDialog();extensionMenuFor=id;if(!d.open)d.show();renderExtensionMenu();positionExtensionMenu();layout();$('.ext-puzzle')?.setAttribute('aria-expanded','true');(d.querySelector('button:not([disabled])'))?.focus();}
-function closeExtensionMenu(returnFocus=false){const d=document.getElementById('extensionMenu');const was=d?.open;extensionMenuFor=null;if(was)d.close();$('.ext-puzzle')?.setAttribute('aria-expanded','false');if(was){layout();if(returnFocus)$('.ext-puzzle')?.focus();}}
+function renderExtensionMenu(){
+ if(!extensionMenuOpen())return;const x=state.instances.find(i=>i.id===extensionMenuFor);if(!x||view!=='browser'||x.id!==activeId){closeExtensionMenu();return;}
+ const html=extensionMenuHTML(x);if(nativeExtensionMenu()){if(html!==nativeMenuHTML){nativeMenuHTML=html;sendExtensionMenu(true);}return;}
+ document.getElementById('extensionMenu').innerHTML=html;
+}
+function extensionMenuAttrs(){const o={};for(const a of document.documentElement.attributes)if(a.name==='class'||a.name==='style'||a.name.startsWith('data-'))o[a.name]=a.value;return o;}
+function sendExtensionMenu(update){const b=$('.ext-puzzle');if(!b)return Promise.resolve();const r=b.getBoundingClientRect();return window.arenaCore.request('overlay-show',{html:nativeMenuHTML,anchor:{right:r.right,bottom:r.bottom},width:Math.min(340,innerWidth-16),attrs:extensionMenuAttrs(),label:'此实例的扩展',update}).catch(()=>{});}
+function positionExtensionMenu(){if(nativeExtensionMenu()){if(nativeMenuOpen)closeExtensionMenu();return;}const d=document.getElementById('extensionMenu'),b=$('.ext-puzzle');if(!d?.open||!b)return;const r=b.getBoundingClientRect(),w=Math.min(340,innerWidth-16);d.style.width=w+'px';d.style.left=Math.max(8,Math.min(r.right-w,innerWidth-w-8))+'px';d.style.top=(r.bottom+6)+'px';}
+function openExtensionMenu(id){
+ if(nativeExtensionMenu()){const x=state.instances.find(i=>i.id===id);if(!x)return;extensionMenuFor=id;nativeMenuOpen=true;nativeMenuHTML=extensionMenuHTML(x);$('.ext-puzzle')?.setAttribute('aria-expanded','true');return sendExtensionMenu(false);}
+ const d=extensionMenuDialog();extensionMenuFor=id;if(!d.open)d.show();renderExtensionMenu();positionExtensionMenu();layout();$('.ext-puzzle')?.setAttribute('aria-expanded','true');(d.querySelector('button:not([disabled])'))?.focus();}
+function closeExtensionMenu(returnFocus=false){
+ if(nativeExtensionMenu()){const was=nativeMenuOpen;extensionMenuFor=null;nativeMenuOpen=false;$('.ext-puzzle')?.setAttribute('aria-expanded','false');if(was){window.arenaCore.request('overlay-hide').catch(()=>{});if(returnFocus)$('.ext-puzzle')?.focus();}return;}
+ const d=document.getElementById('extensionMenu');const was=d?.open;extensionMenuFor=null;if(was)d.close();$('.ext-puzzle')?.setAttribute('aria-expanded','false');if(was){layout();if(returnFocus)$('.ext-puzzle')?.focus();}}
+// 浮层关闭（失去焦点 / Esc）或点击了浮层里的按钮：按钮交给原有的点击处理。
+window.arenaCore?.onOverlay?.(e=>{if(e?.type==='closed'){if(nativeMenuOpen){nativeMenuOpen=false;extensionMenuFor=null;nativeMenuClosedAt=Date.now();$('.ext-puzzle')?.setAttribute('aria-expanded','false');}if(e.reason==='escape')$('.ext-puzzle')?.focus();return;}if(e?.type!=='action')return;const b=document.createElement('button');b.type='button';b.hidden=true;for(const [k,v] of Object.entries(e.data||{}))if(['extension','extensionId','instanceId','kind','view'].includes(k))b.dataset[k]=String(v);document.body.append(b);try{b.click();}finally{b.remove();}});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.getElementById('extensionMenu')?.open){e.preventDefault();e.stopPropagation();closeExtensionMenu(true);}},true);
 document.addEventListener('mousedown',e=>{const d=document.getElementById('extensionMenu');if(d?.open&&!d.contains(e.target)&&!e.target.closest('.ext-puzzle'))closeExtensionMenu();},true);
 window.addEventListener('resize',positionExtensionMenu);
@@ -100,7 +116,7 @@ document.addEventListener('click',async e=>{
  const b=e.target.closest('[data-extension]');
  if(!b||b.disabled)return;
  const action=b.dataset.extension;
- if(action==='menu'){if(extensionMenuFor===b.dataset.instanceId&&document.getElementById('extensionMenu')?.open)closeExtensionMenu(true);else openExtensionMenu(b.dataset.instanceId);return;}
+ if(action==='menu'){if(nativeExtensionMenu()&&!nativeMenuOpen&&Date.now()-nativeMenuClosedAt<350)return;if(extensionMenuFor===b.dataset.instanceId&&extensionMenuOpen())closeExtensionMenu(true);else openExtensionMenu(b.dataset.instanceId);return;}
  if(b.closest('#extensionMenu')&&action!=='open')return;
  if(action==='enable-menu'){extensionConfirm=null;extensionPopFor=extensionPopFor===b.dataset.extensionId?null:b.dataset.extensionId;extensionPage();return;}
  if(action==='detail'){extensionDetailId=b.dataset.extensionId;extensionPopFor=null;extensionConfirm=null;extensionPage();$('#content').scrollTop=0;if(b.dataset.focus==='errors')document.getElementById('extErrors')?.scrollIntoView({block:'nearest'});return;}

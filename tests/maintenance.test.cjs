@@ -63,3 +63,14 @@ test('batch diagnostics accept up to 16 parallel workers',()=>{
  const src=fs.readFileSync(path.join(__dirname,'../src/main/diagnostics.cjs'),'utf8'),ui=fs.readFileSync(path.join(__dirname,'../src/renderer/library.js'),'utf8'),habits=fs.readFileSync(path.join(__dirname,'../src/renderer/ux-habits.js'),'utf8');
  assert(src.includes('count>16')&&src.includes('并发数须为1–16'));assert(ui.includes('[1, 2, 3, 4, 5, 6, 8, 10, 12, 16]'));assert(habits.includes('[1,2,3,4,5,6,8,10,12,16]'));
 });
+test('diagnostic history keeps the last 10 results per kind for trends and bumps its version on change',()=>{
+ const h=new DiagnosticHistory(tmp()),v0=h.version;for(let i=0;i<13;i++)h.record({sourceId:'s',name:'n',kind:'latency',ok:i%4!==3,latencyMs:100+i,error:'连接超时',at:new Date(1e12+i*1000).toISOString()});
+ h.record({sourceId:'s',name:'n',kind:'ip',ok:true,ip:'198.51.100.7',at:new Date(1e12).toISOString()});const row=h.list()[0];
+ assert.equal(row.latency.recent.length,10);assert.equal(row.latency.recent.at(-1).ms,112);assert.equal(row.latency.recent.find(e=>!e.ok).error,'连接超时');assert.equal(row.latency.total,13);assert.deepEqual(row.ip.recent,[{at:new Date(1e12).toISOString(),ok:true,ip:'198.51.100.7'}]);
+ assert(h.version>v0);const v1=h.version;h.record({sourceId:'s',name:'n',kind:'latency',ok:false,error:'已取消'});assert.equal(h.version,v1,'ignored results do not change the version');h.clear('other');assert.equal(h.version,v1);h.clear('s');assert(h.version>v1);
+});
+test('batch assignment, proxy alerts and the native extension menu are wired through IPC',()=>{
+ const ipc=fs.readFileSync(path.join(__dirname,'../src/main/ipc.cjs'),'utf8'),ctl=fs.readFileSync(path.join(__dirname,'../src/main/controller.cjs'),'utf8'),pre=fs.readFileSync(path.join(__dirname,'../src/main/preload.cjs'),'utf8'),ov=fs.readFileSync(path.join(__dirname,'../src/main/menu-overlay.cjs'),'utf8');
+ assert(ipc.includes("case 'library-assign-many'")&&ipc.includes("case 'diagnostic-history'")&&ipc.includes("case 'overlay-show'")&&ipc.includes("ipcMain.on('overlay:event'"));
+ assert(ctl.includes('PROXY_FAILURES')&&ctl.includes('noteProxyIssue')&&!/setProxy\(\{mode:'direct'\}\)[^;]*proxyAlert/.test(ctl));assert(pre.includes("'core:overlay'"));assert(ov.includes('sender !== this.view.webContents'));
+});

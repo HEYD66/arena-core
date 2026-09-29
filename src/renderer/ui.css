@@ -648,3 +648,36 @@ input[aria-invalid="true"],select[aria-invalid="true"]{border-color:var(--red)!i
 .assign-target:has(input:checked){border-color:var(--accent);background:var(--accent-weak)}
 .assign-target .assign-name{overflow:hidden;font-weight:600;text-overflow:ellipsis;white-space:nowrap}
 .assign-target small{grid-column:2/4;overflow:hidden;color:var(--muted);font-size:11px;text-overflow:ellipsis;white-space:nowrap}
+/* 代理断开提醒 */
+.proxy-alert{display:inline-flex;align-items:center;margin-left:6px;padding:0 6px;border-radius:999px;background:color-mix(in srgb,var(--red) 12%,transparent);color:var(--red);font-size:11px;font-weight:600;line-height:18px;white-space:nowrap}
+.tab-alert{display:inline-grid;place-items:center;flex:none;width:14px;height:14px;margin-left:4px;border-radius:50%;background:var(--red);color:#fff;font-size:11px;font-weight:700;line-height:1}
+/* 代理管理：地区 / 协议快速筛选 */
+.node-chips{display:grid;gap:6px;margin:2px 0 8px}
+.node-chip-row{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px}
+.node-chip-label{flex:none;min-width:30px;color:var(--muted);font-size:11px}
+.node-chip{display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 9px;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--text);font:inherit;font-size:12px;cursor:pointer}
+.node-chip small{color:var(--muted);font-size:11px;font-variant-numeric:tabular-nums}
+.node-chip:hover{background:var(--panel2)}
+.node-chip.active{border-color:var(--accent);background:var(--accent-weak);color:var(--accent-text,var(--accent))}
+.node-chip.active small{color:inherit}
+/* 延迟趋势 */
+.node-result-value .spark{margin-left:6px;vertical-align:-1px;overflow:visible}
+.spark polyline{fill:none;stroke:currentColor;stroke-width:1.3;stroke-linejoin:round;stroke-linecap:round;opacity:.9}
+.spark circle{stroke:none}
+.spark .spark-dot{fill:currentColor}
+.spark .spark-fail{fill:var(--red)}
+.spark-large{display:block;max-width:100%;margin:4px 0 8px;color:var(--accent-text,var(--accent))}
+.spark-large polyline{stroke-width:1.8}
+.trend-detail{margin-top:10px}
+.trend-list{display:grid;gap:2px;max-height:220px;margin:0;padding:0;overflow:auto;list-style:none;font-size:12px}
+.trend-list li{display:flex;justify-content:space-between;gap:12px;padding:3px 6px;border-radius:6px}
+.trend-list li:nth-child(odd){background:var(--panel2)}
+.trend-list time{color:var(--muted);font-variant-numeric:tabular-nums}
+.trend-list b{font-weight:600}
+.trend-list b.ok{color:var(--green)}
+.trend-list b.bad{color:var(--red)}
+/* 批量分配 */
+.assign-many-bar{display:flex;align-items:center;gap:12px;margin-top:10px;font-size:12px}
+.assign-many-bar label{display:inline-flex;align-items:center;gap:4px;cursor:pointer}
+.assign-many-fill{flex:1}
+.assign-plan-node.planned{color:var(--accent-text,var(--accent));font-weight:600}

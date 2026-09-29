@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+<title>扩展菜单</title>
+<link rel="stylesheet" href="ui.css">
+<link rel="stylesheet" href="extensions.css">
+<style>
+html,body{background:transparent!important;margin:0!important;padding:0!important;min-height:0!important;height:auto!important;overflow:hidden!important}
+body{padding:8px!important}
+#menu.ext-menu{position:static;display:block;width:auto;max-height:calc(100vh - 16px);box-shadow:0 6px 18px rgba(0,0,0,.18)}
+</style>
+</head>
+<body>
+<div id="menu" class="ext-menu ext-menu-native" role="dialog" aria-label="扩展"></div>
+<script src="overlay.js"></script>
+</body>
+</html>

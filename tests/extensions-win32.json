@@ -12,7 +12,7 @@
     "Disabling removes residual content scripts on restart; removal refuses extensions still used elsewhere",
     "Unreferenced extension removal deletes only its owned package",
     "An invalid enabled package blocks instance startup with an explicit extension error",
-    "Extension menu keeps a still frame of the page visible instead of blanking it",
+    "Extension menu is a native overlay above the live page; Esc, focus loss and its buttons work",
     "Enabled extension preserves fixed viewport DPR 2 and actual corner mouse coordinates",
     "Extension background fetch uses its isolated Mihomo; core failure unloads it without direct fallback",
     "Extension management fits three window sizes and night mode"

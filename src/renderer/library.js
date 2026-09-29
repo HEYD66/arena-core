@@ -7,7 +7,9 @@ let libraryConcurrency = 3,
   libraryOnly = "all",
   libraryIncludeHints = false,
   libraryMinSuccess = 0,
-  librarySourceFormOpen = false;
+  librarySourceFormOpen = false,
+  libraryRegion = "",
+  libraryProtocol = "";
 let librarySource = "",
   librarySearch = "",
   libraryPageIndex = 0,
@@ -27,10 +29,17 @@ function libraryPage() {
   const source = sources.find((s) => s.id === librarySource);
   for (const name of librarySelected)
     if (!source?.nodes.some((n) => n.name === name)) librarySelected.delete(name);
+  syncDiagnosticHistory();
   const latency = (name) => nodeOutcome(librarySource, name, "latency").r;
-  const filtered = (source?.nodes || []).filter(
+  const visible = (source?.nodes || []).filter((n) => libraryIncludeHints || !n.hint);
+  const regionCounts = countBy(visible, (n) => nodeRegion(n.name)),
+    protocolCounts = countBy(visible, (n) => String(n.type || "").toLowerCase());
+  if (libraryRegion && !regionCounts.has(libraryRegion)) libraryRegion = "";
+  if (libraryProtocol && !protocolCounts.has(libraryProtocol)) libraryProtocol = "";
+  const filtered = visible.filter(
     (n) =>
-      (libraryIncludeHints || !n.hint) &&
+      (!libraryRegion || nodeRegion(n.name) === libraryRegion) &&
+      (!libraryProtocol || String(n.type || "").toLowerCase() === libraryProtocol) &&
       (n.name + " " + n.type).toLowerCase().includes(librarySearch.toLowerCase()) &&
       (libraryOnly === "all" ||
         (libraryOnly === "favorites" && favoriteExists(librarySource, n.name)) ||
@@ -80,7 +89,7 @@ function libraryPage() {
    [10, "≥10 次"],
  ]
    .map(([v, l]) => `<option value="${v}" ${v === libraryMinSuccess ? "selected" : ""}>${l}</option>`)
-   .join("")}</select></label><label class="check-label"><input type="checkbox" id="libraryIncludeHints" ${libraryIncludeHints ? "checked" : ""}> 显示疑似订阅提示</label>${help("使用临时独立 Mihomo 检测，无直连回退。延迟为访问 Cloudflare 的 HTTPS 首响应耗时，不是 ICMP Ping。IP 与地区由 ipwho.is 返回，地区仅供参考。下载测速每次约 5 MB。结果显示在对应节点行，悬停可查看地区、错误原因和检测时间。", "检测说明")}</div><div class="subscription-actions node-batch"><button class="btn tiny" data-lib="batch-latency">${icon("bolt")}批量连通性 / 延迟</button><button class="btn tiny" data-lib="batch-ip">${icon("globe")}批量出口 IP</button><button class="btn ghost danger tiny" data-lib="delete-selected" ${librarySelected.size ? "" : "disabled"}>删除已选</button><span class="actions-note selection-count">已选 <span id="librarySelectionCount">${librarySelected.size}</span> · 共 ${filtered.length} 个节点</span></div><div class="library-table"><table class="logs-table compact-node-table"><thead><tr><th class="col-check"><input type="checkbox" id="librarySelectAll" aria-label="全选本页节点" title="全选 / 取消全选本页节点"></th><th>节点 / 协议</th><th>连通性 / 延迟</th><th>出口 IP</th><th>下载速度</th><th class="col-actions">操作</th></tr></thead><tbody>${nodes.map((n) => `<tr data-hint="${!!n.hint}"><td><input type="checkbox" data-library-node="${esc(n.name)}" ${n.hint ? "disabled" : ""} ${librarySelected.has(n.name) ? "checked" : ""} aria-label="选择 ${esc(n.name)}"></td><td class="node-identity"><button class="node-favorite" data-lib="favorite" data-node="${esc(n.name)}" title="${favoriteExists(librarySource, n.name) ? "取消收藏" : "收藏节点"}" ${n.hint ? "disabled" : ""}>${favoriteExists(librarySource, n.name) ? "★" : "☆"}</button><span class="node-name" title="${esc(n.name)}">${esc(n.name)}</span><small class="node-protocol">${esc(n.type)}</small><small class="node-stat" data-stat-node="${esc(n.name)}"></small></td>${["latency", "ip", "speed"].map((kind) => `<td class="node-result" data-result-node="${esc(n.name)}" data-result-kind="${kind}">—</td>`).join("")}<td class="col-actions"><div class="row-actions"><button class="btn tiny" data-lib="assign" data-node="${esc(n.name)}" ${n.hint ? "disabled" : ""}>分配</button><details class="row-menu"><summary class="icon-btn" title="更多操作" aria-label="${esc(n.name)} 的更多操作">${icon("more")}</summary><div class="menu"><button class="menu-item" data-lib="latency" data-node="${esc(n.name)}">${icon("bolt")}连通性检测</button><button class="menu-item" data-lib="ip" data-node="${esc(n.name)}">${icon("globe")}查询出口 IP</button><button class="menu-item" data-lib="speed" data-node="${esc(n.name)}">${icon("download")}下载测速（约 5 MB）</button><hr><button class="menu-item danger" data-lib="delete-node" data-node="${esc(n.name)}">${icon("trash")}删除节点</button></div></details></div></td></tr>`).join("") || '<tr><td colspan="6" class="empty-list">没有匹配节点</td></tr>'}</tbody></table></div><div class="subscription-actions pager"><button class="btn tiny ghost" data-lib="prev" ${libraryPageIndex === 0 ? "disabled" : ""}>上一页</button><span>${libraryPageIndex + 1} / ${pages}</span><button class="btn tiny ghost" data-lib="next" ${libraryPageIndex + 1 >= pages ? "disabled" : ""}>下一页</button></div></section></section>`;
+   .join("")}</select></label><label class="check-label"><input type="checkbox" id="libraryIncludeHints" ${libraryIncludeHints ? "checked" : ""}> 显示疑似订阅提示</label>${help("使用临时独立 Mihomo 检测，无直连回退。延迟为访问 Cloudflare 的 HTTPS 首响应耗时，不是 ICMP Ping。IP 与地区由 ipwho.is 返回，地区仅供参考。下载测速每次约 5 MB。结果显示在对应节点行，悬停可查看地区、错误原因和检测时间。", "检测说明")}</div>${nodeChipsHTML(visible.length, regionCounts, protocolCounts)}<div class="subscription-actions node-batch"><button class="btn tiny" data-lib="batch-latency">${icon("bolt")}批量连通性 / 延迟</button><button class="btn tiny" data-lib="batch-ip">${icon("globe")}批量出口 IP</button><button class="btn tiny" data-lib="assign-many" ${librarySelected.size ? "" : "disabled"} title="把已选节点分别分配给多个实例">分配给多个实例…</button><button class="btn ghost danger tiny" data-lib="delete-selected" ${librarySelected.size ? "" : "disabled"}>删除已选</button><span class="actions-note selection-count">已选 <span id="librarySelectionCount">${librarySelected.size}</span> · 共 ${filtered.length} 个节点</span></div><div class="library-table"><table class="logs-table compact-node-table"><thead><tr><th class="col-check"><input type="checkbox" id="librarySelectAll" aria-label="全选本页节点" title="全选 / 取消全选本页节点"></th><th>节点 / 协议</th><th>连通性 / 延迟</th><th>出口 IP</th><th>下载速度</th><th class="col-actions">操作</th></tr></thead><tbody>${nodes.map((n) => `<tr data-hint="${!!n.hint}"><td><input type="checkbox" data-library-node="${esc(n.name)}" ${n.hint ? "disabled" : ""} ${librarySelected.has(n.name) ? "checked" : ""} aria-label="选择 ${esc(n.name)}"></td><td class="node-identity"><button class="node-favorite" data-lib="favorite" data-node="${esc(n.name)}" title="${favoriteExists(librarySource, n.name) ? "取消收藏" : "收藏节点"}" ${n.hint ? "disabled" : ""}>${favoriteExists(librarySource, n.name) ? "★" : "☆"}</button><span class="node-name" title="${esc(n.name)}">${esc(n.name)}</span><small class="node-protocol">${esc(n.type)}</small><small class="node-stat" data-stat-node="${esc(n.name)}"></small></td>${["latency", "ip", "speed"].map((kind) => `<td class="node-result" data-result-node="${esc(n.name)}" data-result-kind="${kind}">—</td>`).join("")}<td class="col-actions"><div class="row-actions"><button class="btn tiny" data-lib="assign" data-node="${esc(n.name)}" ${n.hint ? "disabled" : ""}>分配</button><details class="row-menu"><summary class="icon-btn" title="更多操作" aria-label="${esc(n.name)} 的更多操作">${icon("more")}</summary><div class="menu"><button class="menu-item" data-lib="latency" data-node="${esc(n.name)}">${icon("bolt")}连通性检测</button><button class="menu-item" data-lib="ip" data-node="${esc(n.name)}">${icon("globe")}查询出口 IP</button><button class="menu-item" data-lib="speed" data-node="${esc(n.name)}">${icon("download")}下载测速（约 5 MB）</button><hr><button class="menu-item danger" data-lib="delete-node" data-node="${esc(n.name)}">${icon("trash")}删除节点</button></div></details></div></td></tr>`).join("") || '<tr><td colspan="6" class="empty-list">没有匹配节点</td></tr>'}</tbody></table></div><div class="subscription-actions pager"><button class="btn tiny ghost" data-lib="prev" ${libraryPageIndex === 0 ? "disabled" : ""}>上一页</button><span>${libraryPageIndex + 1} / ${pages}</span><button class="btn tiny ghost" data-lib="next" ${libraryPageIndex + 1 >= pages ? "disabled" : ""}>下一页</button></div></section></section>`;
   libraryEditing = libraryDraft.editing;
   $("#libraryName").value = libraryDraft.name;
   $("#libraryURL").value = libraryDraft.url;
@@ -96,6 +105,7 @@ function libraryPage() {
 function renderDiagnostics() {
   refreshIPBookmarks();
   if (!$("#libraryTaskbar")) return;
+  syncDiagnosticHistory();
   const d = state.diagnostics || { results: [] },
     job = d.job;
   document.querySelectorAll("[data-source-stats]").forEach((el) => {
@@ -178,7 +188,8 @@ function renderDiagnostics() {
       text = job.cancelling ? "取消中…" : "检测中…";
       detail = "当前检测进行中" + (r ? "；上次结果：" + detail : "");
     }
-    cell.innerHTML = `<button class="node-result-value" data-lib="result-detail" data-node="${esc(name)}" data-kind="${kind}" title="${esc(detail)}" ${r ? "" : "disabled"}>${esc(text)}</button>${r?.ok && kind === "ip" ? `<button class="save-ip ${ipBookmark(r.ip) ? "is-saved" : ""}" data-lib="save-result-ip" data-ip="${esc(r.ip)}" data-node="${esc(name)}" aria-pressed="${!!ipBookmark(r.ip)}" title="${ipBookmark(r.ip) ? "已收藏，点击取消收藏" : "收藏此出口IP"}" ${ipBookmarkBusy.has(ipKey(r.ip)) ? "disabled" : ""}>${ipBookmarkBusy.has(ipKey(r.ip)) ? "保存中…" : ipBookmark(r.ip) ? "★ 已收藏" : "＋收藏"}</button>` : ""}`;
+    const spark = kind === "latency" && !running && !queued ? sparkSVG(nodeHistory(librarySource, name)?.latency?.recent, 34, 12) : "";
+    cell.innerHTML = `<button class="node-result-value" data-lib="result-detail" data-node="${esc(name)}" data-kind="${kind}" title="${esc(detail)}" ${r ? "" : "disabled"}>${esc(text)}${spark}</button>${r?.ok && kind === "ip" ? `<button class="save-ip ${ipBookmark(r.ip) ? "is-saved" : ""}" data-lib="save-result-ip" data-ip="${esc(r.ip)}" data-node="${esc(name)}" aria-pressed="${!!ipBookmark(r.ip)}" title="${ipBookmark(r.ip) ? "已收藏，点击取消收藏" : "收藏此出口IP"}" ${ipBookmarkBusy.has(ipKey(r.ip)) ? "disabled" : ""}>${ipBookmarkBusy.has(ipKey(r.ip)) ? "保存中…" : ipBookmark(r.ip) ? "★ 已收藏" : "＋收藏"}</button>` : ""}`;
   });
 }
 
@@ -196,6 +207,18 @@ document.addEventListener("click", async (event) => {
     sourceId = button.dataset.source || librarySource,
     source = state.library?.find((s) => s.id === sourceId);
   try {
+    if (action === "region" || action === "protocol") {
+      if (action === "region") libraryRegion = button.dataset.value || "";
+      else libraryProtocol = button.dataset.value || "";
+      libraryPageIndex = 0;
+      librarySelected.clear();
+      libraryPage();
+      return;
+    }
+    if (action === "assign-many") {
+      openAssignManyDialog(sourceId);
+      return;
+    }
     if (action === "result-detail") {
       showDiagnosticDetail(sourceId, button.dataset.node, button.dataset.kind);
       return;
@@ -357,6 +380,12 @@ document.addEventListener("click", async (event) => {
   }
 });
 document.addEventListener("change", (event) => {
+  if (modal?.assignMany && (event.target.name === "assignOrder" || event.target.name === "assignManyTarget")) {
+    if (event.target.name === "assignOrder") modal.assignMany.order = event.target.value;
+    else event.target.checked ? modal.assignMany.picked.add(event.target.value) : modal.assignMany.picked.delete(event.target.value);
+    updateAssignManyPlan();
+    return;
+  }
   if (event.target.name === "assignTarget" && modal?.operation === "library-assign") {
     modal.payload.id = event.target.value;
     libraryTargetId = event.target.value;
@@ -421,7 +450,7 @@ function sourceStatsText(s, hints, favorites, ok) {
 function sourceGroupHTML(s) {
   const hints = s.nodes.filter((n) => n.hint),
     ok = s.nodes.filter((n) => nodeOutcome(s.id, n.name, "latency").r?.ok).length,
-    tested = (state.diagnostics?.history || []).some((h) => h.sourceId === s.id);
+    tested = diagnosticHistoryRows().some((h) => h.sourceId === s.id);
   const favorites = state.favorites?.nodes.filter((n) => n.sourceId === s.id).length || 0;
   const initial = [...String(s.name || "?").trim()][0] || "?";
   return (
@@ -539,13 +568,59 @@ function showDiagnosticDetail(sourceId, name, kind) {
   ]
     .filter(Boolean)
     .join(" · ") + (saved ? "（上次保存的结果）" : "");
+  const recent = (nodeHistory(sourceId, name)?.[kind]?.recent || []).slice().reverse();
+  if (recent.length)
+    $("#modal .description").insertAdjacentHTML(
+      "afterend",
+      `<div class="trend-detail">${kind === "latency" ? sparkSVG(recent.slice().reverse(), 400, 48, true) : ""}<ol class="trend-list" aria-label="最近 ${recent.length} 次检测">${recent
+        .map(
+          (e) =>
+            `<li><time>${esc(new Date(e.at).toLocaleString())}</time><b class="${e.ok ? "ok" : "bad"}">${esc(e.ok ? (kind === "latency" ? e.ms + " ms" : e.ip || "成功") : diagnosticFailureLabel(e.error || "失败"))}</b></li>`,
+        )
+        .join("")}</ol></div>`,
+    );
   $("#modal .modal-actions").innerHTML =
     `<button class="btn subtle" data-action="modal-close">关闭</button><button class="btn soft" data-ux="related-logs" data-source="${esc(sourceId)}" ${r.taskId ? `data-task="${esc(r.taskId)}"` : ""}>查看相关日志</button>`;
 }
 
 // 检测结果：本次运行的新结果优先（正常颜色）；没有新结果时显示保存的上次结果（淡色）。
+// 检测统计只在版本变化时单独拉取，不随每次状态推送传输。
+let diagHistoryCache = [],
+  diagHistoryVersion = 0,
+  diagHistoryLoading = false,
+  diagHistoryIndex = null,
+  diagHistoryIndexed = null;
+function diagnosticHistoryRows() {
+  return state.diagnostics?.history || diagHistoryCache;
+}
+function syncDiagnosticHistory() {
+  const v = state.diagnostics?.historyVersion;
+  if (!v || v === diagHistoryVersion || diagHistoryLoading || !window.arenaCore?.request) return;
+  diagHistoryLoading = true;
+  window.arenaCore
+    .request("diagnostic-history")
+    .then((res) => {
+      if (res?.ok) {
+        diagHistoryCache = res.value.rows || [];
+        diagHistoryVersion = res.value.version;
+      }
+    })
+    .catch(() => {})
+    .finally(() => {
+      diagHistoryLoading = false;
+      if (view !== "proxies" || !$("#libraryTaskbar")) return;
+      const dependent = libraryMinSuccess > 0 || libraryOnly === "available" || librarySort === "latency";
+      if (dependent && !document.activeElement?.matches?.("input,textarea,select")) libraryPage();
+      else renderDiagnostics();
+    });
+}
 function nodeHistory(sourceId, name) {
-  return (state.diagnostics?.history || []).find((h) => h.sourceId === sourceId && h.name === name);
+  const rows = diagnosticHistoryRows();
+  if (diagHistoryIndexed !== rows) {
+    diagHistoryIndexed = rows;
+    diagHistoryIndex = new Map(rows.map((h) => [h.sourceId + "\u0001" + h.name, h]));
+  }
+  return diagHistoryIndex.get(sourceId + "\u0001" + name);
 }
 function nodeOutcome(sourceId, name, kind) {
   const live = state.diagnostics?.results.find((x) => x.sourceId === sourceId && x.name === name && x.kind === kind);
@@ -573,6 +648,7 @@ function syncLibrarySelectAll() {
 function updateLibrarySelection() {
   if ($("#librarySelectionCount")) $("#librarySelectionCount").textContent = librarySelected.size;
   if ($('[data-lib="delete-selected"]')) $('[data-lib="delete-selected"]').disabled = !librarySelected.size;
+  if ($('[data-lib="assign-many"]')) $('[data-lib="assign-many"]').disabled = !librarySelected.size;
   syncLibrarySelectAll();
 }
 // 分配：在对话框里列出所有实例供选择，默认上次选择的实例。
@@ -601,3 +677,150 @@ function updateAssignDescription() {
   const busy = ["running", "starting"].includes(t?.status);
   $("#modal .description").textContent = `将「${modal.payload.name}」分配给「${t?.name || ""}」：切换为代理模式${busy ? "并停止该实例" : ""}，之后请手动启动。其他实例不变。`;
 }
+
+// 地区：从节点名识别（国旗、中文、英文或两位代码）；识别不到归为「其他」。
+const NODE_REGIONS = [
+  ["香港", /香港|🇭🇰|hong\s?kong/i, "HK"],
+  ["台湾", /台湾|台灣|台北|🇹🇼|taiwan/i, "TW"],
+  ["日本", /日本|东京|東京|大阪|🇯🇵|japan|tokyo|osaka/i, "JP"],
+  ["新加坡", /新加坡|狮城|🇸🇬|singapore/i, "SG"],
+  ["美国", /美国|美國|洛杉矶|圣何塞|硅谷|纽约|西雅图|芝加哥|达拉斯|凤凰城|🇺🇸|united\s?states|america|los\s?angeles|san\s?jose/i, "US|USA"],
+  ["韩国", /韩国|韓國|首尔|🇰🇷|korea|seoul/i, "KR"],
+  ["英国", /英国|英國|伦敦|🇬🇧|united\s?kingdom|london/i, "UK|GB"],
+  ["德国", /德国|德國|法兰克福|🇩🇪|germany|frankfurt/i, "DE"],
+  ["法国", /法国|法國|巴黎|🇫🇷|france|paris/i, "FR"],
+  ["荷兰", /荷兰|荷蘭|阿姆斯特丹|🇳🇱|netherlands|amsterdam/i, "NL"],
+  ["加拿大", /加拿大|🇨🇦|canada/i, "CA"],
+  ["澳大利亚", /澳大利亚|澳洲|悉尼|🇦🇺|australia|sydney/i, "AU"],
+  ["俄罗斯", /俄罗斯|莫斯科|🇷🇺|russia|moscow/i, "RU"],
+  ["印度", /印度(?!尼)|孟买|🇮🇳|india|mumbai/i, "IN"],
+  ["土耳其", /土耳其|🇹🇷|turkey/i, "TR"],
+  ["马来西亚", /马来西亚|吉隆坡|🇲🇾|malaysia/i, "MY"],
+  ["泰国", /泰国|曼谷|🇹🇭|thailand/i, "TH"],
+  ["越南", /越南|🇻🇳|vietnam/i, "VN"],
+  ["菲律宾", /菲律宾|🇵🇭|philippines/i, "PH"],
+  ["印尼", /印尼|🇮🇩|indonesia/i, ""],
+  ["巴西", /巴西|🇧🇷|brazil/i, "BR"],
+  ["阿根廷", /阿根廷|🇦🇷|argentina/i, "AR"],
+].map(([label, words, codes]) => [label, words, codes ? new RegExp(`(?<![A-Za-z0-9])(?:${codes})(?![A-Za-z])`) : null]);
+const nodeRegionCache = new Map();
+function nodeRegion(name) {
+  const key = String(name || "");
+  if (!nodeRegionCache.has(key)) {
+    if (nodeRegionCache.size > 20000) nodeRegionCache.clear();
+    nodeRegionCache.set(key, (NODE_REGIONS.find(([, words]) => words.test(key)) || NODE_REGIONS.find(([, , code]) => code?.test(key)))?.[0] || "其他");
+  }
+  return nodeRegionCache.get(key);
+}
+function countBy(list, fn) {
+  const m = new Map();
+  for (const x of list) {
+    const k = fn(x);
+    m.set(k, (m.get(k) || 0) + 1);
+  }
+  return m;
+}
+function nodeChipsHTML(total, regions, protocols) {
+  if (!total) return "";
+  const chip = (kind, value, label, n, active) =>
+    `<button type="button" class="node-chip ${active ? "active" : ""}" data-lib="${kind}" data-value="${esc(value)}" aria-pressed="${active}">${esc(label)}<small>${n}</small></button>`;
+  const sorted = (m) => [...m].sort((a, b) => (a[0] === "其他") - (b[0] === "其他") || b[1] - a[1]);
+  const regionRow = regions.size > 1 ? `<div class="node-chip-row" role="group" aria-label="按地区筛选"><span class="node-chip-label">地区</span>${chip("region", "", "全部", total, !libraryRegion)}${sorted(regions).map(([k, n]) => chip("region", k, k, n, libraryRegion === k)).join("")}</div>` : "";
+  const protocolRow = protocols.size > 1 ? `<div class="node-chip-row" role="group" aria-label="按协议筛选"><span class="node-chip-label">协议</span>${chip("protocol", "", "全部", total, !libraryProtocol)}${sorted(protocols).map(([k, n]) => chip("protocol", k, k, n, libraryProtocol === k)).join("")}</div>` : "";
+  return regionRow || protocolRow ? `<div class="node-chips">${regionRow}${protocolRow}</div>` : "";
+}
+// 延迟趋势：最近 10 次，成功为折线点，失败为底部红点。
+function sparkSVG(recent, w, h, large = false) {
+  const list = Array.isArray(recent) ? recent.slice(-10) : [];
+  if (list.length < 2) return "";
+  const ok = list.filter((e) => e.ok && Number.isFinite(e.ms));
+  const max = Math.max(...ok.map((e) => e.ms), 1),
+    min = Math.min(...ok.map((e) => e.ms), max);
+  const pad = large ? 4 : 1.5,
+    step = (w - pad * 2) / (list.length - 1);
+  const y = (ms) => (max === min ? h / 2 : pad + (h - pad * 2) * (1 - (ms - min) / (max - min)));
+  const points = list.map((e, i) => (e.ok && Number.isFinite(e.ms) ? `${(pad + i * step).toFixed(1)},${y(e.ms).toFixed(1)}` : null));
+  const segments = [];
+  let seg = [];
+  for (const p of points) {
+    if (p) seg.push(p);
+    else if (seg.length) {
+      segments.push(seg);
+      seg = [];
+    }
+  }
+  if (seg.length) segments.push(seg);
+  const fails = list
+    .map((e, i) => (e.ok ? "" : `<circle cx="${(pad + i * step).toFixed(1)}" cy="${h - pad}" r="${large ? 2.6 : 1.6}" class="spark-fail"/>`))
+    .join("");
+  const dots = large ? points.map((p) => (p ? `<circle cx="${p.split(",")[0]}" cy="${p.split(",")[1]}" r="2.2" class="spark-dot"/>` : "")).join("") : "";
+  const title = `最近 ${list.length} 次：成功 ${ok.length} 次` + (ok.length ? `，${min}–${max} ms` : "");
+  return `<svg class="spark ${large ? "spark-large" : ""}" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" style="width:${w}px;height:${h}px" role="img" aria-label="${title}"><title>${title}</title>${segments.map((sg) => (sg.length > 1 ? `<polyline points="${sg.join(" ")}"/>` : `<circle cx="${sg[0].split(",")[0]}" cy="${sg[0].split(",")[1]}" r="1.4" class="spark-dot"/>`)).join("")}${dots}${fails}</svg>`;
+}
+// 批量分配：勾选实例，按顺序或随机把已选节点分给它们；节点不够时循环使用（会提示共用）。
+function openAssignManyDialog(sourceId) {
+  const source = state.library?.find((s) => s.id === sourceId);
+  const names = (source?.nodes || []).filter((n) => librarySelected.has(n.name) && !n.hint).map((n) => n.name);
+  if (!names.length) throw Error("请先勾选节点");
+  if (!state.instances.length) throw Error("请先创建实例");
+  libraryConfirm("分配给多个实例", "", "library-assign-many", { sourceId, assignments: [] });
+  modal.assignMany = { names, order: "order", picked: new Set(), shuffled: null };
+  $("#modal .description").insertAdjacentHTML(
+    "afterend",
+    `<div class="assign-many"><div class="assign-many-bar"><label><input type="radio" name="assignOrder" value="order" checked> 按顺序</label><label><input type="radio" name="assignOrder" value="random"> 随机</label><button type="button" class="btn ghost tiny" data-assign-reshuffle hidden>重新随机</button><span class="assign-many-fill"></span><button type="button" class="btn ghost tiny" data-assign-all>全选实例</button></div><fieldset class="assign-targets"><legend class="visually-hidden">选择实例</legend>${state.instances
+      .map(
+        (x) =>
+          `<label class="assign-target"><input type="checkbox" name="assignManyTarget" value="${x.id}"><span class="assign-name" title="${esc(x.name)}">${esc(x.name)}</span>${status(x)}<small class="assign-plan-node" data-plan-for="${x.id}">${esc(networkText(x))}</small></label>`,
+      )
+      .join("")}</fieldset></div>`,
+  );
+  updateAssignManyPlan();
+}
+function shuffled(list) {
+  const a = list.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+function updateAssignManyPlan() {
+  const m = modal?.assignMany;
+  if (!m) return;
+  const targets = state.instances.filter((x) => m.picked.has(x.id));
+  if (m.order === "random" && !m.shuffled) m.shuffled = shuffled(m.names);
+  const order = m.order === "random" ? m.shuffled : m.names;
+  const plan = targets.map((x, i) => ({ id: x.id, name: order[i % order.length] }));
+  modal.payload.assignments = plan;
+  const shared = Math.max(0, targets.length - order.length),
+    busy = targets.filter((x) => ["running", "starting"].includes(x.status)).length;
+  $("#modal .description").textContent = targets.length
+    ? `把已选的 ${order.length} 个节点分配给 ${targets.length} 个实例，切换为代理模式${busy ? `；其中 ${busy} 个正在运行的实例会被停止` : ""}，之后请手动启动。${shared ? `节点比实例少：有 ${shared} 个实例会与其他实例共用节点（出口 IP 相同）。` : ""}`
+    : `已选 ${order.length} 个节点。勾选要分配的实例（可多选）。`;
+  for (const x of state.instances) {
+    const el = document.querySelector(`[data-plan-for="${x.id}"]`);
+    if (!el) continue;
+    const p = plan.findIndex((q) => q.id === x.id);
+    el.textContent = p >= 0 ? `→ ${plan[p].name}${p >= order.length ? "（共用）" : ""}` : networkText(x);
+    el.classList.toggle("planned", p >= 0);
+  }
+  const reshuffle = document.querySelector("[data-assign-reshuffle]");
+  if (reshuffle) reshuffle.hidden = m.order !== "random";
+  const all = document.querySelector("[data-assign-all]");
+  if (all) all.textContent = targets.length === state.instances.length ? "取消全选" : "全选实例";
+  const confirm = document.querySelector('#modal [data-action="confirm"]');
+  if (confirm) confirm.disabled = !targets.length;
+}
+document.addEventListener("click", (event) => {
+  const m = modal?.assignMany;
+  if (!m) return;
+  if (event.target.closest("[data-assign-all]")) {
+    const every = m.picked.size === state.instances.length;
+    m.picked = new Set(every ? [] : state.instances.map((x) => x.id));
+    document.querySelectorAll('input[name="assignManyTarget"]').forEach((el) => (el.checked = !every));
+    updateAssignManyPlan();
+  } else if (event.target.closest("[data-assign-reshuffle]")) {
+    m.shuffled = null;
+    updateAssignManyPlan();
+  }
+});

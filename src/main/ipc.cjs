@@ -1,6 +1,10 @@
 'use strict';
 const {ipcMain,dialog,clipboard,shell}=require('electron');const {refreshOne,refreshAll,reveal}=require('./extension-refresh.cjs');const fs=require('node:fs'),path=require('node:path');const {sizeText}=require('./extension-catalog.cjs');
 function installIPC(window,controller){
+ // 扩展菜单原生浮层：只接受浮层自身页面发来的消息。
+ const overlay=new (require('./menu-overlay.cjs').MenuOverlay)(window,message=>{if(!window.isDestroyed()&&!window.webContents.isDestroyed())window.webContents.send('core:overlay',message);});controller.overlay=overlay;
+ const onOverlay=(event,message)=>overlay.receive(event.sender,message);ipcMain.on('overlay:event',onOverlay);
+ const assignNode=(id,sourceId,name)=>controller.queue(id,async()=>{controller.store.get(id);const node=controller.library.node(sourceId,name);await controller.stopInner(id);controller.store.saveNodes(id,[node],null,{sourceId,name:node.name});controller.store.update(id,{network:{mode:'mihomo',nodeName:node.name}});controller.log(id,'已从全局库分配节点；当前实例已停止，请手动启动');});
  ipcMain.handle('core:request',async(event,message)=>{
   try{if(window.isDestroyed()||controller.disposing)return {ok:false,error:'应用正在关闭'};const controls=window.webContents;if(!controls||controls.isDestroyed())return {ok:false,error:'控制窗口已关闭'};if(event.sender!==controls||event.senderFrame!==controls.mainFrame)throw Error('拒绝非控制界面调用');
   if(!message||typeof message.action!=='string')throw Error('请求无效');const {action,id}=message;
@@ -40,8 +44,12 @@ function installIPC(window,controller){
      if(action==='library-file'){const picked=await dialog.showOpenDialog(window,{title:'导入到全局代理库',properties:['openFile'],filters:[{name:'Clash YAML / JSON',extensions:['yaml','yml','json']}]});if(picked.canceled)return {cancelled:true};const file=picked.filePaths[0];if(fs.statSync(file).size>2*1024*1024)throw Error('配置文件上限2MB');value=await controller.library.save({name:message.name||'本地节点',text:fs.readFileSync(file,'utf8')});}
      if(!['library-rename','library-hint'].includes(action)){const changed=message.sourceId||value;for(const [key,r]of controller.diagnostics.results)if(r.sourceId===changed)controller.diagnostics.results.delete(key);}controller.workspace.log('subscription','节点源操作完成：'+action);controller.emit();return value;
     })};
-    case 'library-assign':return {ok:true,value:await controller.queue(id,async()=>{controller.store.get(id);const node=controller.library.node(message.sourceId,message.name);await controller.stopInner(id);controller.store.saveNodes(id,[node],null,{sourceId:message.sourceId,name:node.name});controller.store.update(id,{network:{mode:'mihomo',nodeName:node.name}});controller.log(id,'已从全局库分配节点；当前实例已停止，请手动启动');})};
+    case 'library-assign':return {ok:true,value:await assignNode(id,message.sourceId,message.name)};
+    // 批量分配：先校验全部实例和节点，任何一项无效都不改动；之后逐个实例（各自排队）停止并写入节点。
+    case 'library-assign-many':{const list=Array.isArray(message.assignments)?message.assignments:[];if(!list.length||list.length>15)throw Error('请选择 1–15 个实例');const ids=new Set();const plan=list.map(item=>{const target=String(item?.id||'');if(ids.has(target))throw Error('同一实例不能重复分配');ids.add(target);controller.store.get(target);return {id:target,node:controller.library.node(message.sourceId,String(item?.name||''))};});
+     const results=await Promise.allSettled(plan.map(p=>assignNode(p.id,message.sourceId,p.node.name)));const failed=results.filter(r=>r.status==='rejected').length;controller.workspace.log('subscription',`批量分配节点：${plan.length-failed} 个实例成功${failed?`，${failed} 个失败`:''}；已停止的实例需手动启动`,failed?'WARN':'INFO');controller.emit();if(failed)throw Error(`${failed} 个实例分配失败：`+results.find(r=>r.status==='rejected').reason.message);return {ok:true,value:{count:plan.length}};}
     case 'diagnostic-start':return {ok:true,value:controller.diagnostics.run(message.items,message.kind,message.concurrency??3)};
+    case 'diagnostic-history':return {ok:true,value:{version:controller.diagnostics.history.version,rows:controller.diagnostics.history.list()}};
     case 'diagnostic-history-clear':{if(typeof message.sourceId!=='string'||!message.sourceId)throw Error('请选择节点源');const cleared=controller.diagnostics.history.clear(message.sourceId);controller.diagnostics.history.flush();controller.emit();return {ok:true,value:{cleared}};}
     case 'diagnostic-cancel':controller.diagnostics.cancel();break;
 
@@ -49,6 +57,8 @@ function installIPC(window,controller){
     case 'rename':controller.store.update(id,{name:message.name});controller.emit();break;
     case 'activate':controller.choose(id??null);break;
     case 'layout':controller.layout(id,message.bounds);break;
+    case 'overlay-show':return {ok:true,value:await overlay.show(message)};
+    case 'overlay-hide':overlay.hide('request');return {ok:true};
     case 'browser-snapshot':return {ok:true,value:await controller.capturePageFrame(id)};
     case 'start':await controller.start(id);break;
     case 'stop':await controller.stop(id);break;
@@ -65,6 +75,6 @@ function installIPC(window,controller){
    }return {ok:true};
   }catch(e){controller.workspace.log('application','操作失败：'+require('./workspace.cjs').redact(e.message),'ERROR');controller.emit();return {ok:false,error:e.message};}finally{controller.flushEmit?.();}
  });
-return ()=>ipcMain.removeHandler('core:request');
+return ()=>{ipcMain.removeHandler('core:request');ipcMain.removeListener('overlay:event',onOverlay);overlay.destroy();};
 }
 module.exports={installIPC};

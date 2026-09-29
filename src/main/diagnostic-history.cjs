@@ -4,7 +4,8 @@
 const fs = require("node:fs"),
   path = require("node:path");
 const KINDS = ["latency", "ip"],
-  MAX_NODES = 20000;
+  MAX_NODES = 20000,
+  RECENT = 10;
 function pick(r) {
   const base = { at: r.at, ok: !!r.ok };
   if (!r.ok) return { ...base, error: String(r.error || "").slice(0, 200) };
@@ -27,6 +28,7 @@ class DiagnosticHistory {
     this.data = { version: 1, nodes: {} };
     this.timer = null;
     this.dirty = false;
+    this.version = 1;
     try {
       if (this.file && fs.existsSync(this.file)) {
         const d = JSON.parse(fs.readFileSync(this.file, "utf8"));
@@ -47,6 +49,12 @@ class DiagnosticHistory {
     const s = (row[result.kind] ||= { ok: 0, total: 0 });
     s.total++;
     s.last = pick(result);
+    // 最近 10 次（延迟趋势 / 出口 IP 变化）。
+    const brief = { at: result.at, ok: !!result.ok };
+    if (result.ok && result.kind === "latency") brief.ms = result.latencyMs;
+    if (result.ok && result.kind === "ip") brief.ip = result.ip;
+    if (!result.ok) brief.error = String(result.error || "").slice(0, 80);
+    s.recent = [...(Array.isArray(s.recent) ? s.recent : []), brief].slice(-RECENT);
     if (result.ok) {
       s.ok++;
       s.lastOk = s.last;
@@ -74,6 +82,7 @@ class DiagnosticHistory {
     return Object.values(this.data.nodes);
   }
   schedule() {
+    this.version++;
     this.dirty = true;
     if (this.timer || !this.file) return;
     this.timer = setTimeout(() => this.flush(), 400);
