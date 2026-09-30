@@ -56,6 +56,8 @@ function installIPC(window,controller){
     case 'create':{const value=await require('./operations.cjs').createInstance(controller,message);return {ok:true,value:message.detailed?value:value.id};}
     case 'rename':controller.store.update(id,{name:message.name});controller.emit();break;
     case 'activate':controller.choose(id??null);break;
+    case 'grid-layout':controller.setGrid(message.grid&&typeof message.grid==='object'?message.grid:null);break;
+    case 'grid-thumbs':return {ok:true,value:await controller.gridThumbs()};
     case 'layout':controller.layout(id,message.bounds);break;
     case 'overlay-show':return {ok:true,value:await overlay.show(message)};
     case 'overlay-hide':overlay.hide('request');return {ok:true};

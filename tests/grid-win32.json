@@ -1,0 +1,18 @@
+{
+  "platform": "win32",
+  "electron": "44.4.5",
+  "passed": 10,
+  "results": [
+    "宫格总览 sits right after 实例管理 in 全局管理",
+    "Every instance gets a tile; stopped ones show a ▶ placeholder",
+    "Live mode: both running pages are shown exactly over their tiles",
+    "Tiles render the normal page size scaled down; DPR and screen size are unchanged",
+    "Live tiles accept clicks",
+    "Tiles hide while a dialog is open",
+    "Saver mode: only the chosen tile is live; others show refreshed thumbnails",
+    "Clicking a thumbnail makes that tile live",
+    "Leaving the grid restores the normal page size and hides other tiles",
+    "Tile ■ / ▶ stop and start the instance in place"
+  ],
+  "errors": []
+}

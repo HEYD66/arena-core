@@ -3,7 +3,7 @@
 // Loaded before app.js. Never starts instances; stale ids, unknown views and unknown option values are ignored.
 const UI_STATE_KEY='arena.ui.state.v1';
 const uiInstanceViews=['browser','environment','logs'];
-const uiKnownViews=['browser','environment','logs','overview','global','settings','proxies','global-logs','extensions'];
+const uiKnownViews=['browser','environment','logs','overview','global','settings','proxies','global-logs','extensions','grid'];
 const uiScrollTargets=['#content','.library-table','.ip-table-scroll','.extension-assign-table','.quick-manager-list','.instance-details'];
 const uiScrollMemory=new Map();
 let uiReady=false,uiSaveTimer=null,advancedEnvironmentOpen=false,lastFocusInfo=null;
