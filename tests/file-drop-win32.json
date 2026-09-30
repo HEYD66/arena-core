@@ -1,0 +1,11 @@
+{
+  "platform": "win32",
+  "electron": "44.4.5",
+  "passed": 1,
+  "results": [
+    "A file dragged into the page arrives in the drop event"
+  ],
+  "errors": [
+    "AssertionError [ERR_ASSERTION]: NotAllowedError: Failed to execute 'getFile' on 'FileSystemFileHandle': The request is not allowed by the user agent or the platform in the current context.\n+ actual - expected\n\n+ \"NotAllowedError: Failed to execute 'getFile' on 'FileSystemFileHandle': The request is not allowed by the user agent or the platform in the current context.\"\n- undefined\n\n    at D:\\AProgram\\arena\\arena多账户控制台\\arena-core\\tests\\file-drop-electron.cjs:19:61"
+  ]
+}
