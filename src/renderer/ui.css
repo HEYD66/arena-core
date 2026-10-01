@@ -139,6 +139,11 @@ html[data-frame="custom"] .window-bar{display:flex;align-items:center;justify-co
 .win-mute svg{width:16px;height:16px}
 .grid-tools .icon-btn{width:26px;height:28px}
 .grid-mute.on{color:var(--red)}
+/* 应用信息：开发者与免责声明 */
+.app-author{color:var(--text);font-weight:600}
+.disclaimer{margin:0;padding-left:20px;display:grid;gap:6px;font-size:12.5px;line-height:1.65;color:var(--muted)}
+.disclaimer li::marker{color:var(--dim)}
+.disclaimer-foot{margin-top:10px;font-size:12px;color:var(--muted)}
 .grid-mute.all{opacity:.75}
 .res-meter{display:flex;align-items:center;gap:6px;height:22px;padding:0 8px;border-radius:6px;font-size:12px;line-height:1;color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums;-webkit-app-region:no-drag;cursor:default}
 .res-meter:hover{background:color-mix(in srgb,var(--text) 7%,transparent)}
