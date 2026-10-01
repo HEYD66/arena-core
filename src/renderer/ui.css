@@ -129,6 +129,14 @@ input[aria-invalid="true"],select[aria-invalid="true"]{border-color:var(--red)!i
 
 /* ── 4. Shell ──────────────────────────────────────────────── */
 .app{height:100vh;min-height:600px;display:grid;grid-template-rows:42px minmax(0,1fr) 24px;overflow:hidden}
+/* 自绘标题栏（Windows）：可拖动窗口；右侧约 138px 留给系统的最小化/最大化/关闭按钮。 */
+.window-bar{display:none}
+html[data-frame="custom"] .app{grid-template-rows:32px 42px minmax(0,1fr) 24px}
+html[data-frame="custom"] .window-bar{display:flex;align-items:center;justify-content:flex-end;min-width:0;height:32px;padding:0 152px 0 12px;background:var(--winbar,var(--bg));-webkit-app-region:drag;user-select:none;overflow:hidden}
+.res-meter{display:flex;align-items:center;gap:6px;height:22px;padding:0 8px;border-radius:6px;font-size:12px;line-height:1;color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums;-webkit-app-region:no-drag;cursor:default}
+.res-meter:hover{background:color-mix(in srgb,var(--text) 7%,transparent)}
+.res-meter b{font-weight:600;color:var(--text)}
+.res-meter .res-sep{opacity:.6}
 .notice{display:none}
 
 /* Title bar: brand + instance tabs + global actions in one row. */

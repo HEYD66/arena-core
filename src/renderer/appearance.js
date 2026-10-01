@@ -2,6 +2,8 @@
 // Control-window preferences only: never touch instance sessions, nativeTheme or fingerprint overrides.
 (()=>{
  const root=document.documentElement;
+ // 主进程在 Windows 上以 ?frame=custom 打开界面：此时系统标题栏已隐藏，由 window-bar.js 自绘一行。
+ if(new URLSearchParams(location.search).get('frame')==='custom')root.dataset.frame='custom';
  const read=(k,fallback)=>{try{return localStorage.getItem(k)||fallback;}catch{return fallback;}};
  const save=(k,v)=>{try{localStorage.setItem(k,v);}catch{/* Preferences are optional if storage is unavailable. */}};
  root.dataset.theme=read('arena.ui.theme','light')==='dark'?'dark':'light';

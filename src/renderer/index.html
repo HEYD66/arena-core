@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="extensions.css">
 </head>
 <body>
-<div class="app">
+<div class="app"><div class="window-bar" id="windowBar"><span class="res-meter" id="resMeter"><span>CPU <b data-cpu>—</b></span><span class="res-sep">·</span><span>内存 <b data-mem>—</b></span></span></div>
  <header class="titlebar"><div class="brand" aria-label="千面 Facet"><div class="mark"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><g fill="currentColor"><polygon points="32.0,10.0 51.5,21.2 40.7,26.2 32.0,21.2" fill-opacity="0.94"/><polygon points="51.5,21.2 51.5,43.8 40.7,36.2 40.7,26.2" fill-opacity="0.74"/><polygon points="51.5,43.8 32.0,55.0 32.0,41.2 40.7,36.2" fill-opacity="0.46"/><polygon points="32.0,55.0 12.5,43.8 23.3,36.2 32.0,41.2" fill-opacity="0.58"/><polygon points="12.5,43.8 12.5,21.2 23.3,26.2 23.3,36.2" fill-opacity="0.84"/><polygon points="12.5,21.2 32.0,10.0 32.0,21.2 23.3,26.2" fill-opacity="0.98"/><polygon points="32.0,21.2 40.7,26.2 40.7,36.2 32.0,41.2 23.3,36.2 23.3,26.2"/></g><g fill="none" style="stroke:var(--accent)" stroke-width="2.2" stroke-linejoin="round"><line x1="32.0" y1="10.0" x2="32.0" y2="21.2"/><line x1="51.5" y1="21.2" x2="40.7" y2="26.2"/><line x1="51.5" y1="43.8" x2="40.7" y2="36.2"/><line x1="32.0" y1="55.0" x2="32.0" y2="41.2"/><line x1="12.5" y1="43.8" x2="23.3" y2="36.2"/><line x1="12.5" y1="21.2" x2="23.3" y2="26.2"/><polygon points="32.0,21.2 40.7,26.2 40.7,36.2 32.0,41.2 23.3,36.2 23.3,26.2"/></g></svg></div><strong>千面</strong><span>FACET</span></div><div class="tabs" id="tabs" role="tablist" aria-label="实例标签"></div><div class="tab-end"><button class="icon-btn" data-action="new" title="新建实例（Ctrl + T）" aria-label="新建实例" aria-keyshortcuts="Control+T" id="newTab"></button></div><div class="titlebar-fill"></div><div class="top-actions"><span class="summary-pill" id="headerSummary"></span><button class="icon-btn" data-view="overview" title="实例管理" aria-label="实例管理" id="allTabs"></button><button class="icon-btn" id="themeToggle" type="button" aria-pressed="false" title="仅切换软件界面，不强制改变网页主题"></button><button class="icon-btn" id="sidebarToggle" type="button" aria-controls="sidebar" aria-expanded="true" title="折叠侧栏"></button></div></header>
  <div class="body-grid"><aside class="sidebar" id="sidebar"></aside><main class="workspace"><header class="workspace-head" id="workspaceHead"></header><section class="main-content" id="content" aria-live="polite"></section></main></div>
  <footer class="footer"><div class="footer-left"><span id="footerCore">内置 Mihomo</span></div><div class="footer-right">千面 FACET · 0.2.0</div></footer>
@@ -26,5 +26,5 @@
 <script src="library.js" defer></script>
 <script src="grid.js" defer></script>
 <script src="ux-habits.js" defer></script>
-<script src="app.js" defer></script>
+<script src="window-bar.js" defer></script><script src="app.js" defer></script>
 </body></html>

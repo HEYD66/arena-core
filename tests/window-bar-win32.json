@@ -1,0 +1,15 @@
+{
+  "platform": "win32",
+  "electron": "44.4.5",
+  "passed": 7,
+  "results": [
+    "Custom frame: a 32px draggable app row sits above the tab row; the readout itself is not a drag area",
+    "Bar colour and the native window buttons follow theme and palette changes; readout contrast ≥4.5 in all 31 palettes",
+    "Readout shows CPU % and total memory (CPU 0%·内存 83 MB) with an explanatory tooltip",
+    "Mihomo cores started by the app are added to the memory total (27.7 MB)",
+    "Instance page view stays aligned below the extra row",
+    "No overflow at 1024/1280/1440 and the readout never sits under the window buttons",
+    "Refresh pauses while minimized and resumes on restore"
+  ],
+  "errors": []
+}
