@@ -3,7 +3,7 @@
 // 省资源模式：只有选中的格子实时显示，其余每 2 秒刷新一次缩略图。已停止的实例只显示占位，不占内存。
 // 注意：本文件在 app.js 之前加载，只能在函数内部引用 app.js 的全局变量（bridge、state、view 等）。
 let gridPrefs=(()=>{try{const v=JSON.parse(localStorage.getItem('facet-grid')||'{}');return {mode:v.mode==='saver'?'saver':'live',cols:[2,3,4,5,6].includes(v.cols)?v.cols:'auto'};}catch{return {mode:'live',cols:'auto'};}})();
-let gridFocus=null,gridTimer=null,gridFrame=0,gridSig='',gridActive=false,lastBrowserHostSize=null;
+let gridFocus=null,gridTimer=null,gridFrame=0,gridSig='',gridActive=false,lastBrowserHostSize=null,gridLiveIds=new Set(),gridQuickPoll=0;
 const gridThumbCache=new Map();
 function gridSave(){try{localStorage.setItem('facet-grid',JSON.stringify(gridPrefs));}catch{}}
 // 页面按“正常浏览页面”的尺寸排版；还没打开过浏览页面时按内容区估算。
@@ -30,8 +30,10 @@ function gridSendLayout(){if(view!=='grid'||!bridge||gridFrame)return;gridFrame=
  for(const el of content.querySelectorAll('.grid-tile')){const x=state.instances.find(i=>i.id===el.dataset.gridId);if(x?.status!=='running')continue;const b=el.querySelector('.grid-body')?.getBoundingClientRect();if(!b||b.width<40||b.height<30)continue;
   const inside=b.top>=c.top-0.5&&b.bottom<=c.bottom+0.5&&b.left>=c.left-0.5&&b.right<=c.right+0.5;
   tiles.push({id:x.id,x:b.x,y:b.y,width:b.width,height:b.height,live:!covered&&inside&&(gridPrefs.mode==='live'||gridFocus===x.id)});}
- bridge.request('grid-layout',{grid:{base:gridBaseSize(),tiles}}).catch(()=>{});});}
-function gridLeave(){if(!gridActive)return;gridActive=false;clearInterval(gridTimer);gridTimer=null;if(gridFrame){cancelAnimationFrame(gridFrame);gridFrame=0;}bridge?.request('grid-layout',{grid:null}).catch(()=>{});}
+ bridge.request('grid-layout',{grid:{base:gridBaseSize(),tiles}}).catch(()=>{});
+ // 有格子从实时切到缩略图（滚出视野、打开弹窗）时尽快刷新一次缩略图。
+ const live=new Set(tiles.filter(t=>t.live).map(t=>t.id));if([...gridLiveIds].some(id=>!live.has(id))&&!gridQuickPoll)gridQuickPoll=setTimeout(()=>{gridQuickPoll=0;gridPollThumbs();},120);gridLiveIds=live;});}
+function gridLeave(){if(!gridActive)return;gridActive=false;gridLiveIds=new Set();clearTimeout(gridQuickPoll);gridQuickPoll=0;clearInterval(gridTimer);gridTimer=null;if(gridFrame){cancelAnimationFrame(gridFrame);gridFrame=0;}bridge?.request('grid-layout',{grid:null}).catch(()=>{});}
 function gridSetFocus(id){if(gridFocus===id)return;gridFocus=id;document.querySelectorAll('.grid-tile').forEach(el=>el.classList.toggle('focused',gridPrefs.mode==='saver'&&el.dataset.gridId===gridFocus));gridSendLayout();}
 document.addEventListener('click',async e=>{if(view!=='grid')return;const t=e.target;
  const mode=t.closest('[data-grid-mode]');if(mode){if(gridPrefs.mode!==mode.dataset.gridMode){gridPrefs.mode=mode.dataset.gridMode;gridSave();render(true);}return;}
