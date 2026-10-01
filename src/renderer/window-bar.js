@@ -8,6 +8,8 @@
  const custom=root.dataset.frame==='custom'&&!!bar;
  const size=mb=>mb>=1024?`${(mb/1024).toFixed(mb>=10240?1:2)} GB`:`${Math.max(0,Math.round(mb))} MB`;
  window.facetSize=size;
+ // 小于 10% 显示一位小数，空闲时也能看出变化。
+ const pct=v=>{v=Math.max(0,Number(v)||0);return v<10?`${v.toFixed(1)}%`:`${Math.round(v)}%`;};window.facetPct=pct;
  if(custom){
   const parse=value=>{let c=String(value||'').trim(),m=c.match(/^#([0-9a-f]{3})$/i);if(m)c='#'+[...m[1]].map(x=>x+x).join('');m=c.match(/^#([0-9a-f]{6})$/i);if(m)return [0,2,4].map(i=>parseInt(m[1].slice(i,i+2),16));m=c.match(/^rgba?\(([^)]+)\)$/);return m?m[1].split(/[\s,\/]+/).slice(0,3).map(Number):null;};
   const hex=rgb=>'#'+rgb.map(v=>Math.round(Math.max(0,Math.min(255,v))).toString(16).padStart(2,'0')).join('');
@@ -31,8 +33,8 @@
  }
  const show=v=>{
   if(!custom)return;const meter=document.getElementById('resMeter');
-  meter.querySelector('[data-cpu]').textContent=`${Math.round(v.cpu)}%`;
-  const g=meter.querySelector('[data-gpu]');g.textContent=v.gpu==null?'—':`${Math.round(v.gpu)}%`;meter.querySelectorAll('.res-gpu').forEach(el=>el.hidden=v.gpu===undefined);
+  meter.querySelector('[data-cpu]').textContent=pct(v.cpu);
+  const g=meter.querySelector('[data-gpu]');g.textContent=v.gpu==null?'—':pct(v.gpu);meter.querySelectorAll('.res-gpu').forEach(el=>el.hidden=v.gpu===undefined);
   meter.querySelector('[data-mem]').textContent=size(v.memoryMB);
   meter.title=`千面整体占用：界面、GPU、各实例网页与扩展${v.cores?`，以及 ${v.cores} 个 Mihomo 内核（约 ${size(v.coreMB)}）`:''}；共 ${v.processes+v.cores} 个进程。\nCPU 按电脑总核数折算；GPU 为千面进程的显卡利用率（取最忙的引擎）；内存为私有内存，与任务管理器口径一致。`;
  };

@@ -6,7 +6,7 @@ let gridPrefs=(()=>{try{const v=JSON.parse(localStorage.getItem('facet-grid')||'
 let gridZoom=null,gridMetrics={},gridFocus=null,gridTimer=null,gridFrame=0,gridSig='',gridActive=false,lastBrowserHostSize=null,gridLiveIds=new Set(),gridQuickPoll=0;
 const gridThumbCache=new Map();
 // 每个格子标题栏里的实例占用（来自 window-bar.js 每 2 秒广播的 facet-metrics）。GPU 由所有实例共用一个进程，无法拆分，只在顶部显示总数。
-function gridResText(id){const m=gridMetrics[id];return m?`CPU ${Math.round(m.cpu)}% · ${window.facetSize?window.facetSize(m.memoryMB):Math.round(m.memoryMB)+' MB'}`:'';}
+function gridResText(id){const m=gridMetrics[id];return m?`CPU ${window.facetPct?window.facetPct(m.cpu):Math.round(m.cpu)+'%'} · ${window.facetSize?window.facetSize(m.memoryMB):Math.round(m.memoryMB)+' MB'}`:'';}
 function gridResTitle(id){const m=gridMetrics[id];return m?`该实例占用：网页、弹窗、扩展页面共 ${m.processes} 个进程${m.coreMB?`，含 Mihomo 内核约 ${window.facetSize?.(m.coreMB)||Math.round(m.coreMB)+' MB'}`:''}。\n共用的 GPU 进程和扩展后台脚本无法区分实例，只计入顶部总数。`:'';}
 function gridRes(x){return x.status==='running'?`<span class="grid-res" data-res-id="${esc(x.id)}" title="${esc(gridResTitle(x.id))}">${esc(gridResText(x.id))}</span>`:'';}
 // 喇叭图标：顶部“全部静音”和格子静音共用。

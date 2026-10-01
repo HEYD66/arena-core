@@ -44,17 +44,21 @@ function gpuSample(list){
 app.on?.('will-quit',gpuStop);process.on('exit',gpuStop);
 // 一个实例的进程：同一会话里所有网页（含弹窗、扩展页面）的主进程和跨站子框架进程。
 function instancePids(r){const out=new Set();const ses=r.view?.webContents?.session;if(!ses)return out;for(const w of webContents.getAllWebContents()){try{if(w.isDestroyed()||w.session!==ses)continue;const pid=w.getOSProcessId();if(pid>0)out.add(pid);for(const f of w.mainFrame?.framesInSubtree||[])if(f.osProcessId>0)out.add(f.osProcessId);}catch{}}return out;}
+// CPU：用每个进程的累计 CPU 时间（秒）在两次采样间的增量 ÷ 经过的时间 ÷ 核数，与任务管理器口径一致。
+// 不用 percentCPUUsage：它在 Windows 上已经按总核数折算过，其他平台却是按单核计，口径不统一（之前再除一次核数导致一直显示 0）。
+const cpuPrev=new Map();
+function cpuShares(list,n){const now=process.hrtime.bigint(),next=new Map(),out=new Map();for(const p of list){const cum=Number(p.cpu?.cumulativeCPUUsage);let v=0;if(Number.isFinite(cum)){const prev=cpuPrev.get(p.pid),dt=prev?Number(now-prev.at)/1e9:0;if(prev&&dt>0.2&&cum>=prev.cum)v=(cum-prev.cum)/dt*100/n;next.set(p.pid,{cum,at:now});}else v=(Number(p.cpu?.percentCPUUsage)||0)/(process.platform==='win32'?1:n);out.set(p.pid,Math.max(0,v));}cpuPrev.clear();for(const [k,v] of next)cpuPrev.set(k,v);return out;}
 const memKb=p=>Number(p.memory?.privateBytes||p.memory?.workingSetSize)||0;
 async function appMetrics(controller){
- const list=app.getAppMetrics(),n=Math.max(1,os.cpus().length),byPid=new Map(list.map(p=>[p.pid,p]));let cpu=0,kb=0;
- for(const p of list){cpu+=Number(p.cpu?.percentCPUUsage)||0;kb+=memKb(p);}
+ const list=app.getAppMetrics(),n=Math.max(1,os.cpus().length),byPid=new Map(list.map(p=>[p.pid,p])),share=cpuShares(list,n);let cpu=0,kb=0;
+ for(const p of list){cpu+=share.get(p.pid)||0;kb+=memKb(p);}
  const running=[...(controller?.runtimes?.entries()||[])];
  const pids=running.map(([,r])=>r.core?.child?.pid).filter(pid=>Number(pid)>0);
  // 内核内存每 5 秒采样一次；首次（或刚启动内核）等待采样结果，其余时间直接用缓存，避免拖慢 2 秒一次的刷新。
  if(pids.length&&(Date.now()-cores.at>CORE_SAMPLE_MS||pids.some(pid=>!cores.kb.has(pid)))){const job=sampleCores(pids);if(pids.some(pid=>!cores.kb.has(pid)))await job;}
  let coreKb=0;for(const pid of pids)coreKb+=cores.kb.get(pid)||0;
  const instances={};
- for(const [id,r] of running){if(r.status!=='running'||!r.view)continue;let icpu=0,ikb=0,count=0;for(const pid of instancePids(r)){const p=byPid.get(pid);if(!p)continue;icpu+=Number(p.cpu?.percentCPUUsage)||0;ikb+=memKb(p);count++;}const core=r.core?.child?.pid?cores.kb.get(r.core.child.pid)||0:0;instances[id]={cpu:Math.max(0,Math.min(100,icpu/n)),memoryMB:(ikb+core)/1024,coreMB:core/1024,processes:count};}
- return {cpu:Math.max(0,Math.min(100,cpu/n)),gpu:gpuSample(list),memoryMB:(kb+coreKb)/1024,coreMB:coreKb/1024,processes:list.length,cores:pids.length,instances};
+ for(const [id,r] of running){if(r.status!=='running'||!r.view)continue;let icpu=0,ikb=0,count=0;for(const pid of instancePids(r)){const p=byPid.get(pid);if(!p)continue;icpu+=share.get(pid)||0;ikb+=memKb(p);count++;}const core=r.core?.child?.pid?cores.kb.get(r.core.child.pid)||0:0;instances[id]={cpu:Math.max(0,Math.min(100,icpu)),memoryMB:(ikb+core)/1024,coreMB:core/1024,processes:count};}
+ return {cpu:Math.max(0,Math.min(100,cpu)),gpu:gpuSample(list),memoryMB:(kb+coreKb)/1024,coreMB:coreKb/1024,processes:list.length,cores:pids.length,instances};
 }
 module.exports={appMetrics,parseTasklist,parsePs,parseGpuHeader,gpuUsage};

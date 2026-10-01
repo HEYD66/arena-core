@@ -1,14 +1,15 @@
 {
   "platform": "win32",
   "electron": "44.4.5",
-  "passed": 8,
+  "passed": 9,
   "results": [
     "Custom frame: a 32px draggable app row sits above the tab row; the readout itself is not a drag area",
     "Bar colour and the native window buttons follow theme and palette changes; readout contrast ≥4.5 in all 31 palettes",
-    "Readout shows CPU %, GPU % and total memory (CPU 0%·GPU 0%·内存 257 MB) with an explanatory tooltip",
-    "Mihomo cores started by the app are added to the memory total (27.4 MB)",
+    "Readout shows CPU %, GPU % and total memory (CPU 0.2%·GPU 0.0%·内存 259 MB) with an explanatory tooltip",
+    "Mihomo cores started by the app are added to the memory total (27.1 MB)",
     "Instance page view stays aligned below the extra row",
     "Title-bar mute-all silences running instances, is remembered, and toggles back",
+    "CPU reflects real load: one busy core ≈ 5.0% of 16 cores (shown with one decimal under 10%)",
     "No overflow at 1024/1280/1440 and the readout never sits under the window buttons",
     "Refresh pauses while minimized and resumes on restore"
   ],
