@@ -133,6 +133,13 @@ input[aria-invalid="true"],select[aria-invalid="true"]{border-color:var(--red)!i
 .window-bar{display:none}
 html[data-frame="custom"] .app{grid-template-rows:32px 42px minmax(0,1fr) 24px}
 html[data-frame="custom"] .window-bar{display:flex;align-items:center;justify-content:flex-end;min-width:0;height:32px;padding:0 152px 0 12px;background:var(--winbar,var(--bg));-webkit-app-region:drag;user-select:none;overflow:hidden}
+.win-mute{display:inline-flex;align-items:center;justify-content:center;width:28px;height:24px;margin-right:4px;padding:0;border:0;border-radius:6px;background:transparent;color:var(--muted);cursor:pointer;-webkit-app-region:no-drag}
+.win-mute:hover{background:color-mix(in srgb,var(--text) 7%,transparent);color:var(--text)}
+.win-mute.on{color:var(--red)}
+.win-mute svg{width:16px;height:16px}
+.grid-tools .icon-btn{width:26px;height:28px}
+.grid-mute.on{color:var(--red)}
+.grid-mute.all{opacity:.75}
 .res-meter{display:flex;align-items:center;gap:6px;height:22px;padding:0 8px;border-radius:6px;font-size:12px;line-height:1;color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums;-webkit-app-region:no-drag;cursor:default}
 .res-meter:hover{background:color-mix(in srgb,var(--text) 7%,transparent)}
 .res-meter b{font-weight:600;color:var(--text)}

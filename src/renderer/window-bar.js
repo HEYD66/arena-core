@@ -22,6 +22,13 @@
   };
   new MutationObserver(sync).observe(root,{attributes:true,attributeFilter:['data-theme','data-light-palette','data-dark-palette']});sync();
  }
+ // 全部静音：所有实例（含弹窗）都不出声，记住到下次启动；单个实例在宫格格子上静音。
+ if(custom){
+  const btn=document.getElementById('muteAll');let muted=null;
+  const paint=value=>{value=value===true;if(value===muted)return;muted=value;btn.innerHTML=typeof speakerIcon==='function'?speakerIcon(muted):'';btn.classList.toggle('on',muted);btn.setAttribute('aria-pressed',String(muted));btn.title=muted?'已全部静音：点击恢复声音':'全部静音（所有实例和弹窗都不出声，重启后仍保持）';btn.setAttribute('aria-label',muted?'取消全部静音':'全部静音');};
+  paint(false);api.onState(s=>paint(s?.audioMuted));Promise.resolve(api.request('snapshot')).then(r=>r?.ok&&paint(r.value?.audioMuted)).catch(()=>{});
+  btn.addEventListener('click',async()=>{btn.disabled=true;try{const r=await api.request('audio-mute',{muted:!muted});if(r?.ok)paint(r.value?.global);}catch{}finally{btn.disabled=false;}});
+ }
  const show=v=>{
   if(!custom)return;const meter=document.getElementById('resMeter');
   meter.querySelector('[data-cpu]').textContent=`${Math.round(v.cpu)}%`;

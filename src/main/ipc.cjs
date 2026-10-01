@@ -58,6 +58,7 @@ function installIPC(window,controller){
     case 'activate':controller.choose(id??null);break;
     case 'grid-layout':controller.setGrid(message.grid&&typeof message.grid==='object'?message.grid:null);break;
     case 'grid-thumbs':return {ok:true,value:await controller.gridThumbs()};
+    case 'audio-mute':{if(id!=null&&typeof id!=='string')throw Error('请求无效');return {ok:true,value:controller.setMuted(id??null,message.muted===true)};}
     case 'app-metrics':return {ok:true,value:await require('./app-metrics.cjs').appMetrics(controller)};
     case 'window-chrome':{const hex=/^#[0-9a-f]{6}$/i;if(!hex.test(message.color)||!hex.test(message.symbolColor))throw Error('标题栏颜色无效');if(typeof window.setTitleBarOverlay!=='function')return {ok:true,value:false};try{window.setTitleBarOverlay({color:message.color,symbolColor:message.symbolColor,height:32});return {ok:true,value:true};}catch{return {ok:true,value:false};}}
     case 'layout':controller.layout(id,message.bounds);break;
