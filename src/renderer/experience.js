@@ -31,6 +31,7 @@ document.addEventListener('click',async event=>{const b=event.target.closest('[d
  if(a==='return-assigned'){await route('browser',b.dataset.id);return;}
  if(a==='instance-open'){const id=b.dataset.id;b.disabled=true;try{const x=state.instances.find(x=>x.id===id);if(x?.status!=='running')await request('start',{id});await route('browser',id);}catch(e){toast('启动失败：'+e.message);await route('browser',id);}finally{if(b.isConnected)b.disabled=false;}return;}
  if(a==='instance-config'){await route('environment',b.dataset.id);return;}
+ if(a==='instance-rename'){const menu=b.closest('details');if(menu){menu.open=false;menu.querySelector('summary')?.focus();}openModal('rename',b.dataset.id);return;}
 });
 
 function showAssignmentResult(id){const x=state.instances.find(x=>x.id===id);const host=$('#libraryTaskbar')||$('#favoriteNodeRows');if(!host)return;let el=$('#assignmentResult');if(!el){el=document.createElement('div');el.id='assignmentResult';el.className='assignment-result';host.after(el);}el.innerHTML=`<span>已分配给「${esc(x?.name||id)}」，实例保持停止。</span><button class="btn soft tiny" data-ux="return-assigned" data-id="${esc(id)}">返回目标实例</button>`;}

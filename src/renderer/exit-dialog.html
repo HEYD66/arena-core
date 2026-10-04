@@ -1,0 +1,9 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'"><title>退出千面 Facet</title><link rel="stylesheet" href="ui.css"><link rel="stylesheet" href="exit-dialog.css"><script src="exit-dialog.js" defer></script></head>
+<body><main class="exit-card" role="dialog" aria-modal="true" aria-labelledby="exit-title" aria-describedby="exit-message exit-note">
+<header class="exit-top"><span>千面 <span class="exit-brand">FACET</span></span><button id="dismiss" class="icon-btn" type="button" aria-label="取消退出" title="取消退出"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M6 18L18 6"/></svg></button></header>
+<section class="exit-content"><div class="exit-heading"><span class="exit-symbol"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v9M6.3 5.6a9 9 0 1 0 11.4 0"/></svg></span><div><h1 id="exit-title">退出千面？</h1><p id="exit-message">退出将停止正在运行的实例</p></div></div>
+<div class="exit-instances"><span class="exit-label">将停止的实例</span><p id="exit-names"></p></div>
+<p id="exit-note"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 5-8 9-8 9s-8-4-8-9V6zM8 12l3 3 5-6"/></svg><span>登录资料和配置会保留<br><span class="exit-note-secondary">下次打开千面后，可手动启动实例。</span></span></p></section>
+<footer class="exit-actions"><label class="exit-checkbox"><input id="remember" type="checkbox">不再提示</label><div><button id="cancel" class="btn" type="button" autofocus>取消</button><button id="confirm" class="btn primary" type="button">停止并退出</button></div></footer>
+</main></body></html>

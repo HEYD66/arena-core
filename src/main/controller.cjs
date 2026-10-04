@@ -1,6 +1,7 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path');
-const {session,WebContentsView}=require('electron');
+const {app,session,WebContentsView}=require('electron');
+const {installWebRTCPolicy}=require('./webrtc-policy.cjs');
 // 实例网页里的音量脚本启动时异步取当前音量（只返回一个 0–1 的数字）；由控制器自己注册，不依赖界面 IPC 是否安装。
 const volumeOwners=new Set();let volumeIPC=false;
 function installVolumeIPC(){if(volumeIPC)return;volumeIPC=true;require('electron').ipcMain.handle('facet:volume-get',event=>{for(const owner of volumeOwners){const v=owner.volumeForSession(event.sender.session,true);if(v!=null)return v;}return 1;});}
@@ -13,7 +14,7 @@ const {Library}=require('./library.cjs');const {Diagnostics}=require('./diagnost
 // -118/-7 超时、-324 空响应、-109 地址不可达。只用于提醒，不会切换节点或改为直连。
 const PROXY_FAILURES=new Set([-130,-111,-100,-101,-118,-7,-324,-109]);
 class Controller {
- constructor(window,dir,binary){this.window=window;const existing=fs.existsSync(path.join(dir,'instances.json'));this.store=new Store(dir);this.dir=dir;this.binary=binary;this.runtimes=new Map();this.queues=new Map();this.logs=new Map();this.activeId=null;this.bounds=null;this.disposing=false;this.startTail=Promise.resolve();if(!this.store.list().length)this.store.create('主工作区');this.library=new Library(dir,this.store);this.workspace=new Workspace(dir);this.extensions=new (require('./extensions.cjs').InstanceExtensions)(this,dir);this.diagnostics=new Diagnostics(this);this.workspace.log('application','应用已就绪；未自动启动实例');
+ constructor(window,dir,binary){installWebRTCPolicy(app);this.window=window;const existing=fs.existsSync(path.join(dir,'instances.json'));this.store=new Store(dir);this.dir=dir;this.binary=binary;this.runtimes=new Map();this.queues=new Map();this.logs=new Map();this.activeId=null;this.bounds=null;this.disposing=false;this.startTail=Promise.resolve();if(!this.store.list().length)this.store.create('主工作区');this.library=new Library(dir,this.store);this.workspace=new Workspace(dir);this.extensions=new (require('./extensions.cjs').InstanceExtensions)(this,dir);this.diagnostics=new Diagnostics(this);this.workspace.log('application','应用已就绪；未自动启动实例');
   // 已删除实例的残留分区/内核目录：只在读到已有实例列表时清理，且此时还没有打开任何实例会话。
   if(existing&&this.store.list().length){try{const c=require('./cleanup.cjs').cleanOrphans(dir,this.store.list().map(x=>x.id));if(c.removed||c.failed)this.workspace.log('application',`已清理 ${c.removed} 项已删除实例的残留数据`+(c.failed?`；${c.failed} 项暂未能删除，下次启动再试`:''),c.failed?'WARN':'INFO');}catch{}}}
  queue(id,job){const prior=this.queues.get(id)||Promise.resolve();const next=prior.catch(()=>{}).then(job);this.queues.set(id,next);next.finally(()=>{if(this.queues.get(id)===next)this.queues.delete(id);}).catch(()=>{});return next;}

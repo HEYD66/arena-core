@@ -35,7 +35,7 @@ async function confirmExit(controller, window, dialog, dir) {
     message: `有 ${names.length} 个实例正在运行，退出会全部停止`,
     detail: `${shown}\n登录资料和配置都会保留，下次可手动启动。`,
     buttons: ["取消", "退出"],
-    defaultId: 1,
+    defaultId: 0,
     cancelId: 0,
     noLink: true,
     checkboxLabel: "不再提示",
