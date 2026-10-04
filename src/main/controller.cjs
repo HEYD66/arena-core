@@ -5,7 +5,7 @@ const {installWebRTCPolicy}=require('./webrtc-policy.cjs');
 // 实例网页里的音量脚本启动时异步取当前音量（只返回一个 0–1 的数字）；由控制器自己注册，不依赖界面 IPC 是否安装。
 const volumeOwners=new Set();let volumeIPC=false;
 function installVolumeIPC(){if(volumeIPC)return;volumeIPC=true;require('electron').ipcMain.handle('facet:volume-get',event=>{for(const owner of volumeOwners){const v=owner.volumeForSession(event.sender.session,true);if(v!=null)return v;}return 1;});}
-const {Store,safeURL,parseNodes}=require('./store.cjs');
+const {Store,safeURL,parseNodes,networkConfig}=require('./store.cjs');
 const {downloadSubscription}=require('./subscription.cjs');
 const {Mihomo}=require('./mihomo.cjs');
 const {Workspace,redact}=require('./workspace.cjs');const {applyEnvironment}=require('./environment.cjs');
@@ -16,7 +16,12 @@ const PROXY_FAILURES=new Set([-130,-111,-100,-101,-118,-7,-324,-109]);
 class Controller {
  constructor(window,dir,binary){installWebRTCPolicy(app);this.window=window;const existing=fs.existsSync(path.join(dir,'instances.json'));this.store=new Store(dir);this.dir=dir;this.binary=binary;this.runtimes=new Map();this.queues=new Map();this.logs=new Map();this.activeId=null;this.bounds=null;this.disposing=false;this.startTail=Promise.resolve();if(!this.store.list().length)this.store.create('主工作区');this.library=new Library(dir,this.store);this.workspace=new Workspace(dir);this.extensions=new (require('./extensions.cjs').InstanceExtensions)(this,dir);this.diagnostics=new Diagnostics(this);this.workspace.log('application','应用已就绪；未自动启动实例');
   // 已删除实例的残留分区/内核目录：只在读到已有实例列表时清理，且此时还没有打开任何实例会话。
-  if(existing&&this.store.list().length){try{const c=require('./cleanup.cjs').cleanOrphans(dir,this.store.list().map(x=>x.id));if(c.removed||c.failed)this.workspace.log('application',`已清理 ${c.removed} 项已删除实例的残留数据`+(c.failed?`；${c.failed} 项暂未能删除，下次启动再试`:''),c.failed?'WARN':'INFO');}catch{}}}
+  if(existing&&this.store.list().length){try{const c=require('./cleanup.cjs').cleanOrphans(dir,this.store.list().map(x=>x.id));if(c.removed||c.failed)this.workspace.log('application',`已清理 ${c.removed} 项已删除实例的残留数据`+(c.failed?`；${c.failed} 项暂未能删除，下次启动再试`:''),c.failed?'WARN':'INFO');}catch{}}
+  const currentIds=new Set(this.store.list().map(x=>x.id));
+  for(const id of Object.keys(this.extensions.catalog.data.enabled))if(!currentIds.has(id)){
+   try{this.extensions.catalog.forget(id);}catch{this.workspace.log('application','已删除实例的扩展绑定清理失败，下次启动重试','WARN');}
+  }
+ }
  queue(id,job){const prior=this.queues.get(id)||Promise.resolve();const next=prior.catch(()=>{}).then(job);this.queues.set(id,next);next.finally(()=>{if(this.queues.get(id)===next)this.queues.delete(id);}).catch(()=>{});return next;}
  log(id,text,level='INFO'){text=redact(text);this.workspace.log('instance',text,level,id);const lines=this.logs.get(id)||[];lines.unshift({time:new Date().toLocaleTimeString('zh-CN',{hour12:false}),level,text});this.logs.set(id,lines.slice(0,100));this.emit();}
  assignment(id){const data=this.store.source(id),ref=data.assignment;if(!ref)return {status:'本地节点副本 / 未关联来源'};const source=this.library.data.sources.find(s=>s.id===ref.sourceId);if(!source)return {...ref,status:'来源已删除；实例保留副本'};const node=source.nodes.find(n=>n.name===ref.name);const original=data.nodes.find(n=>n.name===ref.name);return {...ref,sourceName:source.name,status:source.excluded?.includes(ref.name)?'来源已本地删除该节点；实例保留副本':!node?'来源已移除此节点':JSON.stringify(node)===JSON.stringify(original)?'配置已同步':'来源配置已变化，重新分配后生效'};}
@@ -43,7 +48,7 @@ class Controller {
  // 宫格格子用缩放渲染（tileMetrics）；离开宫格后，不需要视口覆盖的实例清除覆盖，恢复正常。
  const metrics=tile?vp.tileMetrics(env,bounds,this.gridBase(),this.screenSize()):vp.deviceMetrics(env,bounds);const key=(tile?'tile:':'')+JSON.stringify(metrics);if(key===r.viewportKey&&!r.viewportPending)return;r.viewportPending={metrics,key,send};if(r.viewportWork)return;r.viewportWork=(async()=>{while(r.viewportPending&&r.view&&!wc.isDestroyed()){const next=r.viewportPending;r.viewportPending=null;if(next.key===r.viewportKey)continue;if(next.send)await wc.debugger.sendCommand('Emulation.setDeviceMetricsOverride',next.metrics);else if(r.viewportTiled)await wc.debugger.sendCommand('Emulation.clearDeviceMetricsOverride');r.viewportTiled=next.send&&next.key.startsWith('tile:');r.viewportKey=next.key;}})().catch(()=>{if(r.view&&!wc.isDestroyed()){r.viewportKey=null;}}).finally(()=>{r.viewportWork=null;});}
  async start(id){return this.queue(id,()=>{const next=this.startTail.catch(()=>{}).then(()=>this.startInner(id));this.startTail=next;return next;});}
- async startInner(id){if(this.disposing)throw Error('应用正在退出');const x=this.store.get(id);let old=this.runtimes.get(id);if(old?.status==='running')return;if(old?.core?.child||old?.view||old?.loadedExtensions?.size)await this.stopInner(id);const r={status:'starting',view:null,core:null,error:'',url:x.url,environment:x.environment};this.runtimes.set(id,r);this.log(id,x.network.mode==='direct'?'正在以本机 IP 直连启动':'正在启动独立代理内核');
+ async startInner(id){if(this.disposing)throw Error('应用正在退出');const x=this.store.get(id);networkConfig(x.network);let old=this.runtimes.get(id);if(old?.status==='running')return;if(old?.core?.child||old?.view||old?.loadedExtensions?.size)await this.stopInner(id);const r={status:'starting',view:null,core:null,error:'',url:x.url,environment:x.environment};this.runtimes.set(id,r);this.log(id,x.network.mode==='direct'?'正在以本机 IP 直连启动':'正在启动独立代理内核');
  try{const s=session.fromPartition('persist:arena-core-'+id,{cache:true});r.session=s;this.volumePreload(s);// 只读文件权限：拖入或选择的文件，网页经 FileSystemHandle.getFile() 读取（react-dropzone 等上传组件会这样取文件）；写入仍拒绝。
  const readable=(permission,details)=>permission==='fileSystem'&&details?.fileAccessType==='readable';s.setPermissionRequestHandler((_wc,permission,cb,details)=>cb(permission==='geolocation'&&!!x.environment.geoEnabled||readable(permission,details)));s.setPermissionCheckHandler((_wc,permission,_origin,details)=>permission==='geolocation'&&!!x.environment.geoEnabled||readable(permission,details));await s.closeAllConnections();
  if(x.network.mode==='mihomo'){const node=this.store.nodes(id).find(n=>n.name===x.network.nodeName);if(!node)throw Error('尚未选择可用节点；可导入节点或明确切换到本机 IP 直连');r.core=new Mihomo(this.binary,path.join(this.dir,'core-runtime',id),message=>{if(this.runtimes.get(id)!==r)return;r.status='error';r.error=message;this.destroyView(r);this.log(id,message,'ERROR');});r.core.onIssue=message=>this.noteProxyIssue(id,r,'内核连续报告连接错误：'+message,false);const {port,version}=await r.core.start(node);r.coreVersion=version;await s.setProxy({mode:'fixed_servers',proxyRules:`http://127.0.0.1:${port}`,proxyBypassRules:'<-loopback>'});}else await s.setProxy({mode:'direct'});
@@ -108,10 +113,11 @@ class Controller {
   try{await s.closeAllConnections();await s.clearStorageData();await s.clearCache();}catch(e){cleanupErrors.push('浏览数据清理失败：'+e.message);}
   try{if(fs.existsSync(proxyFile))fs.unlinkSync(proxyFile);}catch(e){cleanupErrors.push('节点源清理失败：'+e.message);}
   try{this.extensions.catalog.forget(id);}catch(e){cleanupErrors.push('扩展绑定清理失败：'+e.message);}
-  try{require('./cleanup.cjs').cleanInstance(this.dir,id);}catch(e){cleanupErrors.push('运行目录清理失败：'+e.message);}
+  try{if(this.dir&&!require('./cleanup.cjs').cleanInstance(this.dir,id))cleanupErrors.push('运行目录清理未完成');}catch(e){cleanupErrors.push('运行目录清理失败：'+e.message);}
   this.runtimes.delete(id);this.logs.delete(id);if(this.activeId===id)this.choose(null);
   if(cleanupErrors.length)this.workspace.log('application','实例配置已删除，部分残留数据将在下次启动时重试：'+cleanupErrors.join('；'),'WARN',id);
   this.emit();
+  if(cleanupErrors.length)throw Error('实例配置已删除，但部分数据尚未清理；请重启应用重试并查看全局日志');
  });}
  async importSubscription(id,url,refresh=false){return this.queue(id,async()=>{this.store.get(id);if(this.disposing)throw Error('应用正在退出');const target=refresh?this.store.source(id).subscription?.url:url;if(!target)throw Error('此实例尚未保存订阅链接');const downloaded=await downloadSubscription(target);const nodes=parseNodes(downloaded.text);if(this.disposing)throw Error('应用正在退出，未更改订阅');await this.stopInner(id);this.store.saveNodes(id,nodes,{url:downloaded.url,updatedAt:new Date().toISOString()});this.log(id,`订阅${refresh?'更新':'导入'}成功：${nodes.length} 个节点；网络模式保持不变，请选择节点后保存并启动`);return {count:nodes.length};});}
  async closeAll(){this.workspace.log('application','正在退出，回收实例与检测内核');this.disposing=true;await this.queues.get('global-library')?.catch(()=>{});await this.queues.get('extensions')?.catch(()=>{});await this.diagnostics.close();const ids=this.store.list().map(x=>x.id);const outcomes=await Promise.allSettled(ids.map(id=>this.stop(id)));const failures=outcomes.filter(x=>x.status==='rejected');try{this.workspace.flush?.();this.diagnostics.history?.flush();}catch{}if(failures.length){this.disposing=false;throw Error('存在尚未停止的代理进程，请重试退出');}}
