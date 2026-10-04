@@ -100,7 +100,19 @@ class Controller {
  async navigate(id,url){const value=safeURL(url),r=this.runtimes.get(id);if(!r?.view||r.status!=='running')throw Error('请先启动实例');await r.view.webContents.loadURL(value);this.store.update(id,{url:value});this.emit();}
  async action(id,kind){const r=this.runtimes.get(id);if(!r?.view||r.status!=='running')throw Error('实例未运行');const wc=r.view.webContents;if(kind==='back'&&wc.navigationHistory.canGoBack())wc.navigationHistory.goBack();else if(kind==='forward'&&wc.navigationHistory.canGoForward())wc.navigationHistory.goForward();else if(kind==='reload')wc.reload();}
  async settings(id,patch){return this.queue(id,async()=>{const {next,changed}=require('./operations.cjs').prepareSettings(this.store,id,patch);if(!changed)return {changed:false};await this.stopInner(id);this.store.update(id,next);this.log(id,'环境配置已保存；重新启动后生效');return {changed:true};});}
- async remove(id){return this.queue(id,async()=>{await this.stopInner(id);const s=session.fromPartition('persist:arena-core-'+id);await s.closeAllConnections();await s.clearStorageData();await s.clearCache();const proxyFile=this.store.proxyFile(id);if(fs.existsSync(proxyFile))fs.unlinkSync(proxyFile);this.extensions.catalog.forget(id);this.store.remove(id);try{require('./cleanup.cjs').cleanInstance(this.dir,id);}catch{}this.runtimes.delete(id);this.logs.delete(id);if(this.activeId===id)this.choose(null);this.emit();});}
+ async remove(id){return this.queue(id,async()=>{
+  await this.stopInner(id);
+  const s=session.fromPartition('persist:arena-core-'+id),proxyFile=this.store.proxyFile(id),cleanupErrors=[];
+  // Commit the metadata removal before touching user data. If this write fails, no destructive cleanup runs.
+  this.store.remove(id);
+  try{await s.closeAllConnections();await s.clearStorageData();await s.clearCache();}catch(e){cleanupErrors.push('浏览数据清理失败：'+e.message);}
+  try{if(fs.existsSync(proxyFile))fs.unlinkSync(proxyFile);}catch(e){cleanupErrors.push('节点源清理失败：'+e.message);}
+  try{this.extensions.catalog.forget(id);}catch(e){cleanupErrors.push('扩展绑定清理失败：'+e.message);}
+  try{require('./cleanup.cjs').cleanInstance(this.dir,id);}catch(e){cleanupErrors.push('运行目录清理失败：'+e.message);}
+  this.runtimes.delete(id);this.logs.delete(id);if(this.activeId===id)this.choose(null);
+  if(cleanupErrors.length)this.workspace.log('application','实例配置已删除，部分残留数据将在下次启动时重试：'+cleanupErrors.join('；'),'WARN',id);
+  this.emit();
+ });}
  async importSubscription(id,url,refresh=false){return this.queue(id,async()=>{this.store.get(id);if(this.disposing)throw Error('应用正在退出');const target=refresh?this.store.source(id).subscription?.url:url;if(!target)throw Error('此实例尚未保存订阅链接');const downloaded=await downloadSubscription(target);const nodes=parseNodes(downloaded.text);if(this.disposing)throw Error('应用正在退出，未更改订阅');await this.stopInner(id);this.store.saveNodes(id,nodes,{url:downloaded.url,updatedAt:new Date().toISOString()});this.log(id,`订阅${refresh?'更新':'导入'}成功：${nodes.length} 个节点；网络模式保持不变，请选择节点后保存并启动`);return {count:nodes.length};});}
  async closeAll(){this.workspace.log('application','正在退出，回收实例与检测内核');this.disposing=true;await this.queues.get('global-library')?.catch(()=>{});await this.queues.get('extensions')?.catch(()=>{});await this.diagnostics.close();const ids=this.store.list().map(x=>x.id);const outcomes=await Promise.allSettled(ids.map(id=>this.stop(id)));const failures=outcomes.filter(x=>x.status==='rejected');try{this.workspace.flush?.();this.diagnostics.history?.flush();}catch{}if(failures.length){this.disposing=false;throw Error('存在尚未停止的代理进程，请重试退出');}}
 }
