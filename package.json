@@ -5,6 +5,8 @@
   "description": "Independent multi-instance browser with explicit direct networking and bundled Mihomo",
   "main": "src/main/main.cjs",
   "scripts": {
+    "build:process-host": "node scripts/build-process-host.cjs",
+    "test:process-host": "node --test tests/process-host.test.cjs",
     "start": "node scripts/launch-electron.cjs .",
     "test:launcher": "node --test tests/launcher.test.cjs",
     "test:webrtc": "node tests/webrtc-runner.cjs",
