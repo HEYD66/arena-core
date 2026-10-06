@@ -27,12 +27,12 @@ async function close(){
  }
 }
 async function main(){
- await launch();assert.deepEqual(await appearance(),{mode:'light',light:'solar',dark:'gold',background:'rgb(255, 251, 239)'});
+ await launch();assert.deepEqual(await appearance(),{mode:'light',light:'solar',dark:'gold',background:'rgb(253, 246, 227)'});
  await ui.locator('#sidebar .nav[data-view="settings"]').click();
  assert.equal(await ui.locator('[data-palette-mode="light"][data-palette="solar"]').getAttribute('aria-checked'),'true');
  assert.equal(await ui.locator('[data-palette-mode="dark"][data-palette="gold"]').getAttribute('aria-checked'),'true');
  await ui.screenshot({path:path.join(data,'default-day.png')});pass('Fresh packaged app uses Solar day and Gold night defaults with matching selection');
- await ui.locator('#themeToggle').click();assert.deepEqual(await appearance(),{mode:'dark',light:'solar',dark:'gold',background:'rgb(33, 31, 29)'});
+ await ui.locator('#themeToggle').click();assert.deepEqual(await appearance(),{mode:'dark',light:'solar',dark:'gold',background:'rgb(24, 23, 21)'});
  await ui.screenshot({path:path.join(data,'default-night.png')});await close();await launch();assert.equal((await appearance()).mode,'dark');assert.equal((await appearance()).dark,'gold');
  pass('Day/night toggle uses Gold and survives a real process restart');
  await ui.locator('#sidebar .nav[data-view="settings"]').click();await ui.locator('[data-palette-mode="light"][data-palette="navy"]').click();await ui.locator('[data-palette-mode="dark"][data-palette="moss"]').click();
