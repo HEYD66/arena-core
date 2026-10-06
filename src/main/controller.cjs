@@ -92,14 +92,16 @@ class Controller {
  noteProxyIssue(id,r,message,strong){if(this.runtimes.get(id)!==r||!r.core||!['running','starting'].includes(r.status))return;const now=Date.now();r.issueTimes=(r.issueTimes||[]).filter(t=>now-t<30000);r.issueTimes.push(now);if(!strong&&r.issueTimes.length<3)return;const first=!r.proxyAlert;r.proxyAlert={message:String(message).slice(0,300),at:new Date().toISOString()};if(first)this.log(id,'代理可能已断开：'+r.proxyAlert.message+'。未自动切换节点，也不会改为直连；可在代理管理检测或更换节点','WARN');this.emitSoon();}
  clearProxyAlert(id,r){r.issueTimes=[];if(!r.proxyAlert||this.runtimes.get(id)!==r)return;r.proxyAlert=null;this.log(id,'代理连接已恢复：页面经代理加载成功');this.emitSoon();}
   // 宫格总览：控制界面报告每个格子的位置；实时格显示真实网页（缩放渲染，可直接操作），其他运行中的格子隐藏并定时截图作为缩略图。
- setGrid(grid){if(!grid){if(!this.grid)return;this.grid=null;for(const [id,r]of this.runtimes){this.releaseCapture(r);r.gridThumbAt=0;if(!r.view)continue;r.view.setVisible(false);if(r.status==='running')this.fitViewport(r,id===this.activeId&&this.bounds?this.bounds:this.lastPageSize||{});}return;}
+ setGrid(grid){if(!grid){if(!this.grid)return;this.grid=null;for(const [id,r]of this.runtimes){this.releaseCapture(r);r.gridThumbAt=0;r.gridApplied=null;if(!r.view)continue;r.view.setVisible(false);if(r.status==='running')this.fitViewport(r,id===this.activeId&&this.bounds?this.bounds:this.lastPageSize||{});}return;}
   const tiles=new Map();for(const t of Array.isArray(grid.tiles)?grid.tiles.slice(0,200):[]){if(typeof t?.id!=='string')continue;const b={x:Math.round(Number(t.x)),y:Math.round(Number(t.y)),width:Math.round(Number(t.width)),height:Math.round(Number(t.height))};if(!Object.values(b).every(Number.isFinite)||b.width<40||b.height<30||b.width>10000||b.height>10000)continue;tiles.set(t.id,{...b,live:t.live===true});}
   const bw=Math.round(Number(grid.base?.width)),bh=Math.round(Number(grid.base?.height));this.grid={tiles,base:bw>=320&&bh>=240&&bw<=10000&&bh<=10000?{width:bw,height:bh}:null};this.applyGrid();}
  gridBase(){return this.grid?.base||this.lastPageSize||{width:1280,height:800};}
  screenSize(){try{const {screen}=require('electron');return screen.getDisplayMatching(this.window.getBounds()).size;}catch{return {};}}
- applyGrid(){if(!this.grid)return;const [cw,ch]=this.window.getContentSize();for(const [id,r]of this.runtimes){if(!r.view)continue;const t=this.grid.tiles.get(id);if(!t||r.status!=='running'){r.view.setVisible(false);this.releaseCapture(r);continue;}
-  const live=t.live&&t.x>=0&&t.y>=0&&t.x+t.width<=cw&&t.y+t.height<=ch;const b={x:Math.max(0,t.x),y:Math.max(0,t.y),width:t.width,height:t.height};r.view.setBounds(b);this.fitViewport(r,b,true);
-  if(live){this.releaseCapture(r);r.view.setVisible(true);}else{r.view.setVisible(false);this.holdCapture(r);}}}
+ applyGrid(){if(!this.grid)return;const [cw,ch]=this.window.getContentSize();for(const [id,r]of this.runtimes){if(!r.view)continue;const t=this.grid.tiles.get(id);if(!t||r.status!=='running'){if(r.gridApplied?.visible)r.view.setVisible(false);r.gridApplied=null;this.releaseCapture(r);continue;}
+  const live=t.live&&t.x>=0&&t.y>=0&&t.x+t.width<=cw&&t.y+t.height<=ch;const b={x:Math.max(0,t.x),y:Math.max(0,t.y),width:t.width,height:t.height};const prev=r.gridApplied;const sizeChanged=!prev||prev.width!==b.width||prev.height!==b.height;const positionChanged=!prev||prev.x!==b.x||prev.y!==b.y;const visibilityChanged=!prev||prev.visible!==live;
+  // 离屏实例只需要保持截图尺寸；滚动时不再为它们重复移动原生网页层和重做视口计算。
+  if(live?(positionChanged||sizeChanged):sizeChanged)r.view.setBounds(b);if(sizeChanged)this.fitViewport(r,b,true);
+  if(live){this.releaseCapture(r);if(visibilityChanged)r.view.setVisible(true);}else{this.holdCapture(r);if(visibilityChanged)r.view.setVisible(false);}r.gridApplied={...b,visible:live};}}
  // 隐藏的格子仍可截图（capturePage 的 stayHidden 不会让页面变成“可见”）；这里只标记哪些格子需要缩略图。
  holdCapture(r){r.gridCapture=true;}
  releaseCapture(r){r.gridCapture=false;}
