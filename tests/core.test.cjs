@@ -8,7 +8,21 @@ test('invalid persisted network mode fails closed instead of becoming direct',()
 test('persistent independent environments, names and failed-update atomicity',()=>{const dir=temp();try{const store=new Store(dir),a=store.create('A'),b=store.create('B');assert.throws(()=>store.create('A'));store.update(a.id,{environment:{language:'ja-JP',timezone:'Asia/Tokyo'}});assert.equal(store.get(b.id).environment.language,'zh-CN');assert.throws(()=>store.update(a.id,{environment:{language:'en-US'},network:{mode:'auto'}}));assert.equal(store.get(a.id).environment.language,'ja-JP');assert.equal(new Store(dir).get(a.id).environment.language,'ja-JP');}finally{fs.rmSync(dir,{recursive:true,force:true});}});
 test('URL and timezone validation',()=>{assert.equal(safeURL('example.test'),'https://example.test/');for(const url of ['javascript:alert(1)','file:///x','http://a:b@example.test'])assert.throws(()=>safeURL(url));assert.throws(()=>environment({timezone:'Not/AZone'}));});
 test('node imports preserve nested options and special names without logging credentials',()=>{const dir=temp();try{const s=new Store(dir),x=s.create('A');s.importNodes(x.id,'proxies:\n  - name: "香港,$&"\n    type: http\n    server: 127.0.0.1\n    port: 9999\n    password: "123456"\n    alpn: [h2, http/1.1]\n');const [node]=s.nodes(x.id);assert.equal(node.password,'123456');assert.deepEqual(node.alpn,['h2','http/1.1']);assert.equal(configuration(node,1,2,'s').rules[0],'MATCH,arena-upstream');assert.throws(()=>s.importNodes(x.id,'proxy-providers: {}'));}finally{fs.rmSync(dir,{recursive:true,force:true});}});
-test('15-instance bound and explicit deletion',()=>{const dir=temp();try{const s=new Store(dir);for(let i=0;i<15;i++)s.create('I'+i);assert.throws(()=>s.create('overflow'));s.remove(s.list()[0].id);assert.equal(new Store(dir).list().length,14);}finally{fs.rmSync(dir,{recursive:true,force:true});}});
+test('instances grow beyond previous limits, persist and delete explicitly',()=>{
+ const dir=temp();try{
+  const s=new Store(dir);
+  for(const count of [16,32,64,128]){
+   while(s.list().length<count)s.create('I'+s.list().length);
+   const saved=new Store(dir).list();assert.equal(saved.length,count);
+   assert.equal(new Set(saved.map(x=>x.id)).size,count);
+   assert.deepEqual(saved,s.list());
+  }
+  const before=fs.readFileSync(s.file);assert.throws(()=>s.create('I127'),/重复/);assert.deepEqual(fs.readFileSync(s.file),before);
+  const removed=s.list()[63].id;s.remove(removed);
+  const saved=new Store(dir);assert.equal(saved.list().length,127);assert.throws(()=>saved.get(removed),/不存在/);
+  assert.equal(saved.list().at(-1).name,'I127');
+ }finally{fs.rmSync(dir,{recursive:true,force:true});}
+});
 test('missing builtin core fails without scanning external clients',async()=>{const core=new Mihomo('/nonexistent-arena-core',temp());await assert.rejects(core.start({}),/内置 Mihomo 缺失/);assert.equal(core.child,null);fs.rmSync(core.dir,{recursive:true,force:true});});
 test('real Mihomo routes through controlled local HTTP upstream and stops cleanly',async()=>{const binary=path.join(__dirname,'../resources/mihomo',process.platform==='win32'?'mihomo.exe':'mihomo');assert(fs.existsSync(binary),'run npm run setup:core first');const upstream=http.createServer((_req,res)=>res.end('CONTROLLED_PROXY'));upstream.on('connect',(_req,socket)=>{socket.on('error',()=>{});socket.write('HTTP/1.1 200 Connection established\r\n\r\n');socket.once('data',()=>socket.end('HTTP/1.1 200 OK\r\nContent-Length: 16\r\nConnection: close\r\n\r\nCONTROLLED_PROXY'));});await new Promise(r=>upstream.listen(0,'127.0.0.1',r));const dir=temp(),core=new Mihomo(binary,dir);try{await core.start({name:'edge,$&',type:'http',server:'127.0.0.1',port:upstream.address().port});const text=await new Promise((resolve,reject)=>{const req=http.get({host:'127.0.0.1',port:core.proxyPort,path:'http://example.test/check',headers:{Host:'example.test'}},res=>{let data='';res.on('data',c=>data+=c);res.on('end',()=>resolve(data));});req.on('error',reject);req.setTimeout(5000,()=>req.destroy(Error('timeout')));});assert.equal(text,'CONTROLLED_PROXY');await core.stop();assert.equal(core.child,null);assert(!fs.existsSync(path.join(dir,'runtime.json')));}finally{await core.stop();await new Promise(r=>upstream.close(r));fs.rmSync(dir,{recursive:true,force:true});}});
 

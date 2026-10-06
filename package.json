@@ -1,11 +1,11 @@
 {
-  "name": "arena-core",
-  "version": "0.2.3",
+  "name": "facet",
+  "version": "0.2.4",
   "private": true,
   "description": "Independent multi-instance browser with explicit direct networking and bundled Mihomo",
   "author": "HEYD66",
   "license": "MIT",
-  "homepage": "https://github.com/HEYD66/arena-core",
+  "homepage": "https://github.com/HEYD66/facet",
   "main": "src/main/main.cjs",
   "scripts": {
     "build:installer": "node scripts/build-installer.cjs",

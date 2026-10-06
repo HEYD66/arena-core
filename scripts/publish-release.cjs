@@ -17,11 +17,11 @@ function main(){
  else if(pkg.version==='0.2.1')fs.writeFileSync(notes,'# 千面 Facet '+pkg.version+'\n\nWindows x64 安装包。首次接入在线更新的版本需要手动安装一次。\n\n- 应用信息提供检查更新、下载进度和确认退出安装。\n- 更新前正常停止实例，保留配置、登录资料和扩展。\n- 删除应用信息中的旧介绍与边界卡片。\n\n安装包未签名。当前开发环境建议安装到默认 C 盘目录。\n');
  else throw Error('后续发布请提供更新说明：npm run release:publish -- notes.md');
  try{
-  run('gh',['release','create',tag,...assets,'--repo','HEYD66/arena-core','--target',sha,'--draft','--title','千面 Facet '+pkg.version,'--notes-file',notes]);
-  const release=JSON.parse(run('gh',['release','view',tag,'--repo','HEYD66/arena-core','--json','assets,isDraft,url']));
+  run('gh',['release','create',tag,...assets,'--repo','HEYD66/facet','--target',sha,'--draft','--title','千面 Facet '+pkg.version,'--notes-file',notes]);
+  const release=JSON.parse(run('gh',['release','view',tag,'--repo','HEYD66/facet','--json','assets,isDraft,url']));
   for(const file of assets){const row=release.assets.find(item=>item.name===path.basename(file));if(!row||row.size!==fs.statSync(file).size)throw Error('GitHub 发布文件未完整上传；保留草稿，请核对后发布');}
-  run('gh',['release','edit',tag,'--repo','HEYD66/arena-core','--draft=false','--latest']);
-  const published=JSON.parse(run('gh',['release','view',tag,'--repo','HEYD66/arena-core','--json','url,isDraft']));
+  run('gh',['release','edit',tag,'--repo','HEYD66/facet','--draft=false','--latest']);
+  const published=JSON.parse(run('gh',['release','view',tag,'--repo','HEYD66/facet','--json','url,isDraft']));
   if(published.isDraft)throw Error('发布仍处于草稿状态，请核对 GitHub 发布结果');
   console.log(published.url);
  }finally{fs.unlinkSync(notes);fs.rmdirSync(path.dirname(notes));}

@@ -34,4 +34,4 @@ async function toggleVolumeMute(id){const x=state.instances.find(i=>i.id===id);i
 document.addEventListener('click',e=>{const b=e.target.closest?.('[data-vol]');if(!b)return;e.preventDefault();e.stopPropagation();if(b.classList.contains('tab-vol'))toggleVolumeMute(b.dataset.vol);else openVolume(b,b.dataset.vol);},true);
 document.addEventListener('contextmenu',e=>{const b=e.target.closest?.('.tab-vol[data-vol]');if(!b)return;e.preventDefault();e.stopPropagation();openVolume(b,b.dataset.vol);},true);
 document.addEventListener('keydown',e=>{const b=e.target.closest?.('.tab-vol[data-vol]');if(!b||!(e.key==='ContextMenu'||e.shiftKey&&e.key==='F10'))return;e.preventDefault();e.stopPropagation();openVolume(b,b.dataset.vol);},true);
-window.arenaCore?.onState(()=>setTimeout(volRefresh,0));
+window.facet?.onState(()=>setTimeout(volRefresh,0));

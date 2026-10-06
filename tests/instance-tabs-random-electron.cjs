@@ -77,10 +77,10 @@ app.whenReady().then(async () => {
     assert.equal(reloaded.environment.fingerprint.seed, created.environment.fingerprint.seed);
     await ui("route('global')");
     await wait(() => ui("!!document.querySelector('.github-support-card')"), 'GitHub support card');
-    assert.equal(await ui("document.querySelector('.github-repo-url').textContent"), 'github.com/HEYD66/arena-core');
+    assert.equal(await ui("document.querySelector('.github-repo-url').textContent"), 'github.com/HEYD66/facet');
     await ui("document.querySelector('.github-star-btn').click()");
     await wait(() => openedExternal.length === 1, 'GitHub external link');
-    assert.equal(openedExternal[0], 'https://github.com/HEYD66/arena-core');
+    assert.equal(openedExternal[0], 'https://github.com/HEYD66/facet');
     const githubScreenshot = path.join(root, 'github-app-info.png');
     fs.writeFileSync(githubScreenshot, (await window.webContents.capturePage()).toPNG());
     assert(fs.statSync(githubScreenshot).size > 1000);

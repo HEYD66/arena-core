@@ -18,7 +18,7 @@ case 'create':{const r=await createInstance(c,m);value=m.detailed?r:r.id;break;}
 case 'library-assign':{const node=library.node(m.sourceId,m.name);states.set(m.id,'stopped');store.saveNodes(m.id,[node],null,{sourceId:m.sourceId,name:m.name});store.update(m.id,{network:{mode:'mihomo',nodeName:node.name}});break;}
 case 'diagnostic-start':{diagnosticRequests.push(m);const id='task-'+diagnosticRequests.length;diag.lastJob={id,kind:m.kind,total:m.items.length,endedAt:new Date().toISOString(),items:m.items.map((x,i)=>({...x,state:i===1?'failed':'success'}))};diag.results=m.items.map((x,i)=>({...x,taskId:id,kind:m.kind,at:new Date().toISOString(),ok:i!==1,latencyMs:12,error:i===1?'检测目标无法完成请求':''}));workspace.log('diagnostic','开始latency检测：'+m.items.length+'个节点','INFO',null,{taskId:id});break;}
 default:throw Error('Unmocked action '+action);}emit();return {ok:true,value};}catch(e){return {ok:false,error:e.message};}});
-await page.addInitScript(()=>{window.arenaCore={request:(a,p)=>window.__testRequest(a,p),onState:fn=>window.__stateListener=fn};});
+await page.addInitScript(()=>{window.facet={request:(a,p)=>window.__testRequest(a,p),onState:fn=>window.__stateListener=fn};});
 await page.goto('file://'+path.resolve(__dirname,'../src/renderer/index.html'));await page.waitForSelector('[role=tab]');
 const ok=name=>{results.push(name);console.log('PASS',name);};
 

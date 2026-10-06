@@ -4,7 +4,7 @@
 // 轮询每 2 秒一次，结果同时以 facet-metrics 事件广播给宫格页（每个格子显示自己实例的占用）；
 // 既没有标题栏、也不在宫格页，或窗口最小化 / 不可见时不轮询。
 (()=>{
- const root=document.documentElement,api=window.arenaCore,bar=document.getElementById('windowBar');if(!api)return;
+ const root=document.documentElement,api=window.facet,bar=document.getElementById('windowBar');if(!api)return;
  const custom=root.dataset.frame==='custom'&&!!bar;
  const size=mb=>mb>=1024?`${(mb/1024).toFixed(mb>=10240?1:2)} GB`:`${Math.max(0,Math.round(mb))} MB`;
  window.facetSize=size;

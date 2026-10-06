@@ -12,7 +12,7 @@ Windows验证：check 50；extension-center 7；ux3 11；experience-renderer 15�
 
 ## 第三批：导航去重、字号与对比度、状态记忆、键盘操作
 
-2026-09-27：Windows全量回归通过；未重启用户正在运行的实例，需用户自行重启 Arena Core 后生效。
+2026-09-27：Windows全量回归通过；未重启用户正在运行的实例，需用户自行重启 千面 Facet 后生效。
 
 ### 改动
 
@@ -29,7 +29,7 @@ check 49 个脚本；ux3-renderer 11/11；experience-renderer 15/15；appearance
 
 ### 已知环境问题
 
-`node_modules` 中的 Playwright 1.63.0 需要 chromium_headless_shell-1243，本机只装有 1234。本轮 Chromium 类测试通过环境变量 `PW_CHROMIUM` 指向 1234 版运行：ux3 测试原生支持该变量，其余测试用放在 %TEMP% 的预加载脚本注入，未改动仓库。如需按默认方式运行，请在 arena-core 目录执行 `npx playwright install chromium-headless-shell`。
+`node_modules` 中的 Playwright 1.63.0 需要 chromium_headless_shell-1243，本机只装有 1234。本轮 Chromium 类测试通过环境变量 `PW_CHROMIUM` 指向 1234 版运行：ux3 测试原生支持该变量，其余测试用放在 %TEMP% 的预加载脚本注入，未改动仓库。如需按默认方式运行，请在项目根目录执行 `npx playwright install chromium-headless-shell`。
 
 ---
 

@@ -11,7 +11,7 @@ function paintUpdateNotice(){
  const version=u.reminderVersion;activeUpdateNotice=version;shownUpdateNotices.add(version);
  slot.innerHTML=`<div class="update-notice" role="status"><span>${icon('download')}发现新版本 <b>v${esc(version)}</b></span><div><button class="btn subtle" data-update-action="view">查看更新</button><button class="btn subtle" data-update-action="later">稍后</button></div></div>`;
  window.dispatchEvent(new Event('resize'));
- requestAnimationFrame(()=>{if(activeUpdateNotice!==version)return;if(document.visibilityState!=='visible'){shownUpdateNotices.delete(version);activeUpdateNotice=null;slot.replaceChildren();return;}window.arenaCore.request('update-reminder-shown',{version}).catch(()=>{});});
+ requestAnimationFrame(()=>{if(activeUpdateNotice!==version)return;if(document.visibilityState!=='visible'){shownUpdateNotices.delete(version);activeUpdateNotice=null;slot.replaceChildren();return;}window.facet.request('update-reminder-shown',{version}).catch(()=>{});});
 }
 function acceptUpdateState(value){appUpdateState=value;paintUpdateCard();paintUpdateNotice();}
 function updateCardHTML(){
@@ -30,9 +30,9 @@ function confirmUpdateInstall(){
 }
 document.addEventListener('DOMContentLoaded',()=>{
  const badge=document.createElement('button');badge.id='updateAvailable';badge.className='btn subtle update-available';badge.hidden=true;badge.type='button';badge.dataset.updateAction='view';badge.textContent='有更新';document.querySelector('.top-actions').prepend(badge);
- if(!window.arenaCore){appUpdateState={...appUpdateState,status:'unsupported',error:'浏览器预览不能执行在线更新'};paintUpdateCard();return;}
- window.arenaCore.onUpdate?.(acceptUpdateState);
- window.arenaCore.request('update-status').then(result=>{if(!result.ok)throw Error(result.error);acceptUpdateState(result.value);}).catch(error=>{appUpdateState={...appUpdateState,status:'error',error:error.message};paintUpdateCard();});
+ if(!window.facet){appUpdateState={...appUpdateState,status:'unsupported',error:'浏览器预览不能执行在线更新'};paintUpdateCard();return;}
+ window.facet.onUpdate?.(acceptUpdateState);
+ window.facet.request('update-status').then(result=>{if(!result.ok)throw Error(result.error);acceptUpdateState(result.value);}).catch(error=>{appUpdateState={...appUpdateState,status:'error',error:error.message};paintUpdateCard();});
 });
 document.addEventListener('visibilitychange',paintUpdateNotice);
 document.addEventListener('click',async event=>{

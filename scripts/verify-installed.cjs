@@ -49,7 +49,7 @@ async function main(){
  await ui.waitForFunction(()=>view==='global'&&!!document.querySelector('.github-support-card'));
  const info=await ui.locator('#content').textContent();
  assert(!info.includes('独立新项目')&&!info.includes('（原 Arena Core）')&&!info.includes('明确的边界'));
- for(const text of ['支持开源项目','github.com/HEYD66/arena-core','已接入','键盘快捷键','免责声明'])assert(info.includes(text),text+' missing');
+ for(const text of ['支持开源项目','github.com/HEYD66/facet','已接入','键盘快捷键','免责声明'])assert(info.includes(text),text+' missing');
  assert.equal(await ui.locator('#content .section-intro').count(),0);
  assert(await ui.locator('[data-action="open-github"]').first().isEnabled());
  await ui.screenshot({path:path.join(root,'application-info.png')});

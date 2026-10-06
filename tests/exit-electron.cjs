@@ -27,7 +27,7 @@ app.whenReady().then(async()=>{try{
  let {child,result}=await open();assert(child.isModal());assert.equal(child.getParentWindow(),win);assert.equal(win.isEnabled(),false);
  assert.equal(await exec(child,'document.activeElement.id'),'cancel');assert.equal(await exec(child,"document.querySelector('#exit-names img')"),null);
  assert.equal(await exec(child,"document.documentElement.dataset.lightPalette"),'solar');assert.equal(await exec(child,"getComputedStyle(document.body).backgroundColor"),'rgb(255, 251, 239)');
- assert.equal(await exec(child,"typeof window.arenaCore"),'undefined');assert.equal(await exec(child,"typeof require"),'undefined');
+ assert.equal(await exec(child,"typeof window.facet"),'undefined');assert.equal(await exec(child,"typeof require"),'undefined');
  assert.equal(await exec(child,'document.documentElement.scrollHeight<=innerHeight'),true);
  fs.writeFileSync(path.join(root,'exit-light.png'),(await child.webContents.capturePage()).toPNG());
  await click(child,'#remember');await click(child,'#cancel');assert.equal(await result,false);assert.deepEqual(readSettings(root),{});assert(win.isEnabled());

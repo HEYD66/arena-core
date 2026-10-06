@@ -3,7 +3,7 @@ const {app,BrowserWindow,ipcMain,dialog}=require('electron');
 const path=require('node:path'),fs=require('node:fs');
 const {Controller}=require('./controller.cjs');
 app.setName('千面 Facet');
-// Renamed from Arena Core: the data folder stays ArenaCore so existing instances, sessions and settings are kept.
+// Persisted data and session identifiers remain stable across application upgrades.
 const {userDataPath,resourcePath}=require('./app-paths.cjs');
 app.setPath('userData',userDataPath(app));
 if(app.isPackaged)require('./runtime-output.cjs').installRuntimeOutput(app);

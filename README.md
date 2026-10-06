@@ -2,7 +2,7 @@
 
 **面向 Windows 的开源多实例浏览器。** 在一个工作台中管理独立浏览会话、环境配置、代理节点与浏览器扩展，通过实时宫格集中查看多个网页。
 
-[下载最新版](https://github.com/HEYD66/arena-core/releases/latest) · [版本记录](https://github.com/HEYD66/arena-core/releases) · [反馈问题](https://github.com/HEYD66/arena-core/issues)
+[下载最新版](https://github.com/HEYD66/facet/releases/latest) · [版本记录](https://github.com/HEYD66/facet/releases) · [反馈问题](https://github.com/HEYD66/facet/issues)
 
 如果千面对你有帮助，欢迎点一下 **Star**，帮助更多人发现这个项目。
 
@@ -21,11 +21,11 @@
 | 软件更新 | 每次启动自动检查一次 GitHub 新版本，同一版本只主动提醒一次；下载及安装由用户确认 |
 | 日志与诊断 | 系统日志、实例运行日志、运行输出和网络诊断，便于定位问题 |
 
-当前支持 Windows x64，最多创建 15 个实例。实时模式的资源需求随运行实例数量和网页内容增加。
+当前支持 Windows x64，不设固定的实例数量上限。实际可同时运行的数量取决于硬件和网页负载；实时模式的资源需求随运行实例数量和网页内容增加。
 
 ## 下载安装
 
-1. 打开 [最新版发布页](https://github.com/HEYD66/arena-core/releases/latest)。
+1. 打开 [最新版发布页](https://github.com/HEYD66/facet/releases/latest)。
 2. 下载 `Facet-Setup-<版本>-x64.exe`，运行安装向导。
 3. 安装后启动「千面 Facet」，点击「启动当前实例」开始使用。
 
@@ -66,7 +66,7 @@ Get-FileHash "下载的安装包绝对路径" -Algorithm SHA256
 
 ## 数据与隐私
 
-实例资料和配置保存在本机：`%APPDATA%\ArenaCore`。升级沿用该目录，卸载默认保留资料。
+全新安装的实例资料和配置保存在本机：`%APPDATA%\Facet`。已有安装会自动沿用原数据目录，升级不移动资料，卸载默认保留资料。
 
 | 位置 | 内容 |
 | --- | --- |

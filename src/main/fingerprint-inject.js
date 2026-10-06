@@ -3,7 +3,7 @@
   if (window.__arenaFingerprintV3Applied) return;
   window.__arenaFingerprintV3Applied = true;
 
-  var fp = /*__ARENA_FP_PAYLOAD__*/null;
+  var fp = /*__FACET_FP_PAYLOAD__*/null;
   if (!fp || typeof fp !== 'object') return;
 
   var markNative = function(replacement) { return replacement; };

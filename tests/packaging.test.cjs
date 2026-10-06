@@ -2,13 +2,17 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),os=require('node:os');
 const {userDataPath,resourcePath}=require('../src/main/app-paths.cjs');
 const {RuntimeOutput,readRuntimeOutput}=require('../src/main/runtime-output.cjs');
-test('Default data location stays ArenaCore; an explicit absolute directory isolates a test launch',()=>{
- const app={getPath:()=>os.tmpdir(),commandLine:{hasSwitch:()=>false}};
- assert.equal(userDataPath(app),path.join(os.tmpdir(),'ArenaCore'));
+test('Fresh data uses Facet, existing installations retain data, and explicit paths isolate launches',()=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'facet-paths-'));
+ const app={getPath:()=>dir,commandLine:{hasSwitch:()=>false}};
+ assert.equal(userDataPath(app),path.join(dir,'Facet'));
+ fs.mkdirSync(path.join(dir,'ArenaCore'));assert.equal(userDataPath(app),path.join(dir,'ArenaCore'));
+ fs.mkdirSync(path.join(dir,'Facet'));assert.equal(userDataPath(app),path.join(dir,'ArenaCore'),'existing data has priority over an empty new directory');
  app.commandLine={hasSwitch:()=>true,getSwitchValue:()=>path.join(os.tmpdir(),'facet-isolated')};
  assert.equal(userDataPath(app),path.join(os.tmpdir(),'facet-isolated'));
  for(const value of ['', 'relative-data']){app.commandLine.getSwitchValue=()=>value;assert.throws(()=>userDataPath(app),/绝对路径/);}
  assert.equal(resourcePath({isPackaged:false},'mihomo','mihomo.exe'),path.resolve(__dirname,'../resources/mihomo/mihomo.exe'));
+ fs.rmSync(dir,{recursive:true,force:true});
 });
 test('Installed output preserves split UTF-8, redacts credentials, and can be read by existing UI',()=>{
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'facet-package-log-')),file=path.join(dir,'runtime-output.json');

@@ -21,7 +21,7 @@ async function openApp(browser,{size=[1440,960],data=fixture()}={}){
   case 'extension-configure':await new Promise(r=>setTimeout(r,30));snap={...snap,instances:snap.instances.map(x=>x.id===m.id?{...x,status:'stopped'}:x),extensions:snap.extensions.map(e=>e.id!==m.extensionId?e:{...e,instances:e.instances.map(i=>i.id===m.id?{...i,enabled:m.enabled,loaded:false}:i)})};return {ok:true};
   case 'extension-remove':snap={...snap,extensions:snap.extensions.filter(e=>e.id!==m.extensionId)};return {ok:true};
   default:return {ok:false,error:'Unmocked action '+action};}});
- await page.addInitScript(()=>{window.arenaCore={request:(a,p)=>window.__extRequest(a,p),onState:fn=>window.__stateListener=fn};});
+ await page.addInitScript(()=>{window.facet={request:(a,p)=>window.__extRequest(a,p),onState:fn=>window.__stateListener=fn};});
  await page.goto(pageURL);await page.waitForSelector('#sidebar .nav');return {context,page,errors,calls};
 }
 const go=(page,v,id)=>page.evaluate(async([v,id])=>{await route(v,id);},[v,id]);

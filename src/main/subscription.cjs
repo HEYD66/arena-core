@@ -52,7 +52,7 @@ async function downloadSubscription(value, {
           family: resolved ? net.isIP(resolved) : undefined,
           servername: net.isIP(host) ? undefined : host,
           headers: {
-            'User-Agent': 'clash.meta/1.19.31 Facet/0.2.0',
+            'User-Agent': 'clash.meta/1.19.31 Facet/'+require('../../package.json').version,
             Accept: 'application/yaml, text/yaml, application/json, text/plain, */*',
             'Accept-Encoding': 'gzip, deflate, br'
           }

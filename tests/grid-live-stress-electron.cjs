@@ -20,12 +20,8 @@ app.whenReady().then(async()=>{
   c=new Controller(win,root,path.join(__dirname,'../resources/mihomo',process.platform==='win32'?'mihomo.exe':'mihomo'));installIPC(win,c);
   const ids=[];
   for(let i=0;i<count;i++){
-   // Beyond the UI creation cap, seed valid isolated persisted configurations.
-   // Every entry still starts a real session and renderer through Controller.
-   let x;
-   if(i===0)x=c.store.list()[0];
-   else if(i<15)x=c.store.create('Live '+(i+1));
-   else{const fixture=new Store(path.join(root,'fixtures',String(i)));x=fixture.create('Live '+(i+1));c.store.commit({...c.store.data,instances:[...c.store.list(),x]});}
+   // Exercise the production creation path at every count, without seeded fixtures.
+   const x=i===0?c.store.list()[0]:c.store.create('Live '+(i+1));
    c.store.update(x.id,{name:'Live '+(i+1),url:base+(i+1)});ids.push(x.id);
   }
   assert.equal(new Store(root).list().length,count);

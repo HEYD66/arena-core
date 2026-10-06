@@ -586,9 +586,9 @@ function diagnosticHistoryRows() {
 }
 function syncDiagnosticHistory() {
   const v = state.diagnostics?.historyVersion;
-  if (!v || v === diagHistoryVersion || diagHistoryLoading || !window.arenaCore?.request) return;
+  if (!v || v === diagHistoryVersion || diagHistoryLoading || !window.facet?.request) return;
   diagHistoryLoading = true;
-  window.arenaCore
+  window.facet
     .request("diagnostic-history")
     .then((res) => {
       if (res?.ok) {
