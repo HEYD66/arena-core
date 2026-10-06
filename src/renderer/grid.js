@@ -1,5 +1,5 @@
 // 宫格总览：所有实例在一个页面里并排显示。
-// 实时模式：完整可见的运行中格子直接显示真实网页（按正常浏览尺寸排版后缩小渲染，可点击、输入）。
+// 实时模式：所有运行中的格子都保持真实网页（按正常浏览尺寸排版后缩小渲染，可点击、输入），滚动不会切换缩略图。
 // 省资源模式：只有选中的格子实时显示，其余每 2 秒刷新一次缩略图。已停止的实例只显示占位，不占内存。
 // 注意：本文件在 app.js 之前加载，只能在函数内部引用 app.js 的全局变量（bridge、state、view 等）。
 let gridPrefs=(()=>{try{const v=JSON.parse(localStorage.getItem('facet-grid')||'{}');return {mode:v.mode==='saver'?'saver':'live',cols:[2,3,4,5,6].includes(v.cols)?v.cols:'auto'};}catch{return {mode:'live',cols:'auto'};}})();
@@ -37,25 +37,26 @@ function gridPage(){gridActive=true;const list=state.instances,base=gridBaseSize
  if(gridFocus&&!list.some(i=>i.id===gridFocus&&i.status==='running'))gridFocus=null;
  if(!gridFocus)gridFocus=(list.find(i=>i.id===activeId&&i.status==='running')||list.find(i=>i.status==='running'))?.id||null;
  $('#content').innerHTML=`<div class="grid-toolbar"><div class="segments" role="group" aria-label="格子显示方式"><button data-grid-mode="live" class="${live?'active':''}" aria-pressed="${live}" title="可见的格子都显示真实网页，可直接操作">实时</button><button data-grid-mode="saver" class="${live?'':'active'}" aria-pressed="${!live}" title="只有选中的格子实时显示，其余显示定时刷新的缩略图">省资源</button></div><label class="grid-cols">列数<select id="gridCols" aria-label="列数"><option value="auto" ${gridPrefs.cols==='auto'?'selected':''}>自动</option>${[2,3,4,5,6].map(n=>`<option value="${n}" ${gridPrefs.cols===n?'selected':''}>${n} 列</option>`).join('')}</select></label><span class="grid-hint">${live?'完整可见的格子是真实网页，可直接点击和输入；滚出视野的格子显示缩略图。':'点击格子让它实时显示，其余每 2 秒刷新缩略图，更省 CPU 和显卡。'}</span><span class="grid-count"><b>${running}</b> / ${list.length} 运行</span><button class="btn tiny" data-grid-act="start-all" ${idle?'':'disabled'}>${icon('play')}全部启动</button><button class="btn tiny danger" data-grid-act="stop-all" ${running?'':'disabled'}>${icon('stop')}全部停止</button></div>${list.length?`<div class="grid-board" style="--grid-cols:${gridColumns(list.length)}">${list.map(x=>gridTile(x,base)).join('')}</div>`:`<div class="grid-empty"><p>还没有实例。</p><button class="btn primary" data-action="new">${icon('plus')}新建实例</button></div>`}`;
- if(live){const hint=$('#content .grid-hint');if(hint)hint.textContent='完整可见的格子是真实网页，可直接点击和输入；滚动时暂用缩略图，停止后恢复可见网页。';}
- if(gridZoom&&!list.some(i=>i.id===gridZoom))gridZoom=null;$('#content').classList.toggle('grid-zoomed',!!gridZoom);if(gridZoom){$('#content').insertAdjacentHTML('beforeend',gridZoomHtml(list.find(i=>i.id===gridZoom)));gridPlaceZoom();}
+  if(live){const hint=$('#content .grid-hint');if(hint)hint.textContent='所有运行中的格子都保持实时网页，可直接点击和输入；滚动不会切换缩略图。';}
+  if(gridZoom&&!list.some(i=>i.id===gridZoom))gridZoom=null;$('#content').classList.toggle('grid-zoomed',!!gridZoom);$('#content').classList.toggle('grid-live',live);if(gridZoom){$('#content').insertAdjacentHTML('beforeend',gridZoomHtml(list.find(i=>i.id===gridZoom)));gridPlaceZoom();}
  gridSig=gridSignature();gridPaintThumbs();gridStartTimer();window.facetMetricsNow?.();}
 function gridPaintThumbs(){for(const el of document.querySelectorAll('.grid-tile,.grid-zoom-box')){const img=el.querySelector('.grid-thumb'),url=gridThumbCache.get(el.dataset.gridId);if(img&&url&&img.getAttribute('src')!==url)img.src=url;}}
-function gridStartTimer(){if(gridTimer)return;gridTimer=setInterval(gridPollThumbs,2000);setTimeout(gridPollThumbs,350);}
-function gridScrollStart(){if(view!=='grid'||gridPrefs.mode!=='live')return;gridScrolling=true;gridPaintThumbs();clearTimeout(gridScrollTimer);gridScrollTimer=setTimeout(()=>{gridScrollTimer=0;gridScrolling=false;gridSendLayout();},140);}
-async function gridPollThumbs(){if(view!=='grid'){gridLeave();return;}if(document.hidden||!bridge)return;try{const res=await bridge.request('grid-thumbs',{});if(!res?.ok||view!=='grid')return;for(const [id,url] of Object.entries(res.value||{}))if(typeof url==='string'&&url.startsWith('data:image/'))gridThumbCache.set(id,url);gridPaintThumbs();}catch{}}
-// 把每个运行中格子的位置告诉主进程。原生网页层盖在界面之上且无法裁剪，所以只有完整可见、且没有弹窗时才实时显示。
+function gridStartTimer(){if(gridPrefs.mode!=='saver'){clearInterval(gridTimer);gridTimer=null;return;}if(gridTimer)return;gridTimer=setInterval(gridPollThumbs,2000);setTimeout(gridPollThumbs,350);}
+function gridScrollStart(){if(view!=='grid'||gridPrefs.mode!=='live')return;gridSendLayout();}
+async function gridPollThumbs(){if(view!=='grid'){gridLeave();return;}if(gridPrefs.mode!=='saver'||document.hidden||!bridge)return;try{const res=await bridge.request('grid-thumbs',{});if(!res?.ok||view!=='grid')return;for(const [id,url] of Object.entries(res.value||{}))if(typeof url==='string'&&url.startsWith('data:image/'))gridThumbCache.set(id,url);gridPaintThumbs();}catch{}}
+// 把每个运行中格子的位置告诉主进程。实时模式即使滚出视野也保持网页层，省资源模式才按可见范围切换缩略图。
 function gridSendLayout(){if(view!=='grid'||!bridge||gridFrame)return;gridFrame=requestAnimationFrame(()=>{gridFrame=0;if(view!=='grid')return;const content=$('#content');if(!content)return;
  const board=content.querySelector('.grid-board');if(board){const cols=String(gridColumns(state.instances.length));if(board.style.getPropertyValue('--grid-cols')!==cols)board.style.setProperty('--grid-cols',cols);}
  const c=content.getBoundingClientRect(),covered=!!modal||!!document.querySelector('dialog[data-browser-overlay][open],details.row-menu[open]'),tiles=[];
  gridPlaceZoom();const zoomBody=gridZoom&&content.querySelector('.grid-zoom-body');
  for(const el of content.querySelectorAll('.grid-tile')){const x=state.instances.find(i=>i.id===el.dataset.gridId);if(x?.status!=='running')continue;if(zoomBody&&x.id===gridZoom){const z=zoomBody.getBoundingClientRect();if(z.width>=40&&z.height>=30)tiles.push({id:x.id,x:z.x,y:z.y,width:z.width,height:z.height,live:!covered});continue;}const b=el.querySelector('.grid-body')?.getBoundingClientRect();if(!b||b.width<40||b.height<30)continue;
   const inside=b.top>=c.top-0.5&&b.bottom<=c.bottom+0.5&&b.left>=c.left-0.5&&b.right<=c.right+0.5;
-  tiles.push({id:x.id,x:b.x,y:b.y,width:b.width,height:b.height,live:!gridScrolling&&!covered&&!zoomBody&&inside&&(gridPrefs.mode==='live'||gridFocus===x.id)});}
+   const live=gridPrefs.mode==='live'?(!covered&&!zoomBody):(!gridScrolling&&!covered&&!zoomBody&&inside&&gridFocus===x.id);
+   tiles.push({id:x.id,x:b.x,y:b.y,width:b.width,height:b.height,live});}
  bridge.request('grid-layout',{grid:{base:gridBaseSize(),tiles}}).catch(()=>{});
  // 有格子从实时切到缩略图（滚出视野、打开弹窗）时尽快刷新一次缩略图。
- const live=new Set(tiles.filter(t=>t.live).map(t=>t.id));if([...gridLiveIds].some(id=>!live.has(id))&&!gridQuickPoll)gridQuickPoll=setTimeout(()=>{gridQuickPoll=0;gridPollThumbs();},120);gridLiveIds=live;});}
-function gridLeave(){if(!gridActive)return;gridActive=false;gridZoom=null;gridScrolling=false;clearTimeout(gridScrollTimer);gridScrollTimer=0;$('#content')?.classList.remove('grid-zoomed');gridLiveIds=new Set();clearTimeout(gridQuickPoll);gridQuickPoll=0;clearInterval(gridTimer);gridTimer=null;if(gridFrame){cancelAnimationFrame(gridFrame);gridFrame=0;}bridge?.request('grid-layout',{grid:null}).catch(()=>{});}
+  const live=new Set(tiles.filter(t=>t.live).map(t=>t.id));if(gridPrefs.mode==='saver'&&[...gridLiveIds].some(id=>!live.has(id))&&!gridQuickPoll)gridQuickPoll=setTimeout(()=>{gridQuickPoll=0;gridPollThumbs();},120);gridLiveIds=live;});}
+function gridLeave(){if(!gridActive)return;gridActive=false;gridZoom=null;gridScrolling=false;clearTimeout(gridScrollTimer);gridScrollTimer=0;$('#content')?.classList.remove('grid-zoomed','grid-live');gridLiveIds=new Set();clearTimeout(gridQuickPoll);gridQuickPoll=0;clearInterval(gridTimer);gridTimer=null;if(gridFrame){cancelAnimationFrame(gridFrame);gridFrame=0;}bridge?.request('grid-layout',{grid:null}).catch(()=>{});}
 function gridSetFocus(id){if(gridFocus===id)return;gridFocus=id;document.querySelectorAll('.grid-tile').forEach(el=>el.classList.toggle('focused',gridPrefs.mode==='saver'&&el.dataset.gridId===gridFocus));gridSendLayout();}
 document.addEventListener('click',async e=>{if(view!=='grid')return;const t=e.target;
  const mode=t.closest('[data-grid-mode]');if(mode){if(gridPrefs.mode!==mode.dataset.gridMode){gridPrefs.mode=mode.dataset.gridMode;gridSave();render(true);}return;}

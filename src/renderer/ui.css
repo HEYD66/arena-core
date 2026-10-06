@@ -720,6 +720,7 @@ html[data-frame="custom"] .window-bar{display:flex;align-items:center;justify-co
 .grid-zoom-body{flex:none}
 #content.grid-zoomed{overflow:hidden!important}
 .grid-body{position:relative;background:var(--panel2);overflow:hidden;cursor:default}
+#content.grid-live .grid-thumb{visibility:hidden}
 .grid-tile:not(.focused) .grid-thumb{cursor:pointer}
 .grid-thumb{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:top left}
 .grid-thumb:not([src]){visibility:hidden}
