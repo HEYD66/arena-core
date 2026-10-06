@@ -53,12 +53,12 @@ async function appMetrics(controller){
  const list=app.getAppMetrics(),n=Math.max(1,os.cpus().length),byPid=new Map(list.map(p=>[p.pid,p])),share=cpuShares(list,n);let cpu=0,kb=0;
  for(const p of list){cpu+=share.get(p.pid)||0;kb+=memKb(p);}
  const running=[...(controller?.runtimes?.entries()||[])];
- const pids=running.map(([,r])=>r.core?.child?.pid).filter(pid=>Number(pid)>0);
+ const pids=running.map(([,r])=>r.core?.pid).filter(pid=>Number(pid)>0);
  // 内核内存每 5 秒采样一次；首次（或刚启动内核）等待采样结果，其余时间直接用缓存，避免拖慢 2 秒一次的刷新。
  if(pids.length&&(Date.now()-cores.at>CORE_SAMPLE_MS||pids.some(pid=>!cores.kb.has(pid)))){const job=sampleCores(pids);if(pids.some(pid=>!cores.kb.has(pid)))await job;}
  let coreKb=0;for(const pid of pids)coreKb+=cores.kb.get(pid)||0;
  const instances={};
- for(const [id,r] of running){if(r.status!=='running'||!r.view)continue;let icpu=0,ikb=0,count=0;for(const pid of instancePids(r)){const p=byPid.get(pid);if(!p)continue;icpu+=share.get(pid)||0;ikb+=memKb(p);count++;}const core=r.core?.child?.pid?cores.kb.get(r.core.child.pid)||0:0;instances[id]={cpu:Math.max(0,Math.min(100,icpu)),memoryMB:(ikb+core)/1024,coreMB:core/1024,processes:count};}
+ for(const [id,r] of running){if(r.status!=='running'||!r.view)continue;let icpu=0,ikb=0,count=0;for(const pid of instancePids(r)){const p=byPid.get(pid);if(!p)continue;icpu+=share.get(pid)||0;ikb+=memKb(p);count++;}const core=r.core?.pid?cores.kb.get(r.core.pid)||0:0;instances[id]={cpu:Math.max(0,Math.min(100,icpu)),memoryMB:(ikb+core)/1024,coreMB:core/1024,processes:count};}
  return {cpu:Math.max(0,Math.min(100,cpu)),gpu:gpuSample(list),memoryMB:(kb+coreKb)/1024,coreMB:coreKb/1024,processes:list.length,cores:pids.length,instances};
 }
 module.exports={appMetrics,parseTasklist,parsePs,parseGpuHeader,gpuUsage};

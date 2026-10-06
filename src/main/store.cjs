@@ -7,11 +7,50 @@ function networkConfig(value){
  if(typeof value.nodeName!=='string')throw Error('实例网络配置无效，节点名称格式错误');
  return {mode:value.mode,nodeName:value.nodeName};
 }
-function atomic(file,data){fs.mkdirSync(path.dirname(file),{recursive:true});const temp=file+'.'+crypto.randomUUID()+'.tmp';fs.writeFileSync(temp,JSON.stringify(data,null,2)+'\n',{mode:0o600});try{fs.renameSync(temp,file);}finally{if(fs.existsSync(temp))fs.unlinkSync(temp);}}
+const {atomic}=require('./json-storage.cjs');
+function parseStoreData(raw){
+ if(Array.isArray(raw))raw={version:1,instances:raw};
+ if(!raw||typeof raw!=='object'||!Array.isArray(raw.instances))throw Error('配置版本不支持，未覆盖原文件');
+ // Version 0/omitted files from early builds had the same instance shape.
+ if(raw.version===undefined||raw.version===0)raw={...raw,version:1};
+ if(raw.version!==1)throw Error('配置版本不支持，未覆盖原文件');
+ return raw;
+}
+function validateStoreData(raw) {
+ const data=parseStoreData(raw),ids=new Set();
+ const instances=data.instances.map(value=>{
+  if(!value||typeof value!=='object'||Array.isArray(value)||
+     !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(value.id)||ids.has(value.id))throw Error('实例 ID 无效或重复');
+  ids.add(value.id);
+  return {...value,network:networkConfig(value.network),environment:environment(value.environment),url:safeURL(value.url)};
+ });
+ return {...data,instances};
+}
+function readStoreFile(file) {
+ let raw,readError;
+ try { raw=JSON.parse(fs.readFileSync(file,'utf8')); }
+ catch(error) {
+  // Unsupported versions, invalid networks and permission/I/O failures are not
+  // reasons to silently roll back to an older configuration.
+  if(!(error instanceof SyntaxError)&&error.code!=='ENOENT')throw error;
+  readError=error;
+ }
+ if(!readError)return {data:validateStoreData(raw),recovered:false};
+ let data;
+ try { data=validateStoreData(JSON.parse(fs.readFileSync(file+'.bak','utf8'))); }
+ catch(cause) { throw new Error('实例配置损坏或缺失，且备份不可用；原文件已保留，请人工恢复', {cause}); }
+ // Validate ALL instances first. Do not replace the good backup with corrupt
+ // primary bytes; recovery itself must also use a flushed, atomic replacement.
+ atomic(file,data,{backup:false});
+ return {data,recovered:true};
+}
 class Store {
- constructor(dir){this.dir=dir;this.file=path.join(dir,'instances.json');this.data={version:1,instances:[]};if(fs.existsSync(this.file)){this.data=JSON.parse(fs.readFileSync(this.file,'utf8'));if(this.data.version!==1||!Array.isArray(this.data.instances))throw Error('配置版本不支持，未覆盖原文件');for(const x of this.data.instances){if(!/^[a-f0-9-]{36}$/.test(x.id))throw Error('实例 ID 无效');x.network=networkConfig(x.network);x.environment=environment(x.environment);x.url=safeURL(x.url);}}}
+ constructor(dir){this.dir=dir;this.file=path.join(dir,'instances.json');this.data={version:1,instances:[]};this.recovered=false;if(fs.existsSync(this.file)||fs.existsSync(this.file+'.bak')){const result=readStoreFile(this.file);this.data=result.data;this.recovered=result.recovered;}}
  save(){atomic(this.file,this.data);}
- commit(data){atomic(this.file,data);this.data=data;}
+ commit(data){
+  try{atomic(this.file,data);}catch(error){if(error.atomicWriteCommitted)this.data=data;throw error;}
+  this.data=data;
+ }
  list(){return this.data.instances;}
  get(id){const x=this.list().find(x=>x.id===id);if(!x)throw Error('实例不存在');return x;}
  name(value,id){const name=String(value||'').trim();if(!name||name.length>40)throw Error('名称必须为1–40个字符');if(this.list().some(x=>x.id!==id&&x.name===name))throw Error('实例名称重复');return name;}

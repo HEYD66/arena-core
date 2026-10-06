@@ -8,20 +8,27 @@ function installVolumeIPC(){if(volumeIPC)return;volumeIPC=true;require('electron
 const {Store,safeURL,parseNodes,networkConfig}=require('./store.cjs');
 const {downloadSubscription}=require('./subscription.cjs');
 const {Mihomo}=require('./mihomo.cjs');
+const {recoverProcessHosts}=require('./process-host.cjs');
 const {Workspace,redact}=require('./workspace.cjs');const {applyEnvironment}=require('./environment.cjs');
 const {Library}=require('./library.cjs');const {Diagnostics}=require('./diagnostics.cjs');
+const deletionJournal=require('./deletion-journal.cjs');
+const {commitDeletionMetadata}=require('./deletion-commit.cjs');
 // 经代理访问时表示「连不上代理/节点」的页面错误码：-130 代理连接失败、-111 隧道失败、-100/-101 连接关闭或重置、
 // -118/-7 超时、-324 空响应、-109 地址不可达。只用于提醒，不会切换节点或改为直连。
 const PROXY_FAILURES=new Set([-130,-111,-100,-101,-118,-7,-324,-109]);
 class Controller {
  constructor(window,dir,binary){installWebRTCPolicy(app);this.window=window;const existing=fs.existsSync(path.join(dir,'instances.json'));this.store=new Store(dir);this.dir=dir;this.binary=binary;this.runtimes=new Map();this.queues=new Map();this.logs=new Map();this.activeId=null;this.bounds=null;this.disposing=false;this.startTail=Promise.resolve();if(!this.store.list().length)this.store.create('主工作区');this.library=new Library(dir,this.store);this.workspace=new Workspace(dir);this.extensions=new (require('./extensions.cjs').InstanceExtensions)(this,dir);this.diagnostics=new Diagnostics(this);this.workspace.log('application','应用已就绪；未自动启动实例');
+  try{const recovered=recoverProcessHosts(path.join(dir,'core-runtime'));if(recovered.terminated||recovered.removed||recovered.skipped)this.workspace.log('application',`已恢复代理进程租约：终止 ${recovered.terminated} 个进程，清理 ${recovered.removed} 个标记`+(recovered.skipped?`，跳过 ${recovered.skipped} 个无效标记`:''),recovered.skipped?'WARN':'INFO');}catch{this.workspace.log('application','代理进程租约恢复失败，将在下次启动重试','WARN');}
+  if(this.store.recovered)this.workspace.log('application','实例配置损坏或缺失，已恢复上一代备份；请核对最近变更，未自动启动实例','WARN');
   // 已删除实例的残留分区/内核目录：只在读到已有实例列表时清理，且此时还没有打开任何实例会话。
   if(existing&&this.store.list().length){try{const c=require('./cleanup.cjs').cleanOrphans(dir,this.store.list().map(x=>x.id));if(c.removed||c.failed)this.workspace.log('application',`已清理 ${c.removed} 项已删除实例的残留数据`+(c.failed?`；${c.failed} 项暂未能删除，下次启动再试`:''),c.failed?'WARN':'INFO');}catch{}}
+  this.recoverDeletionJournals();
   const currentIds=new Set(this.store.list().map(x=>x.id));
   for(const id of Object.keys(this.extensions.catalog.data.enabled))if(!currentIds.has(id)){
    try{this.extensions.catalog.forget(id);}catch{this.workspace.log('application','已删除实例的扩展绑定清理失败，下次启动重试','WARN');}
   }
  }
+ recoverDeletionJournals(){const current=new Set(this.store.list().map(x=>x.id));for(const row of deletionJournal.list(this.dir)){if(current.has(row.instanceId)){deletionJournal.finish(this.dir,row.instanceId);continue;}try{const residual=require('./cleanup.cjs').journalResiduals(this.dir,row.instanceId);if(!residual.length&&!Object.hasOwn(this.extensions.catalog.data.enabled,row.instanceId))deletionJournal.finish(this.dir,row.instanceId);else this.workspace.log('application',`实例 ${row.instanceId} 仍有 ${residual.length} 项删除残留，将在下次启动重试`,'WARN');}catch{this.workspace.log('application','删除操作恢复检查失败，将在下次启动重试','WARN');}}}
  queue(id,job){const prior=this.queues.get(id)||Promise.resolve();const next=prior.catch(()=>{}).then(job);this.queues.set(id,next);next.finally(()=>{if(this.queues.get(id)===next)this.queues.delete(id);}).catch(()=>{});return next;}
  log(id,text,level='INFO'){text=redact(text);this.workspace.log('instance',text,level,id);const lines=this.logs.get(id)||[];lines.unshift({time:new Date().toLocaleTimeString('zh-CN',{hour12:false}),level,text});this.logs.set(id,lines.slice(0,100));this.emit();}
  assignment(id){const data=this.store.source(id),ref=data.assignment;if(!ref)return {status:'本地节点副本 / 未关联来源'};const source=this.library.data.sources.find(s=>s.id===ref.sourceId);if(!source)return {...ref,status:'来源已删除；实例保留副本'};const node=source.nodes.find(n=>n.name===ref.name);const original=data.nodes.find(n=>n.name===ref.name);return {...ref,sourceName:source.name,status:source.excluded?.includes(ref.name)?'来源已本地删除该节点；实例保留副本':!node?'来源已移除此节点':JSON.stringify(node)===JSON.stringify(original)?'配置已同步':'来源配置已变化，重新分配后生效'};}
@@ -108,13 +115,13 @@ class Controller {
  async remove(id){return this.queue(id,async()=>{
   await this.stopInner(id);
   const s=session.fromPartition('persist:arena-core-'+id),proxyFile=this.store.proxyFile(id),cleanupErrors=[];
-  // Commit the metadata removal before touching user data. If this write fails, no destructive cleanup runs.
-  this.store.remove(id);
-  try{await s.closeAllConnections();await s.clearStorageData();await s.clearCache();}catch(e){cleanupErrors.push('浏览数据清理失败：'+e.message);}
-  try{if(fs.existsSync(proxyFile))fs.unlinkSync(proxyFile);}catch(e){cleanupErrors.push('节点源清理失败：'+e.message);}
-  try{this.extensions.catalog.forget(id);}catch(e){cleanupErrors.push('扩展绑定清理失败：'+e.message);}
-  try{if(this.dir&&!require('./cleanup.cjs').cleanInstance(this.dir,id))cleanupErrors.push('运行目录清理未完成');}catch(e){cleanupErrors.push('运行目录清理失败：'+e.message);}
+  cleanupErrors.push(...commitDeletionMetadata(this.store,deletionJournal,this.dir,id));
+  try{await s.closeAllConnections();await s.clearStorageData();await s.clearCache();deletionJournal.update(this.dir,id,{steps:{browserStorage:'done'}});}catch(e){cleanupErrors.push('浏览数据清理失败：'+e.message);}
+  try{if(!require('./cleanup.cjs').cleanNodeSource(this.dir,id))throw Error('节点源或备份仍被占用');deletionJournal.update(this.dir,id,{steps:{nodeSource:'done'}});}catch(e){cleanupErrors.push('节点源清理失败：'+e.message);}
+  try{this.extensions.catalog.forget(id);deletionJournal.update(this.dir,id,{steps:{extensionBinding:'done'}});}catch(e){cleanupErrors.push('扩展绑定清理失败：'+e.message);}
+  try{if(this.dir&&!require('./cleanup.cjs').cleanInstance(this.dir,id))cleanupErrors.push('运行目录清理未完成');else deletionJournal.update(this.dir,id,{steps:{runtimeDirectory:'done'}});}catch(e){cleanupErrors.push('运行目录清理失败：'+e.message);}
   this.runtimes.delete(id);this.logs.delete(id);if(this.activeId===id)this.choose(null);
+  if(!cleanupErrors.length){try{if(!require('./cleanup.cjs').journalResiduals(this.dir,id).length&&!deletionJournal.finish(this.dir,id))cleanupErrors.push('删除记录尚未清理');}catch{cleanupErrors.push('删除残留检查未完成');}}
   if(cleanupErrors.length)this.workspace.log('application','实例配置已删除，部分残留数据将在下次启动时重试：'+cleanupErrors.join('；'),'WARN',id);
   this.emit();
   if(cleanupErrors.length)throw Error('实例配置已删除，但部分数据尚未清理；请重启应用重试并查看全局日志');

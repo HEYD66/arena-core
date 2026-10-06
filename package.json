@@ -7,6 +7,7 @@
   "scripts": {
     "build:process-host": "node scripts/build-process-host.cjs",
     "test:process-host": "node --test tests/process-host.test.cjs",
+    "test:hardening": "node --test --test-concurrency=1 --test-reporter=tap tests/json-storage.test.cjs tests/data-recovery.test.cjs tests/subscription-policy.test.cjs tests/subscription-hardening.test.cjs tests/subscription.test.cjs tests/data-consistency.test.cjs tests/library.test.cjs tests/workspace.test.cjs tests/maintenance.test.cjs tests/subscription-doh.test.cjs tests/subscription-fakeip.test.cjs tests/extension-popup.test.cjs",
     "start": "node scripts/launch-electron.cjs .",
     "test:launcher": "node --test tests/launcher.test.cjs",
     "test:webrtc": "node tests/webrtc-runner.cjs",

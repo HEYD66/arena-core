@@ -24,7 +24,7 @@ function orphans(dir, ids) {
     out = [];
   const partition = new RegExp("^arena-core-(" + ID + ")$"),
     folder = new RegExp("^(" + ID + ")$"),
-    file = new RegExp("^(" + ID + ")\\.json$");
+    file = new RegExp("^(" + ID + ")\\.json(?:\\.bak)?(?:\\." + ID + "\\.tmp)?$");
   for (const e of entries(path.join(dir, "Partitions"))) {
     const m = e.isDirectory() && e.name.toLowerCase() === e.name && e.name.match(partition);
     if (m && !keep.has(m[1])) out.push(path.join(dir, "Partitions", e.name));
@@ -55,4 +55,26 @@ function cleanInstance(dir, id) {
   if (!dir || !new RegExp("^" + ID + "$").test(String(id))) return false;
   return removeOne(path.join(dir, "core-runtime", id));
 }
-module.exports = { orphans, cleanOrphans, cleanInstance };
+// A deletion journal is only finalized when every path belonging to the
+// removed instance is gone. If the instance still exists in metadata, the
+// operation never reached the destructive phase and the journal is discarded.
+function nodeSourceFiles(dir,id){
+ if(!new RegExp('^'+ID+'$').test(String(id)))throw Error('实例 ID 无效');
+ const folder=path.join(dir,'proxy-sources');
+ const pattern=new RegExp('^'+id+'\\.json(?:\\.bak)?(?:\\.'+ID+'\\.tmp)?$');
+ const names=new Set([id+'.json',id+'.json.bak']);
+ let sourceEntries;
+ try{sourceEntries=fs.readdirSync(folder,{withFileTypes:true});}catch(error){if(error.code==='ENOENT')sourceEntries=[];else throw new Error('节点源目录无法读取，尚未确认清理完成',{cause:error});}
+ for(const entry of sourceEntries)if((entry.isFile()||entry.isSymbolicLink())&&pattern.test(entry.name))names.add(entry.name);
+ return [...names].map(name=>path.join(folder,name));
+}
+function cleanNodeSource(dir,id){
+ const results=nodeSourceFiles(dir,id).map(removeOne);
+ return results.every(Boolean);
+}
+function journalResiduals(dir,id){
+ const sources=nodeSourceFiles(dir,id);
+ const targets=[path.join(dir,'Partitions','arena-core-'+id),path.join(dir,'core-runtime',id),...sources];
+ return targets.filter(target=>fs.existsSync(target));
+}
+module.exports = { orphans, cleanOrphans, cleanInstance, cleanNodeSource, nodeSourceFiles, journalResiduals };

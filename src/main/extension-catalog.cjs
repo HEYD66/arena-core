@@ -2,6 +2,8 @@
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
 const {atomic}=require('./store.cjs');
 const LIMIT=500*1024*1024,ENTRY_LIMIT=50000,DEPTH_LIMIT=64;
+const DANGEROUS_PERMISSIONS=new Set(['nativeMessaging','debugger','proxy','webRequestBlocking','management','downloads','clipboardRead','clipboardWrite','privacy','enterprise.platformKeys']);
+const GLOBAL_MATCHES=new Set(['<all_urls>','*://*/*','http://*/*','https://*/*']);
 // Development-only folders/files that an unpacked extension never needs at runtime; skipped on import and reported.
 const SKIP_DIRS=new Set(['.git','.svn','.hg','.vscode','.idea','node_modules','__pycache__']),SKIP_FILES=new Set(['.DS_Store','Thumbs.db','desktop.ini']);
 const sizeText=b=>b>=1024**3?(b/1024**3).toFixed(1)+' GB':b>=1024**2?(b/1024**2).toFixed(b>=100*1024**2?0:1).replace(/\.0$/,'')+' MB':Math.max(1,Math.ceil(b/1024))+' KB';
@@ -10,9 +12,11 @@ function inspect(folder){const file=path.join(folder,'manifest.json');if(!fs.exi
  const entries={};for(const [key,value]of Object.entries({popup:m.action?.default_popup||m.browser_action?.default_popup||m.page_action?.default_popup,options:m.options_ui?.page||m.options_page})){if(value){entries[key]=localPage(value);if(!fs.statSync(path.join(folder,entries[key])).isFile())throw Error('扩展界面文件不存在');}}
  for(const key of ['permissions','host_permissions','optional_permissions','optional_host_permissions','content_scripts'])if(m[key]!==undefined&&!Array.isArray(m[key]))throw Error('扩展权限或脚本清单无效');
  const permissions=[...(m.permissions||[]),...(m.host_permissions||[])];if(permissions.some(x=>typeof x!=='string')||permissions.length>500)throw Error('扩展权限清单无效');const matches=(m.content_scripts||[]).flatMap(x=>x.matches||[]);if(matches.some(x=>typeof x!=='string')||matches.length>500)throw Error('内容脚本范围无效');
+ const optionalPermissions=[...(m.optional_permissions||[]),...(m.optional_host_permissions||[])].map(String).slice(0,500),riskPermissions=[...new Set([...permissions,...optionalPermissions].filter(x=>DANGEROUS_PERMISSIONS.has(x)))],globalMatches=[...new Set([...matches,...permissions,...optionalPermissions].filter(x=>GLOBAL_MATCHES.has(x)))],riskLevel=riskPermissions.length||globalMatches.length?'high':matches.length?'medium':'low';
  let name=m.name;if(/^__MSG_(.+)__$/.test(name)&&m.default_locale&&/^[a-zA-Z0-9_-]+$/.test(m.default_locale)){try{const messages=JSON.parse(fs.readFileSync(path.join(folder,'_locales',m.default_locale,'messages.json'),'utf8'));name=messages[name.slice(6,-2)]?.message||name;}catch{}}
  const compatibilityNotice=name==='Dark Reader'&&m.version==='4.9.133'?'官方 Dark Reader 4.9.133 在当前 Electron 的 Linux 初测未通过：后台窗口API报错、面板停留在加载中、网页未变暗。Windows仍待实测；不能视为可用。':'';
- return {compatibilityNotice,name:String(name).slice(0,200),version:m.version,manifestVersion:m.manifest_version,permissions:[...new Set(permissions)],optionalPermissions:[...(m.optional_permissions||[]),...(m.optional_host_permissions||[])].map(String).slice(0,500),matches:[...new Set(matches)],entries,key:m.key||null,warnings:['Electron仅支持部分扩展API；已加载不代表功能全部兼容。',...(m.background?.service_worker?['此扩展使用MV3 Service Worker；必须实际验证后台功能。']:[]),...(permissions.includes('nativeMessaging')?['原生程序通信不受支持。']:[])]};}
+ const warnings=['Electron仅支持部分扩展API；已加载不代表功能全部兼容。',...(riskPermissions.length?[`高风险权限需要逐项审查：${riskPermissions.join(', ')}`]:[]),...(globalMatches.length?[`扩展可注入全站网页范围：${globalMatches.join(', ')}`]:[]),...(m.background?.service_worker?['此扩展使用MV3 Service Worker；必须实际验证后台功能。']:[]),...(permissions.includes('nativeMessaging')?['原生程序通信不受支持。']:[])];
+ return {compatibilityNotice,name:String(name).slice(0,200),version:m.version,manifestVersion:m.manifest_version,permissions:[...new Set(permissions)],optionalPermissions,matches:[...new Set(matches)],entries,key:m.key||null,riskLevel,riskPermissions,globalMatches,requiresElevatedReview:riskLevel==='high',warnings};}
 const ICON_TYPES={png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',gif:'image/gif',webp:'image/webp',svg:'image/svg+xml'},ICON_LIMIT=64*1024;
 function extensionIcon(folder){try{const m=JSON.parse(fs.readFileSync(path.join(folder,'manifest.json'),'utf8')),found=[];
  for(const v of [m.icons,m.action?.default_icon,m.browser_action?.default_icon,m.page_action?.default_icon]){if(typeof v==='string')found.push([0,v]);else if(v&&typeof v==='object')for(const [k,p]of Object.entries(v))if(typeof p==='string')found.push([Number(k)||0,p]);}
@@ -64,4 +68,4 @@ class ExtensionCatalog{
  forget(id){const enabled={...this.data.enabled};delete enabled[id];this.commit({...this.data,enabled});}
  remove(id){const row=this.get(id);if(Object.values(this.data.enabled).some(list=>list.includes(id)))throw Error('请先在所有实例中停用此扩展');this.commit({...this.data,items:this.data.items.filter(x=>x.id!==id)});this.discard(row);}
 }
-module.exports={ExtensionCatalog,inspect,localPage,extensionIcon,sizeText};
+module.exports={ExtensionCatalog,inspect,localPage,extensionIcon,sizeText,DANGEROUS_PERMISSIONS,GLOBAL_MATCHES};
