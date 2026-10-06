@@ -1,5 +1,5 @@
 'use strict';
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, shell } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
@@ -12,6 +12,8 @@ app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
 const { Controller } = require('../src/main/controller.cjs');
 const { installIPC } = require('../src/main/ipc.cjs');
 const { Store } = require('../src/main/store.cjs');
+const openedExternal = [];
+shell.openExternal = async url => { openedExternal.push(url); };
 const wait = async (predicate, label, limit = 160) => { for (let i = 0; i < limit; i++) { if (await predicate()) return; await new Promise(resolve => setTimeout(resolve, 50)); } throw Error(`Timeout: ${label}`); };
 let window, controller, server;
 app.whenReady().then(async () => {
@@ -73,6 +75,15 @@ app.whenReady().then(async () => {
     assert(created.environment.fingerprint.seed.length > 0);
     const reloaded = new Store(root).get(created.id);
     assert.equal(reloaded.environment.fingerprint.seed, created.environment.fingerprint.seed);
+    await ui("route('global')");
+    await wait(() => ui("!!document.querySelector('.github-support-card')"), 'GitHub support card');
+    assert.equal(await ui("document.querySelector('.github-repo-url').textContent"), 'github.com/HEYD66/arena-core');
+    await ui("document.querySelector('.github-star-btn').click()");
+    await wait(() => openedExternal.length === 1, 'GitHub external link');
+    assert.equal(openedExternal[0], 'https://github.com/HEYD66/arena-core');
+    const githubScreenshot = path.join(root, 'github-app-info.png');
+    fs.writeFileSync(githubScreenshot, (await window.webContents.capturePage()).toPNG());
+    assert(fs.statSync(githubScreenshot).size > 1000);
     server = http.createServer((_req, res) => { res.setHeader('Content-Type', 'text/html; charset=utf-8'); res.end('<!doctype html><title>Environment verification</title><h1>Local environment verification</h1>'); });
     await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
     const url = `http://127.0.0.1:${server.address().port}/`;
@@ -98,7 +109,8 @@ app.whenReady().then(async () => {
     window.setSize(960, 900);
     await ui(`route('browser', '${fifteenthId}')`);
     await wait(() => fullyVisible(fifteenthId), 'complete fifteenth tab');
-    console.log(JSON.stringify({ passed: true, tabs: [8, 15], widths: [960, 1280, 1440], persisted: true, restarted: true, randomTemplate: created.environment.fingerprint.template, applied, screenshots }));
+    screenshots.push(githubScreenshot);
+    console.log(JSON.stringify({ passed: true, tabs: [8, 15], widths: [960, 1280, 1440], persisted: true, restarted: true, github: openedExternal[0], randomTemplate: created.environment.fingerprint.template, applied, screenshots }));
     server.close();
     await controller.closeAll(); window.destroy(); app.quit();
   } catch (error) {

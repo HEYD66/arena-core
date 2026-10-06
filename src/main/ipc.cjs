@@ -13,6 +13,7 @@ function installIPC(window,controller){
     case 'fingerprint-preset':return {ok:true,value:require('./environment.cjs').environment(require('./fingerprint.cjs').preset(message.preset,require('./environment.cjs').environment(message.environment)))};
     case 'environment-timezone':return {ok:true,value:await controller.diagnostics.timezone(id,message.network)};
     case 'quick-link-save':controller.workspace.saveQuickLink(message.link||{});controller.emit();break;
+    case 'open-github':await shell.openExternal('https://github.com/HEYD66/arena-core');break;
     case 'quick-link-remove':controller.workspace.removeQuickLink(message.linkId);controller.emit();break;
     case 'quick-link-move':controller.workspace.moveQuickLink(message.linkId,message.direction);controller.emit();break;
     case 'quick-link-open':await controller.navigate(id,controller.workspace.quickLink(message.linkId).url);break;

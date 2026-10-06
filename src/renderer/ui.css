@@ -292,6 +292,15 @@ html[data-frame="custom"] .window-bar{display:flex;align-items:center;justify-co
 .settings-card h3 svg{width:16px;height:16px;color:var(--muted)}
 .settings-card .inner{padding:14px}
 .settings-card .inner>p{margin:0 0 8px;font-size:13px;line-height:1.7}
+.github-support-card{border-color:color-mix(in srgb,var(--accent) 35%,var(--line));box-shadow:var(--shadow-sm)}
+.github-support-card>h3{color:var(--accent-text)}
+.github-support-card>h3 svg{color:var(--accent-text)}
+.github-support-inner{display:flex;align-items:center;justify-content:space-between;gap:18px;background:var(--accent-weak)}
+.github-support-inner>div{min-width:0}
+.github-support-inner p{margin:0 0 5px!important}
+.github-repo-url{display:inline-flex;max-width:100%;padding:0;border:0;background:transparent;color:var(--accent-text);font:600 12px/1.5 "Cascadia Mono",Consolas,monospace;text-decoration:underline;text-underline-offset:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+.github-repo-url:hover{color:var(--accent-hover)}
+.github-star-btn{flex:0 0 auto;min-width:150px}
 .field{display:block;margin:0 0 12px;min-width:0}
 .field:last-child{margin-bottom:0}
 .field>span{display:block;margin:0 0 5px;font-size:12px;font-weight:500;color:var(--muted)}
