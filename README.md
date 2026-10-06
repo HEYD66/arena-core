@@ -4,7 +4,28 @@
 
 独立的精简核心项目：真实浏览、多实例持久会话、可配置实例环境、显式本机 IP 直连和应用自带 Mihomo。旧程序与旧 app.asar 不修改、不复用数据。
 
-## Windows 启动
+## Windows 安装包
+
+正式安装包为 `Facet-Setup-0.2.0-x64.exe`，自带 Electron、Mihomo 和 Windows 进程保护组件，无需另装 Node.js。安装向导支持选择目录，并创建桌面及开始菜单快捷方式。默认按当前用户安装，安装结束后由用户自行启动。
+
+实例、浏览会话和扩展仍保存在 `%APPDATA%\ArenaCore`，升级沿用原数据，卸载默认保留。安装包不包含开发者的账号、代理配置或已导入扩展。内置 Mihomo 的原许可证、来源校验信息及对应版本源码归档随包附带。
+
+在 Windows x64 源码目录构建：
+
+```powershell
+npm ci
+npm run build:process-host
+npm run test:packaging
+npm run build:installer
+```
+
+产物位于 `release/`，同目录提供 SHA256 校验文件。首次构建需要联网下载 NSIS 等构建工具；安装和启动不依赖 Node.js。未配置代码签名时生成的安装包未签名，Windows 可能显示发布者提示。
+
+当前开发机的 Electron 运行时从 D 盘启动会出现 `0x80000003`；同一安装产物从 C 盘启动及 Windows 沙盒安装验证均通过。此环境建议采用安装向导默认的 C 盘目录，自选其他目录仍需验证。
+
+隔离验证安装后的程序：`npm run test:installed -- "绝对路径\Facet.exe"`。验证使用临时数据目录和本机 HTTP 页面、代理，不读取现有账号。命令行 `--user-data-dir=绝对路径` 可显式指定独立数据目录；省略时继续使用原来的 `ArenaCore`。
+
+## Windows 源码启动
 
 需要 Node.js 22.12+。在此项目目录执行：
 
@@ -77,7 +98,7 @@ npm run test:electron
 
 ## 本阶段不提供
 
-自动注册、换号、抽卡、扩展安装/商店、订阅定时自动更新、仅含 proxy-providers 的配置、系统代理或 TUN、安装器和自动更新。远程节点仍需用户提供，不随内核提供。
+自动注册、换号、抽卡、扩展安装/商店、订阅定时自动更新、仅含 proxy-providers 的配置、系统代理或 TUN 和自动更新。远程节点仍需用户提供，不随内核提供。
 
 本轮隔离与代理测试使用少量并行实例及合成上游。6–15 实例性能、真实订阅兼容性、真实公网出口和完整防泄漏测试仍需另行验收。
 

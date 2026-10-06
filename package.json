@@ -3,8 +3,14 @@
   "version": "0.2.0",
   "private": true,
   "description": "Independent multi-instance browser with explicit direct networking and bundled Mihomo",
+  "author": "HEYD66",
+  "license": "MIT",
+  "homepage": "https://github.com/HEYD66/arena-core",
   "main": "src/main/main.cjs",
   "scripts": {
+    "build:installer": "node scripts/build-installer.cjs",
+    "test:packaging": "node --test tests/packaging.test.cjs",
+    "test:installed": "node scripts/verify-installed.cjs",
     "build:process-host": "node scripts/build-process-host.cjs",
     "test:process-host": "node --test tests/process-host.test.cjs",
     "test:hardening": "node --test --test-concurrency=1 --test-reporter=tap tests/json-storage.test.cjs tests/data-recovery.test.cjs tests/subscription-policy.test.cjs tests/subscription-hardening.test.cjs tests/subscription.test.cjs tests/data-consistency.test.cjs tests/library.test.cjs tests/workspace.test.cjs tests/maintenance.test.cjs tests/subscription-doh.test.cjs tests/subscription-fakeip.test.cjs tests/extension-popup.test.cjs",
@@ -43,6 +49,7 @@
   },
   "devDependencies": {
     "electron": "44.4.5",
+    "electron-builder": "26.15.3",
     "playwright": "1.63.0"
   },
   "dependencies": {

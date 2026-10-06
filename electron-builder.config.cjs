@@ -1,0 +1,34 @@
+'use strict';
+module.exports={
+ appId:'Facet.MultiInstanceBrowser',
+ productName:'千面 Facet',
+ executableName:'Facet',
+ directories:{output:'release',buildResources:'resources'},
+ files:['src/**/*','package.json','LICENSE','README.md'],
+ extraResources:[
+  {from:'resources/mihomo',to:'mihomo',filter:['mihomo.exe','LICENSE','ARTIFACT.json','mihomo-source.tar.gz']},
+  {from:'resources/process-host',to:'process-host',filter:['facet-process-host.exe','manifest.json','ProcessHost.cs']},
+  {from:'resources/facet.ico',to:'facet.ico'},
+  {from:'resources/facet.png',to:'facet.png'}
+ ],
+ asar:true,
+ npmRebuild:false,
+ win:{target:[{target:'nsis',arch:['x64']}],icon:'resources/facet.ico'},
+ nsis:{
+  oneClick:false,
+  perMachine:false,
+  allowElevation:false,
+  allowToChangeInstallationDirectory:true,
+  createDesktopShortcut:true,
+  createStartMenuShortcut:true,
+  shortcutName:'千面 Facet',
+  runAfterFinish:false,
+  deleteAppDataOnUninstall:false,
+  installerLanguages:['zh_CN','en_US'],
+  language:'2052',
+  license:'LICENSE',
+  include:'build/installer.nsh',
+  artifactName:'Facet-Setup-${version}-${arch}.${ext}'
+ },
+ publish:null
+};

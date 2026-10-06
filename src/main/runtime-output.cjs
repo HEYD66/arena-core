@@ -10,5 +10,13 @@ class RuntimeOutput {
  flush(){clearTimeout(this.timer);this.timer=null;try{atomic(this.file,{rows:this.rows,warning:this.warning},{backup:false});}catch{this.warning='运行输出写盘失败';}}
  close(){for(const [channel,stream]of this.streams){const tail=stream.pending+stream.decoder.end();if(tail.trim())this.record(channel,tail);}this.streams.clear();this.flush();}
 }
-function readRuntimeOutput(file=process.env.FACET_RUNTIME_OUTPUT){if(!file)return {rows:[],warning:'当前启动方式未接入运行输出，请通过 npm start 启动。'};try{if(fs.statSync(file).size>4*1024*1024)throw Error('too large');const data=JSON.parse(fs.readFileSync(file,'utf8'));return {rows:Array.isArray(data.rows)?data.rows.slice(-1000).map(r=>({time:String(r.time||''),channel:r.channel==='stderr'?'stderr':'stdout',text:safeLine(r.text||'')})):[],warning:String(data.warning||'')};}catch(e){return {rows:[],warning:e.code==='ENOENT'?'等待运行输出…':'运行输出暂时不可读取'};}}
-module.exports={RuntimeOutput,readRuntimeOutput,safeLine};
+function installRuntimeOutput(app){
+ const output=new RuntimeOutput(path.join(app.getPath('userData'),'runtime-output.json'));
+ process.env.FACET_RUNTIME_OUTPUT=output.file;output.flush();
+ const restores=[];
+ for(const [channel,stream]of [['stdout',process.stdout],['stderr',process.stderr]]){const write=stream.write;stream.write=function(chunk,encoding,callback){try{output.write(channel,typeof chunk==='string'?Buffer.from(chunk,typeof encoding==='string'?encoding:'utf8'):chunk);}catch{}return write.apply(this,arguments);};restores.push(()=>{stream.write=write;});}
+ app.once('will-quit',()=>{for(const restore of restores)restore();output.close();});
+ return output;
+}
+function readRuntimeOutput(file=process.env.FACET_RUNTIME_OUTPUT){if(!file)return {rows:[],warning:'当前启动方式未接入运行输出。'};try{if(fs.statSync(file).size>4*1024*1024)throw Error('too large');const data=JSON.parse(fs.readFileSync(file,'utf8'));return {rows:Array.isArray(data.rows)?data.rows.slice(-1000).map(r=>({time:String(r.time||''),channel:r.channel==='stderr'?'stderr':'stdout',text:safeLine(r.text||'')})):[],warning:String(data.warning||'')};}catch(e){return {rows:[],warning:e.code==='ENOENT'?'等待运行输出…':'运行输出暂时不可读取'};}}
+module.exports={RuntimeOutput,readRuntimeOutput,safeLine,installRuntimeOutput};
