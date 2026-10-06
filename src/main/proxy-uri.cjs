@@ -78,18 +78,74 @@ function proxyFields(input) {
   return node;
 }
 
+function parseLegacyCredentials(value) {
+  const separator = value.indexOf(':');
+  if (separator <= 0 || separator === value.length - 1) return null;
+  const username = value.slice(0, separator);
+  const password = value.slice(separator + 1);
+  if (!username || !password) return null;
+  return { username, password };
+}
+
+function parseLegacyHostPort(value) {
+  const match = /^(?<host>\[[^\]]+\]|[^:]+):(?<port>\d+)$/.exec(value);
+  return match ? { host: match.groups.host, port: match.groups.port } : null;
+}
+
+function legacyResult(host, port, username, password) {
+  const node = proxyFields({ protocol: 'socks5', host, port, username, password });
+  return {
+    protocol: 'socks5',
+    host: node.server,
+    port: node.port,
+    username: node.username || '',
+    password: node.password || '',
+    name: node.name,
+  };
+}
+
+function parseLegacyProxyText(text) {
+  // Both credential@host and host@credential forms are common in proxy lists.
+  if (text.includes('@')) {
+    if (text.indexOf('@') !== text.lastIndexOf('@')) return null;
+    const [left, right] = text.split('@');
+    const leftHost = parseLegacyHostPort(left);
+    const rightCredentials = parseLegacyCredentials(right);
+    if (leftHost && rightCredentials) {
+      return legacyResult(leftHost.host, leftHost.port, rightCredentials.username, rightCredentials.password);
+    }
+    const leftCredentials = parseLegacyCredentials(left);
+    const rightHost = parseLegacyHostPort(right);
+    if (leftCredentials && rightHost) {
+      return legacyResult(rightHost.host, rightHost.port, leftCredentials.username, leftCredentials.password);
+    }
+    return null;
+  }
+
+  // In colon-only forms the port position disambiguates host:port:user:pass
+  // from user:pass:host:port. The password is allowed to contain colons.
+  const hostFirst = /^(?<host>\[[^\]]+\]|[^:]+):(?<port>\d+):(?<username>[^:]+):(?<password>.+)$/.exec(text);
+  if (hostFirst) {
+    return legacyResult(hostFirst.groups.host, hostFirst.groups.port, hostFirst.groups.username, hostFirst.groups.password);
+  }
+  const userFirst = /^(?<username>[^:]+):(?<password>.+):(?<host>\[[^\]]+\]|[^:]+):(?<port>\d+)$/.exec(text);
+  if (userFirst) {
+    return legacyResult(userFirst.groups.host, userFirst.groups.port, userFirst.groups.username, userFirst.groups.password);
+  }
+  return null;
+}
+
 function parseProxyUri(input) {
   if (typeof input !== 'string' || input.trim().length > 8192 || /[\u0000-\u0020\u007f]/.test(input.trim())) throw Error('代理链接格式无效');
   const text = input.trim();
-  const legacy = /^(?<host>[^:]+):(?<port>\d+):(?<username>[^:]+):(?<password>.+)$/.exec(text);
-  if (legacy) {
-    const node = proxyFields({ protocol: 'socks5', host: legacy.groups.host, port: legacy.groups.port, username: legacy.groups.username, password: legacy.groups.password });
-    return { protocol: 'socks5', host: node.server, port: node.port, username: node.username || '', password: node.password || '', name: node.name };
-  }
   if (/^socks5:\/\//i.test(text)) {
     const { node } = parseSocks5Uri(text);
     return { protocol: 'socks5', host: node.server, port: node.port, username: node.username || '', password: node.password || '', name: node.name };
   }
+  // URI schemes must be parsed as URLs first; otherwise `http://user:pass@…`
+  // could be mistaken for the legacy `user:pass@host:port` form.
+  const legacy = /^[a-z][a-z\d+.-]*:\/\//i.test(text) ? null : parseLegacyProxyText(text);
+  if (legacy) return legacy;
   let url;
   try { url = new URL(text); } catch { throw Error('代理链接格式无效'); }
   if (!['http:', 'https:'].includes(url.protocol) || (url.pathname && url.pathname !== '/') || url.search) throw Error('只支持无路径或查询参数的 HTTP、HTTPS、SOCKS5 代理链接');

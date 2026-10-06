@@ -44,6 +44,11 @@ app.whenReady().then(async () => {
     await wait(() => ui('typeof route === "function" && typeof openProxyEntry === "function"'), 'renderer helpers');
     await ui("route('proxies')");
     await wait(() => ui('!!document.querySelector(\'[data-lib="add-source"]\')'), 'proxy management');
+    await ui("document.querySelector('.source-add .inline-help>summary').click()");
+    const helpLayout = await ui("(() => { const p = document.querySelector('.source-add .inline-help>p').getBoundingClientRect(); return { popupTop: p.top, popupBottom: p.bottom, popupHeight: p.height, text: document.querySelector('.source-add .inline-help>p').textContent }; })()");
+    assert(helpLayout.popupHeight > 0 && helpLayout.popupTop >= 0 && helpLayout.popupBottom <= 800, 'source help remains visible above the node-source card');
+    assert.match(helpLayout.text, /用户名:密码@主机:端口/);
+    await ui("document.querySelector('.source-add .inline-help>summary').click()");
     await ui("document.querySelector('[data-lib=add-source]').click()");
     await wait(() => ui('!!document.querySelector("#proxyEntryForm")'), 'add proxy dialog');
     clipboard.writeText('fixture.example:2000:fixture-user:fixture-pass');

@@ -49,6 +49,29 @@ test('builds HTTP, HTTPS and SOCKS5 nodes from the dialog fields', () => {
   });
 });
 
+test('parses common authenticated proxy list formats', () => {
+  const expected = {
+    protocol: 'socks5', host: 'fixture.example', port: 2000,
+    username: 'fixture-user', password: 'fixture-pass',
+    name: 'fixture.example:2000',
+  };
+  for (const input of [
+    'fixture-user:fixture-pass@fixture.example:2000',
+    'fixture.example:2000:fixture-user:fixture-pass',
+    'fixture-user:fixture-pass:fixture.example:2000',
+    'fixture.example:2000@fixture-user:fixture-pass',
+  ]) {
+    assert.deepEqual(parseProxyUri(input), expected, input);
+  }
+  assert.deepEqual(parseProxyUri('fixture-user:fixture:pass@fixture.example:2000').password, 'fixture:pass');
+  assert.deepEqual(parseProxyUri('[2001:db8::9]:2000@fixture-user:fixture-pass').host, '2001:db8::9');
+  assert.equal(parseProxyUri('socks5://fixture-user:fixture-pass@fixture.example:2000').username, 'fixture-user');
+  assert.deepEqual(parseProxyUri('http://fixture-user:fixture-pass@fixture.example:8080'), {
+    protocol: 'http', host: 'fixture.example', port: 8080,
+    username: 'fixture-user', password: 'fixture-pass', name: 'fixture.example:8080',
+  });
+});
+
 test('rejects unsafe or incomplete SOCKS5 URI variants without echoing credentials', () => {
   for (const input of [
     'socks5://fixture-user:fixture-pass@fixture.example:0',

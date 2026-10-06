@@ -407,7 +407,8 @@ html[data-frame="custom"] .window-bar{display:flex;align-items:center;justify-co
 
 /* ── 8. Proxy management ──────────────────────────────────── */
 #content.proxy-management{display:block;overflow-y:auto}
-.source-add{padding:16px;border-top:1px solid var(--line)}
+.source-add{position:relative;z-index:2;padding:16px;border-top:1px solid var(--line)}
+.source-add .inline-help>p{top:auto;bottom:26px}
 .proxy-entry-modal{width:640px;padding:24px}
 .proxy-entry-modal .modal-head{margin-bottom:20px}
 .proxy-entry-modal .modal-head h2{margin:0 0 6px}
@@ -433,7 +434,7 @@ html[data-frame="custom"] .window-bar{display:flex;align-items:center;justify-co
 .library-taskbar .btn.subtle,.library-taskbar .btn.soft{background:transparent;border-color:transparent;color:var(--accent-text)}
 .library-taskbar .btn.subtle:hover,.library-taskbar .btn.soft:hover{background:color-mix(in srgb,var(--accent) 12%,transparent)}
 .proxy-workbench{display:grid;grid-template-columns:272px minmax(0,1fr);border:0;background:transparent;gap:16px;align-items:start}
-.proxy-sources{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--r);background:var(--panel);min-width:0;overflow:hidden}
+.proxy-sources{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--r);background:var(--panel);min-width:0;overflow:visible}
 .panel-head{display:flex;align-items:center;justify-content:space-between;gap:8px;height:38px;padding:0 12px;border-bottom:1px solid var(--line);background:var(--panel2)}
 .panel-head h3,.settings-card .panel-head h3{min-height:0;margin:0;padding:0;border:0;font-size:12px;font-weight:600;color:var(--muted)}
 .library-sources{display:flex;flex-direction:column}
