@@ -44,6 +44,15 @@ async function main(){
  await new Promise(r=>proxy.listen(0,'127.0.0.1',r));
  const store=new Store(root),a=store.create('安装验证·直连'),b=store.create('安装验证·代理');store.update(a.id,{url});store.update(b.id,{url,network:{mode:'mihomo',nodeName:'本机验证代理'}});store.saveNodes(b.id,[{name:'本机验证代理',type:'http',server:'127.0.0.1',port:proxy.address().port}],null);
  await launch();assert((await call('snapshot')).instances.every(x=>x.status==='stopped'));pass('Installed app loads real production preload/IPC and does not auto-start instances');
+ await ui.locator('#sidebar .nav[data-view="global"]').click();
+ await ui.waitForFunction(()=>view==='global'&&!!document.querySelector('.github-support-card'));
+ const info=await ui.locator('#content').textContent();
+ assert(!info.includes('独立新项目')&&!info.includes('（原 Arena Core）')&&!info.includes('明确的边界'));
+ for(const text of ['支持开源项目','github.com/HEYD66/arena-core','已接入','键盘快捷键','免责声明'])assert(info.includes(text),text+' missing');
+ assert.equal(await ui.locator('#content .section-intro').count(),0);
+ assert(await ui.locator('[data-action="open-github"]').first().isEnabled());
+ await ui.screenshot({path:path.join(root,'application-info.png')});
+ pass('Application info removes the requested introduction and boundary card, retaining GitHub, shortcuts and disclaimer');
  for(const id of [a.id,b.id])await call('start',{id});
  await wait(async()=>{const snapshot=await call('snapshot');return snapshot.instances.every(x=>x.status==='running'&&x.title==='Installed live fixture'&&!x.error);},'both installed pages loaded',45000);
  assert(proxyHits>0);pass('Two independent real webpages load; the proxy instance uses packaged Mihomo and process host');
