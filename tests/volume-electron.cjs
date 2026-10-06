@@ -17,11 +17,17 @@ app.whenReady().then(async()=>{try{
  await wait(()=>A().webContents.getURL()===base&&!A().webContents.isLoading()&&frame(),'page + cross-site frame loaded');
  const pageVol=()=>A().webContents.executeJavaScript('document.getElementById("v").volume'),frameVol=()=>frame().executeJavaScript('document.getElementById("v").volume');
  assert.equal(await pageVol(),1);assert.equal(await frameVol(),1);
- // 标签上的喇叭 → 音量条（弹层打开时网页层换成截图，关闭后恢复）。
- assert.ok(await ui(`!!document.querySelector('.tab [data-vol="${a.id}"]')`));await ui(`document.querySelector('.tab [data-vol="${a.id}"]').click()`);await wait(()=>ui(`document.querySelector('#volumePop').open&&view==='browser'`),'popover');await wait(()=>!A().getVisible(),'page hidden under popover');
+ // 标签喇叭：左键直接静音/取消静音，右键才打开音量调节面板。
+ assert.ok(await ui(`!!document.querySelector('.tab [data-vol="${a.id}"]')`));
+ await ui(`(()=>{const b=document.querySelector('.tab [data-vol="${a.id}"]');b.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,button:2}));return true;})()`);
+ await wait(()=>ui(`document.querySelector('#volumePop').open&&view==='browser'`),'popover from right click');await wait(()=>!A().getVisible(),'page hidden under popover');
+ await ui(`document.querySelector('#volumePop').close()`);await wait(()=>A().getVisible(),'page back after right-click panel');
+ await ui(`document.querySelector('.tab [data-vol="${a.id}"]').click()`);await wait(()=>A().webContents.isAudioMuted()&&c.store.get(a.id).muted===true,'tab left-click mute');
+ await ui(`document.querySelector('.tab [data-vol="${a.id}"]').click()`);await wait(()=>!A().webContents.isAudioMuted()&&c.store.get(a.id).muted===undefined,'tab left-click unmute');
+ await ui(`document.querySelector('.tab [data-vol="${a.id}"]').dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,button:2}))`);await wait(()=>ui(`document.querySelector('#volumePop').open&&view==='browser'`),'popover');await wait(()=>!A().getVisible(),'page hidden under popover');
  const drag=v=>ui(`(()=>{const r=document.querySelector('#volRange');r.value='${v}';r.dispatchEvent(new Event('input',{bubbles:true}));r.dispatchEvent(new Event('change',{bubbles:true}));})()`);
  await drag(40);await wait(async()=>c.store.get(a.id).volume===40&&near(await pageVol(),0.4)&&near(await frameVol(),0.4),'volume 40 applied');assert.equal(await ui(`document.querySelector('#volPct').textContent`),'40%');assert.equal(A().webContents.isAudioMuted(),false);
- ok('Tab speaker opens the volume bar; 40% scales the page video and a cross-site iframe video');
+ ok('Tab speaker left-click toggles mute; right-click opens the volume bar; 40% scales the page video and a cross-site iframe video');
  await A().webContents.executeJavaScript('document.getElementById("v").volume=0.5');await wait(async()=>near(await pageVol(),0.2),'page-set volume rescaled');ok('When the page changes its own volume, the instance volume is applied on top (0.5 × 40%)');
  await drag(0);await wait(async()=>A().webContents.isAudioMuted()&&await ui(`document.querySelector('.tab [data-vol="${a.id}"]').classList.contains('on')&&document.querySelector('#volPct').textContent==='已静音'`),'volume 0 mutes');
  await drag(60);await wait(()=>!A().webContents.isAudioMuted()&&c.store.get(a.id).volume===60,'back to 60');
@@ -34,6 +40,8 @@ app.whenReady().then(async()=>{try{
  // 记住：重启实例后仍是 50%。
  await c.stop(a.id);await c.start(a.id);await ui(`route('browser',${JSON.stringify(a.id)})`);await wait(()=>A()?.webContents.getURL()===base&&!A().webContents.isLoading()&&frame(),'restarted');await wait(async()=>near(await pageVol(),0.5)&&near(await frameVol(),0.5),'volume after restart');
  const saved=JSON.parse(fs.readFileSync(path.join(root,'instances.json'),'utf8'));assert.equal(saved.instances.find(i=>i.id===a.id).volume,50);ok('Volume is saved per instance and applied again after a restart');
+ c.store.saveNodes(a.id,[{name:'Node 1',type:'http',server:'127.0.0.1',port:1}],null,{sourceId:'test-source',name:'Node 1'});c.store.update(a.id,{network:{mode:'mihomo',nodeName:'Node 1'}});c.diagnostics.results.set(JSON.stringify(['test-source','Node 1','ip']),{sourceId:'test-source',name:'Node 1',kind:'ip',ok:true,ip:'203.0.113.7',at:'2026-10-06T00:00:00.000Z'});c.emit();
+ await wait(()=>ui(`document.querySelector('.instance-strip')?.textContent.includes('出口 IP 203.0.113.7')`),'assigned node IP in instance strip');ok('Browser status strip shows the latest IP result for the assigned node');
  await ui(`gridPrefs.mode='live';route('grid')`);await wait(()=>ui(`!!document.querySelector('.grid-tile[data-grid-id="${a.id}"] [data-vol]')`),'tile speaker');await ui(`document.querySelector('.grid-tile[data-grid-id="${a.id}"] [data-grid-act="zoom"]').click()`);await wait(()=>ui(`!!document.querySelector('.grid-zoom [data-vol="${a.id}"]')`),'zoom speaker');
  await ui(`document.querySelector('.grid-zoom [data-vol="${a.id}"]').click()`);await wait(()=>ui(`document.querySelector('#volumePop').open&&document.querySelector('#volRange').value==='50'`),'popover from zoom');await ui(`document.querySelector('#volumePop').close()`);await wait(()=>A().getVisible(),'zoom page back');ok('Grid tiles and the zoom dialog have the same speaker / volume bar');
 }catch(e){errors.push(e.stack||String(e));console.error(e);}finally{try{await c?.closeAll();}catch(e){errors.push(e.message);}win?.destroy();s1?.close();s2?.close();const report={platform:process.platform,electron:process.versions.electron,passed:results.length,results,errors};fs.writeFileSync(path.join(__dirname,`volume-${process.platform}.json`),JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report,null,2));app.exit(errors.length?1:0);}});
