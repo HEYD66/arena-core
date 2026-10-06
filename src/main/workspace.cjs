@@ -18,7 +18,7 @@ class Workspace {
  moveQuickLink(id,direction){this.quickLink(id);if(![-1,1].includes(direction))throw Error('排序方向无效');const rows=[...this.data.quickLinks],i=rows.findIndex(x=>x.id===id),j=i+direction;if(j<0||j>=rows.length)return;[rows[i],rows[j]]=[rows[j],rows[i]];this.commit({...this.data,quickLinks:rows});}
  log(scope,text,level='INFO',instanceId=null,context={}){const row={taskId:context.taskId||null,sourceId:context.sourceId||null,nodeName:context.nodeName?redact(context.nodeName):null,id:crypto.randomUUID(),time:new Date().toISOString(),scope,level,instanceId,text:redact(text)};this.events=[row,...this.events].slice(0,1000);this.logDirty=true;if(!this.logTimer){this.logTimer=setTimeout(()=>this.flush(),300);this.logTimer.unref?.();}}
  // 日志合并写盘（最多延迟 0.3 秒）；退出时立即写入。
- flush(){if(this.logTimer)clearTimeout(this.logTimer);this.logTimer=null;if(!this.logDirty)return;this.logDirty=false;try{atomic(this.logFile,this.events);this.warning='';}catch{this.warning='全局日志写盘失败；当前记录仅保留在内存，请检查磁盘权限或空间';}}
+ flush(){if(this.logTimer)clearTimeout(this.logTimer);this.logTimer=null;if(!this.logDirty)return;this.logDirty=false;try{atomic(this.logFile,this.events);this.warning='';}catch{this.warning='系统日志写盘失败；当前记录仅保留在内存，请检查磁盘权限或空间';}}
  snapshot(library){return {quickLinks:this.data.quickLinks,favorites:{nodes:this.data.nodes.map(n=>{let available=false;try{library.node(n.sourceId,n.name);available=true;}catch{}return {...n,available,sourceName:library.data.sources.find(s=>s.id===n.sourceId)?.name||'来源已删除'};}),ips:this.data.ips},events:this.events,logWarning:this.warning};}
 }
 module.exports={Workspace,redact,canonicalIP};

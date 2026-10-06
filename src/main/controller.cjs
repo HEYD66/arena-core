@@ -126,7 +126,7 @@ class Controller {
   if(!cleanupErrors.length){try{if(!require('./cleanup.cjs').journalResiduals(this.dir,id).length&&!deletionJournal.finish(this.dir,id))cleanupErrors.push('删除记录尚未清理');}catch{cleanupErrors.push('删除残留检查未完成');}}
   if(cleanupErrors.length)this.workspace.log('application','实例配置已删除，部分残留数据将在下次启动时重试：'+cleanupErrors.join('；'),'WARN',id);
   this.emit();
-  if(cleanupErrors.length)throw Error('实例配置已删除，但部分数据尚未清理；请重启应用重试并查看全局日志');
+  if(cleanupErrors.length)throw Error('实例配置已删除，但部分数据尚未清理；请重启应用重试并查看系统日志');
  });}
  async importSubscription(id,url,refresh=false){return this.queue(id,async()=>{this.store.get(id);if(this.disposing)throw Error('应用正在退出');const target=refresh?this.store.source(id).subscription?.url:url;if(!target)throw Error('此实例尚未保存订阅链接');const downloaded=await downloadSubscription(target);const nodes=parseNodes(downloaded.text);if(this.disposing)throw Error('应用正在退出，未更改订阅');await this.stopInner(id);this.store.saveNodes(id,nodes,{url:downloaded.url,updatedAt:new Date().toISOString()});this.log(id,`订阅${refresh?'更新':'导入'}成功：${nodes.length} 个节点；网络模式保持不变，请选择节点后保存并启动`);return {count:nodes.length};});}
  async closeAll(){this.workspace.log('application','正在退出，回收实例与检测内核');this.disposing=true;await this.queues.get('global-library')?.catch(()=>{});await this.queues.get('extensions')?.catch(()=>{});await this.diagnostics.close();const ids=this.store.list().map(x=>x.id);const outcomes=await Promise.allSettled(ids.map(id=>this.stop(id)));const failures=outcomes.filter(x=>x.status==='rejected');try{this.workspace.flush?.();this.diagnostics.history?.flush();}catch{}if(failures.length){this.disposing=false;throw Error('存在尚未停止的代理进程，请重试退出');}}

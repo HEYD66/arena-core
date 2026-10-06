@@ -1,6 +1,8 @@
 'use strict';
 const {spawn} = require('node:child_process');
 const path = require('node:path');
+const fs=require('node:fs'),os=require('node:os');
+const {RuntimeOutput}=require('../src/main/runtime-output.cjs');
 const {childEnvironment, exitDescription, resolveRuntime} = require('./electron-runtime.cjs');
 
 function main() {
@@ -10,9 +12,14 @@ function main() {
   const executable = env.ELECTRON_OVERRIDE_DIST_PATH ? installed : resolveRuntime({
     executable: installed, version: require('electron/package.json').version, env
   });
+  const outputDir=fs.mkdtempSync(path.join(os.tmpdir(),'facet-runtime-output-'));
+  const output=new RuntimeOutput(path.join(outputDir,'output.json'));output.flush();env.FACET_RUNTIME_OUTPUT=output.file;
   const child = spawn(executable, process.argv.slice(2), {
-    cwd: path.join(__dirname, '..'), env, stdio: 'inherit', windowsHide: false
+    cwd: path.join(__dirname, '..'), env, stdio: ['inherit','pipe','pipe'], windowsHide: false
   });
+  child.stdout.on('data',chunk=>{process.stdout.write(chunk);output.write('stdout',chunk);});
+  child.stderr.on('data',chunk=>{process.stderr.write(chunk);output.write('stderr',chunk);});
+  child.on('close',()=>output.close());
   child.on('error', error => {
     console.error('Electron 启动失败：' + error.message);
     process.exitCode = 1;
