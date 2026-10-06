@@ -28,6 +28,7 @@ async function openApp(browser,{size=[1440,960],data=fixture(),storage=null}={})
  const context=await browser.newContext({viewport:{width:size[0],height:size[1]}});const page=await context.newPage();const errors=[],calls=[];let snap=data;
  page.on('pageerror',e=>errors.push(e.message));
  await page.exposeFunction('__ux3Request',async(action,m={})=>{calls.push({action,...m});switch(action){case 'snapshot':return {ok:true,value:snap};case 'activate':case 'layout':return {ok:true};
+  case 'update-status':return {ok:true,value:{supported:false,status:'unsupported',currentVersion:'test',error:'源码运行请更新项目代码'}};
   case 'stop':snap={...snap,instances:snap.instances.map(x=>x.id===m.id?{...x,status:'stopped'}:x)};return {ok:true};
   case 'settings':await new Promise(r=>setTimeout(r,40));snap={...snap,instances:snap.instances.map(x=>x.id===m.id?{...x,...m.patch,status:'stopped'}:x)};return {ok:true,value:{changed:true}};
   case 'environment-timezone':return {ok:true,value:{timezone:'Asia/Tokyo'}};default:return {ok:false,error:'Unmocked action '+action};}});
@@ -64,7 +65,7 @@ try{
  // A. Navigation de-duplication.
  current=await openApp(browser);let {page,errors}=current;
  assert.equal(await page.locator('#manageTop').count(),0);assert.equal(await page.locator('.notice').count(),0);
- assert.match(await page.locator('#footerCore').textContent(),/内置 Mihomo · 已就绪/);assert.match(await page.locator('.footer-right').textContent(),/0\.2\.0/);
+ assert.match(await page.locator('#footerCore').textContent(),/内置 Mihomo · 已就绪/);assert.match(await page.locator('.footer-right').textContent(),/test/);
  const body=await page.locator('body').innerText();assert.doesNotMatch(body,/GLOBAL|INSTANCE/);
  assert.equal(await page.locator('#sidebar [data-view="environment"]').count(),1);assert.match(await page.locator('#sidebar').textContent(),/本机 IP 直连/);
  await page.locator('#allTabs').click();await page.waitForFunction(()=>view==='overview');

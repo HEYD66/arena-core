@@ -32,6 +32,10 @@ function installIPC(window,controller){
     case 'extension-remove':if(message.confirmed!==true)throw Error('请确认移除扩展');await controller.queue('extensions',()=>controller.extensions.catalog.remove(message.extensionId));controller.emit();break;
     case 'extension-open':await controller.queue(id,()=>controller.extensions.open(id,message.extensionId,message.kind));break;
     case 'snapshot':return {ok:true,value:controller.snapshot()};
+    case 'update-status':return {ok:true,value:controller.updates?.snapshot()||{supported:false,status:'unsupported',error:'当前运行方式未接入在线更新'}};
+    case 'update-check':return {ok:true,value:await controller.updates.check()};
+    case 'update-download':return {ok:true,value:await controller.updates.download()};
+    case 'update-install':return {ok:true,value:await controller.updates.install(message.confirmed)};
     case 'runtime-output':return {ok:true,value:require('./runtime-output.cjs').readRuntimeOutput()};
     case 'favorite-node':if(!controller.workspace.data.nodes.some(n=>n.sourceId===message.sourceId&&n.name===message.name))controller.library.node(message.sourceId,message.name);controller.workspace.favorite(message.sourceId,message.name);controller.emit();break;
     case 'set-ip-favorite':controller.workspace.setIPFavorite(message.ip,message.selected,message.note);controller.emit();break;
@@ -39,7 +43,7 @@ function installIPC(window,controller){
     case 'copy-ips':{const rows=controller.workspace.selectedIPs(message.bookmarkIds);if(!rows.length)throw Error('请先选择IP');await clipboard.writeText(rows.map(x=>x.ip).join('\n'));return {ok:true,value:{count:rows.length}};}
     case 'save-ip':controller.workspace.saveIP(String(message.ip||''),message.note);controller.emit();break;
     case 'remove-ip':controller.workspace.removeIP(message.bookmarkId);controller.emit();break;
-    case 'copy-summary':{const value={time:new Date().toISOString(),app:'0.2.0',electron:process.versions.electron,instances:controller.snapshot().instances.map(x=>({id:x.id,status:x.status,network:x.network.mode,page:x.pageState,core:x.coreVersion,environment:{language:x.environment.language,timezone:x.environment.timezone,customUA:!!x.environment.userAgent,customPlatform:!!x.environment.platform},error:require('./workspace.cjs').redact(x.error)})),events:controller.workspace.events.slice(0,100)};await clipboard.writeText(JSON.stringify(value,null,2));return {ok:true,value:{copied:true}};}
+    case 'copy-summary':{const value={time:new Date().toISOString(),app:controller.snapshot().versions.app,electron:process.versions.electron,instances:controller.snapshot().instances.map(x=>({id:x.id,status:x.status,network:x.network.mode,page:x.pageState,core:x.coreVersion,environment:{language:x.environment.language,timezone:x.environment.timezone,customUA:!!x.environment.userAgent,customPlatform:!!x.environment.platform},error:require('./workspace.cjs').redact(x.error)})),events:controller.workspace.events.slice(0,100)};await clipboard.writeText(JSON.stringify(value,null,2));return {ok:true,value:{copied:true}};}
     case 'export-logs':{const result=await dialog.showSaveDialog(window,{title:'导出脱敏系统日志',defaultPath:'arena-core-events.json',filters:[{name:'JSON',extensions:['json']}]});if(!result.canceled&&result.filePath)fs.writeFileSync(result.filePath,JSON.stringify(controller.workspace.events,null,2));return {ok:true,value:{cancelled:result.canceled}};}
 
     case 'library-hint':case 'library-delete-nodes':case 'library-restore-nodes':case 'library-save':case 'library-rename':case 'library-remove':case 'library-file':return {ok:true,value:await controller.queue('global-library',async()=>{

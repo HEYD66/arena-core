@@ -30,5 +30,5 @@ module.exports={
   include:'build/installer.nsh',
   artifactName:'Facet-Setup-${version}-${arch}.${ext}'
  },
- publish:null
+ publish:[{provider:'github',owner:'HEYD66',repo:'arena-core',releaseType:'release'}]
 };

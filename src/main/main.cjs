@@ -22,10 +22,11 @@ app.whenReady().then(async()=>{
  window.webContents.session.setPermissionRequestHandler((_wc,_permission,cb)=>cb(false));window.webContents.session.setPermissionCheckHandler(()=>false);
  const binary=resourcePath(app,'mihomo',process.platform==='win32'?'mihomo.exe':'mihomo');
  controller=new Controller(window,app.getPath('userData'),binary);
+ controller.updates=new (require('./updates.cjs').Updates)(app,{onChange:value=>{if(!window.isDestroyed())window.webContents.send('core:update',value);},prepareInstall:()=>controller.closeAll(),beginQuit:()=>{quitting=true;},cancelQuit:()=>{quitting=false;controller.disposing=false;}});
  require('./ipc.cjs').installIPC(window,controller);
  window.on('close',event=>{if(quitting)return;event.preventDefault();if(closing)return;closing=true;require('./exit-guard.cjs').confirmExit(controller,window,{showMessageBox:require('./exit-dialog.cjs').showExitDialog},app.getPath('userData')).then(go=>{if(!go){closing=false;return;}return controller.closeAll().then(()=>{quitting=true;app.quit();});}).catch(e=>{closing=false;dialog.showErrorBox('暂不能退出',e.message);});});
  app.on('before-quit',event=>{if(!quitting&&window&&!window.isDestroyed()){event.preventDefault();window.close();}});
  await window.loadFile(path.join(__dirname,'../renderer/index.html'),customFrame?{query:{frame:'custom'}}:undefined);
- console.log('千面 Facet 0.2.0 ready; instances are not auto-started.');
+ console.log('千面 Facet '+require('./application-version.cjs').applicationVersion(app)+' ready; instances are not auto-started.');
 }).catch(e=>{dialog.showErrorBox('千面 Facet 启动失败',e.message);quitting=true;app.quit();});
 app.on('window-all-closed',()=>app.quit());}

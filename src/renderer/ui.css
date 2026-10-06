@@ -143,6 +143,11 @@ html[data-frame="custom"] .window-bar{display:flex;align-items:center;justify-co
 .win-mute svg{width:16px;height:16px}
 .grid-tools .icon-btn{width:26px;height:28px}
 .vol-btn.on{color:var(--red)}
+/* 软件更新 */
+.update-controls{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.update-buttons{display:flex;gap:10px;flex-wrap:wrap}
+.update-progress{display:block;width:100%;height:12px;margin:12px 0;accent-color:var(--accent)}
+.update-error{color:var(--red);overflow-wrap:anywhere}
 /* 应用信息：开发者与免责声明 */
 .app-author{color:var(--text);font-weight:600}
 .disclaimer{margin:0;padding-left:20px;display:grid;gap:6px;font-size:12.5px;line-height:1.65;color:var(--muted)}

@@ -19,8 +19,14 @@ async function main(){
  process.env.CSC_IDENTITY_AUTO_DISCOVERY='false';
  const {build,Platform}=require('electron-builder');
  const {Arch}=require('builder-util');
- const outputs=await build({projectDir:root,targets:Platform.WINDOWS.createTarget('nsis',Arch.x64),publish:'never',config:{...require('../electron-builder.config.cjs'),electronDist:path.dirname(executable),electronVersion:require('electron/package.json').version}});
- for(const file of outputs.filter(f=>f.endsWith('.exe'))){const sha=crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');fs.writeFileSync(file+'.sha256',sha+'  '+path.basename(file)+'\n');console.log('Installer: '+file);console.log('SHA256: '+sha);}
+ const config=require('../electron-builder.config.cjs'),release=path.join(root,'release');
+ // A mapped sandbox folder may hold Windows file handles; use a fresh build directory.
+ const output=path.join(release,'build-'+Date.now());
+ const outputs=await build({projectDir:root,targets:Platform.WINDOWS.createTarget('nsis',Arch.x64),publish:'never',config:{...config,directories:{...config.directories,output},electronDist:path.dirname(executable),electronVersion:require('electron/package.json').version}});
+ let installer;
+ for(const file of outputs.filter(f=>f.endsWith('.exe'))){installer=path.join(release,path.basename(file));fs.copyFileSync(file,installer);const sha=crypto.createHash('sha256').update(fs.readFileSync(installer)).digest('hex');fs.writeFileSync(installer+'.sha256',sha+'  '+path.basename(installer)+'\n');if(fs.existsSync(file+'.blockmap'))fs.copyFileSync(file+'.blockmap',installer+'.blockmap');console.log('Installer: '+installer);console.log('SHA256: '+sha);}
+ fs.copyFileSync(path.join(output,'latest.yml'),path.join(release,'latest.yml'));
+ fs.writeFileSync(path.join(release,'build-manifest.json'),JSON.stringify({version:require('../package.json').version,installer,unpackedExecutable:path.join(output,'win-unpacked','Facet.exe')},null,2));
 }
 if(require.main===module)main().catch(error=>{console.error(error.message);process.exitCode=1;});
 module.exports={verifyArtifacts};

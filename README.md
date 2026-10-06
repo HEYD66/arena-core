@@ -6,7 +6,7 @@
 
 ## Windows 安装包
 
-正式安装包为 `Facet-Setup-0.2.0-x64.exe`，自带 Electron、Mihomo 和 Windows 进程保护组件，无需另装 Node.js。安装向导支持选择目录，并创建桌面及开始菜单快捷方式。默认按当前用户安装，安装结束后由用户自行启动。
+正式安装包为 `Facet-Setup-0.2.1-x64.exe`，自带 Electron、Mihomo 和 Windows 进程保护组件，无需另装 Node.js。安装向导支持选择目录，并创建桌面及开始菜单快捷方式。默认按当前用户安装，安装结束后由用户自行启动。
 
 实例、浏览会话和扩展仍保存在 `%APPDATA%\ArenaCore`，升级沿用原数据，卸载默认保留。安装包不包含开发者的账号、代理配置或已导入扩展。内置 Mihomo 的原许可证、来源校验信息及对应版本源码归档随包附带。
 
@@ -24,6 +24,18 @@ npm run build:installer
 当前开发机的 Electron 运行时从 D 盘启动会出现 `0x80000003`；同一安装产物从 C 盘启动及 Windows 沙盒安装验证均通过。此环境建议采用安装向导默认的 C 盘目录，自选其他目录仍需验证。
 
 隔离验证安装后的程序：`npm run test:installed -- "绝对路径\Facet.exe"`。验证使用临时数据目录和本机 HTTP 页面、代理，不读取现有账号。命令行 `--user-data-dir=绝对路径` 可显式指定独立数据目录；省略时继续使用原来的 `ArenaCore`。
+
+## 在线更新与发布
+
+从 0.2.1 起，Windows 安装版在「应用信息 → 软件更新」中提供检查更新、下载进度和确认退出安装。用户决定更新时间；不会在普通退出时偷偷安装已下载版本。安装前正常停止运行实例，升级沿用 `%APPDATA%\ArenaCore`，登录资料和扩展保留。
+
+0.2.0 及更早版本没有更新入口，需要先手动安装一次 0.2.1。默认数据目录安装后会重新打开应用，实例仍需手动启动；使用 `--user-data-dir` 自定义目录时，更新后请从原入口启动，避免改用默认资料目录。
+
+更新源为公开 GitHub Releases，无需用户配置 GitHub Token。源码运行不执行安装版在线更新。无法访问 GitHub 时会显示失败原因，可稍后重试。正式更新只接受更高的稳定版本；下载文件由更新清单中的 SHA512 校验。
+
+后续发布步骤：递增 `package.json` 版本并同步 lockfile（例如 `npm version patch --no-git-tag-version`），运行更新测试及 `npm run build:installer`，提交并推送代码后执行 `npm run release:publish -- notes.md`。发布脚本会核对当前版本、清单和安装包哈希，再上传安装包、`.blockmap`、`latest.yml` 和 `.sha256`。仅推送源码不会产生可下载的在线更新。
+
+真实升级回归：`node tests/build-update-validation.cjs` 构建独立测试身份的 0.2.1/0.2.2 NSIS 包；在沙盒运行 `node tests/update-installed.cjs <两个版本产物父目录> <新测试安装目录>`。该测试使用本机 HTTP 更新源、独立数据，覆盖同版本、HTTP 失败、校验失败、取消、普通退出及真正跨版本安装后的配置/Cookie/localStorage 保留。测试 HTTP 更新源不进入正式安装包。
 
 ## Windows 源码启动
 
@@ -98,7 +110,7 @@ npm run test:electron
 
 ## 本阶段不提供
 
-自动注册、换号、抽卡、扩展安装/商店、订阅定时自动更新、仅含 proxy-providers 的配置、系统代理或 TUN 和自动更新。远程节点仍需用户提供，不随内核提供。
+自动注册、换号、抽卡、扩展安装/商店、订阅定时自动更新、仅含 proxy-providers 的配置、系统代理或 TUN。远程节点仍需用户提供，不随内核提供。
 
 本轮隔离与代理测试使用少量并行实例及合成上游。6–15 实例性能、真实订阅兼容性、真实公网出口和完整防泄漏测试仍需另行验收。
 
