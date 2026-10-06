@@ -72,7 +72,11 @@ function installIPC(window,controller){
     case 'diagnostic-history-clear':{if(typeof message.sourceId!=='string'||!message.sourceId)throw Error('请选择节点源');const cleared=controller.diagnostics.history.clear(message.sourceId);controller.diagnostics.history.flush();controller.emit();return {ok:true,value:{cleared}};}
     case 'diagnostic-cancel':controller.diagnostics.cancel();break;
 
-    case 'create':{const value=await require('./operations.cjs').createInstance(controller,message);return {ok:true,value:message.detailed?value:value.id};}
+    case 'instance-batch-options':return {ok:true,value:require('./instance-batch.cjs').options(controller)};
+    case 'instance-batch-plan':return {ok:true,value:require('./instance-batch.cjs').prepare(controller,message)};
+    case 'instance-batch-create':return {ok:true,value:await controller.queue('instance-create',()=>require('./instance-batch.cjs').execute(controller,message.token))};
+    case 'instance-batch-cancel':return {ok:true,value:require('./instance-batch.cjs').cancel(controller)};
+    case 'create':{const value=await controller.queue('instance-create',()=>require('./operations.cjs').createInstance(controller,message));return {ok:true,value:message.detailed?value:value.id};}
     case 'rename':controller.store.update(id,{name:message.name});controller.emit();break;
     case 'activate':controller.choose(id??null);break;
     case 'grid-layout':controller.setGrid(message.grid&&typeof message.grid==='object'?message.grid:null);break;

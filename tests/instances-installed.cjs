@@ -26,14 +26,19 @@ async function close(){
 async function main(){
  server=http.createServer((_req,res)=>{res.setHeader('Content-Type','text/html');res.end('<!doctype html><title>Facet animation</title><h1>Live local page</h1><script>window.ticks=0;function tick(){window.ticks++;requestAnimationFrame(tick)}tick()</script>');});await new Promise(r=>server.listen(0,'127.0.0.1',r));
  const base='http://127.0.0.1:'+server.address().port+'/';await launch();
- let snapshot=await call('snapshot');const ids=snapshot.instances.map(x=>x.id);
- for(let i=ids.length;i<64;i++)ids.push(await call('create',{name:'验证实例 '+(i+1),network:{mode:'direct',nodeName:''}}));
+ let snapshot=await call('snapshot');const initial=snapshot.instances.length;
+ await ui.evaluate(()=>route('overview'));await ui.locator('[data-action="new-batch"]').click();await ui.waitForFunction(()=>modal?.type==='batch-create'&&!!document.querySelector('#batchCount'));
+ await ui.locator('#batchCount').fill(String(64-initial));await ui.locator('#batchPrefix').fill('安装批量验证');await ui.locator('[data-batch-action="random"]').click();await ui.waitForFunction(count=>modal.batchPlan?.items.length===count,64-initial);
+ const draft=await ui.evaluate(()=>modal.batchPlan);assert.equal(new Set(draft.items.map(x=>x.environment.fingerprint.seed)).size,64-initial);
+ await ui.locator('#modal [data-action="confirm"]').click();await ui.waitForFunction(()=>modal.batchFinished);await ui.locator('#modal [data-action="confirm"]').click();
+ snapshot=await call('snapshot');const ids=snapshot.instances.map(x=>x.id);
+ assert.deepEqual(snapshot.instances.slice(initial).map(x=>x.environment.fingerprint.seed),draft.items.map(x=>x.environment.fingerprint.seed));
  await ui.waitForFunction(()=>state.instances.length===64);assert.equal(new Set(ids).size,64);
  await ui.evaluate(()=>{filter='all';search='';route('overview');});assert.equal(await ui.locator('.managed-card').count(),64);
  await ui.evaluate(id=>route('browser',id),ids.at(-1));
  await ui.waitForFunction(id=>{const e=document.querySelector('[data-tab="'+id+'"]')?.closest('.tab'),box=document.querySelector('#tabs').getBoundingClientRect();if(!e)return false;const r=e.getBoundingClientRect();return r.left>=box.left-1&&r.right<=box.right+1;},ids.at(-1));
  await call('rename',{id:ids.at(-1),name:'最后一个·Facet'});
- pass('64 instances created through production IPC; all overview rows and last tab are reachable');
+ pass('Batch UI creates 63 independent random configurations through production IPC; all 64 overview rows and last tab are reachable');
  const source=await call('library-proxy-save',{proxy:{name:'本机验证源',protocol:'http',host:'127.0.0.1',port:9}}),sourceId=typeof source==='string'?source:source.id;
  snapshot=await call('snapshot');const node=snapshot.library.find(s=>s.id===sourceId).nodes[0];
  const assignments=ids.map(id=>({id,sourceId,name:node.name}));

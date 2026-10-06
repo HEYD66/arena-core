@@ -16,6 +16,12 @@ async function main(){
  await ui.waitForFunction(()=>['current','available','error'].includes(appUpdateState.status),null,{timeout:60000});
  report.update=await ui.evaluate(()=>({...appUpdateState}));assert.equal(report.update.status,expectedStatus,report.update.error);assert.equal(report.update.currentVersion,expectedVersion);
  if(expectedStatus==='available')assert.equal(report.update.version,process.argv[5]||require('../package.json').version);
+ if(process.argv.includes('--download')){
+  assert.equal(expectedStatus,'available');await ui.locator('#updateDownload').click();
+  await ui.waitForFunction(()=>['downloaded','error'].includes(appUpdateState.status),null,{timeout:240000});
+  report.download=await ui.evaluate(()=>({...appUpdateState}));assert.equal(report.download.status,'downloaded',report.download.error);assert.equal(report.download.version,report.update.version);
+  console.log('PASS: Update installer downloaded and checksum verified');
+ }
  await ui.screenshot({path:path.join(data,'github-update-current.png')});report.passed=true;console.log('PASS: Production app checks real GitHub Releases: v'+expectedVersion+' '+expectedStatus);
 }
 main().catch(error=>{report.error=error.message;console.error(error.message);}).finally(async()=>{
