@@ -8,6 +8,9 @@ const ROUNDING_TOLERANCE = 3;
 const MAX_WIDTH = 800;
 const MAX_HEIGHT = 600;
 const HORIZONTAL_SCROLLBAR_ALLOWANCE = 18;
+const HOST_SCALE_MIN = 0.65;
+const HOST_SCALE_MAX = 1.5;
+const ZOOM_EPSILON = 0.01;
 const positive = value => typeof value === 'number' && Number.isFinite(value) && value > 0;
 const validSize = value => value && positive(value.width) && positive(value.height);
 const validArea = value => validSize(value) && Number.isFinite(value.x) && Number.isFinite(value.y);
@@ -47,10 +50,11 @@ function popupPosition(bounds, area) {
   };
 }
 
-function attachPopupSizing(win, screen, { initialWait = 300, debounceMs = 24 } = {}) {
+function attachPopupSizing(win, screen, { host = null, initialWait = 300, debounceMs = 24 } = {}) {
   const contents = win.webContents;
   let preferred = null, pending = null, disposed = false, manual = false;
-  let displayKey = '', readyTimer, resolveReady;
+  let displayKey = '', readyTimer, resolveReady, positioning = false;
+  let hostBase = null, hostAnchor = null, appliedHostScale = 1;
   const ready = new Promise(resolve => { resolveReady = resolve; });
   const listeners = [];
   const on = (target, name, listener) => {
@@ -63,28 +67,89 @@ function attachPopupSizing(win, screen, { initialWait = 300, debounceMs = 24 } =
     try { return screen?.getDisplayMatching(win.getBounds()) || null; } catch { return null; }
   };
   const key = value => value ? JSON.stringify([value.id, value.workArea, value.scaleFactor]) : '';
+  const boundsOf = target => {
+    try { return target?.getBounds?.() || null; } catch { return null; }
+  };
+  const hostState = () => {
+    if (!host || host.isDestroyed?.()) return null;
+    const bounds = boundsOf(host);
+    if (!validArea(bounds)) return null;
+    // Use the native outer bounds for the ratio. BrowserWindow content bounds
+    // can change once while a hidden parent is attached, even when the user
+    // has not resized it; outer bounds stay stable and represent the user's
+    // actual application window size.
+    return { bounds, content: { width: bounds.width, height: bounds.height } };
+  };
+  const captureHostAnchor = () => {
+    const state = hostState(), popup = boundsOf(win);
+    if (!state || !validArea(popup)) return;
+    if (!hostBase) hostBase = { ...state.content };
+    if (!hostAnchor) hostAnchor = {
+      x: (popup.x - state.bounds.x) / Math.max(1, state.bounds.width),
+      y: (popup.y - state.bounds.y) / Math.max(1, state.bounds.height)
+    };
+  };
+  const hostScale = () => {
+    const state = hostState();
+    if (!state) return 1;
+    if (!hostBase) hostBase = { ...state.content };
+    const widthRatio = state.content.width / Math.max(1, hostBase.width);
+    const heightRatio = state.content.height / Math.max(1, hostBase.height);
+    return clamp(Math.min(widthRatio, heightRatio), HOST_SCALE_MIN, HOST_SCALE_MAX);
+  };
+  const applyHostZoom = scale => {
+    if (!host || typeof contents.getZoomFactor !== 'function' || typeof contents.setZoomFactor !== 'function') {
+      appliedHostScale = scale;
+      return;
+    }
+    try {
+      const current = Number(contents.getZoomFactor());
+      const userZoom = positive(current) ? current / Math.max(ZOOM_EPSILON, appliedHostScale) : 1;
+      const wanted = clamp(userZoom * scale, 0.25, 5);
+      if (Math.abs(current - wanted) > ZOOM_EPSILON) contents.setZoomFactor(wanted);
+      appliedHostScale = scale;
+    } catch { /* Some test/embedded webContents do not expose zoom controls. */ }
+  };
 
   function apply() {
-    if (!alive() || manual || win.isMaximized?.() || win.isFullScreen?.() || win.isMinimized?.()) return;
+    if (!alive() || win.isMaximized?.() || win.isFullScreen?.() || win.isMinimized?.()) return;
     try {
+      captureHostAnchor();
+      const scale = hostScale();
+      if (!manual) applyHostZoom(scale);
       const current = win.getBounds(), content = win.getContentSize(), monitor = display();
       displayKey = key(monitor);
-      const wanted = popupContentSize(preferred || { width: 360, height: 480 }, {
-        width: current.width - content[0], height: current.height - content[1]
-      }, monitor?.workArea);
-      if (!wanted) return;
-      // Account for Windows fractional-DPI rounding without chasing a 1–2 DIP
-      // oscillation. A genuinely undersized client area still gets expanded.
-      const tooSmall = preferred && (content[0] < Math.min(preferred.width, wanted.width) || content[1] < Math.min(preferred.height, wanted.height));
-      if (tooSmall || Math.abs(content[0] - wanted.width) > ROUNDING_TOLERANCE || Math.abs(content[1] - wanted.height) > ROUNDING_TOLERANCE) {
-        win.setContentSize(wanted.width, wanted.height);
+      if (!manual) {
+        const wanted = popupContentSize(preferred || { width: 360, height: 480 }, {
+          width: current.width - content[0], height: current.height - content[1]
+        }, monitor?.workArea);
+        if (wanted) {
+          // Account for Windows fractional-DPI rounding without chasing a 1–2 DIP
+          // oscillation. A genuinely undersized client area still gets expanded.
+          const tooSmall = preferred && (content[0] < Math.min(preferred.width, wanted.width) || content[1] < Math.min(preferred.height, wanted.height));
+          if (tooSmall || Math.abs(content[0] - wanted.width) > ROUNDING_TOLERANCE || Math.abs(content[1] - wanted.height) > ROUNDING_TOLERANCE) {
+            win.setContentSize(wanted.width, wanted.height);
+          }
+        }
       }
-      const resized = win.getBounds(), position = popupPosition(resized, monitor?.workArea);
-      if (position.x !== resized.x || position.y !== resized.y) win.setPosition(position.x, position.y);
+      const resized = win.getBounds();
+      let position = resized;
+      const state = hostState();
+      if (state && hostAnchor) {
+        position = { ...resized,
+          x: Math.round(state.bounds.x + hostAnchor.x * state.bounds.width),
+          y: Math.round(state.bounds.y + hostAnchor.y * state.bounds.height)
+        };
+      }
+      position = { ...position, ...popupPosition(position, monitor?.workArea) };
+      if (position.x !== resized.x || position.y !== resized.y) {
+        positioning = true;
+        try { win.setPosition(position.x, position.y); } finally { positioning = false; }
+      }
     } catch { /* A missing/closing native view must not prevent the popup opening. */ }
   }
   function schedule() {
-    if (disposed || manual || pending !== null) return;
+    if (disposed || pending !== null) return;
     pending = setTimeout(() => {
       pending = null; apply();
       if (preferred) settle();
@@ -105,12 +170,15 @@ function attachPopupSizing(win, screen, { initialWait = 300, debounceMs = 24 } =
   // Let the user keep an intentional manual size for this window's lifetime.
   on(win, 'will-resize', () => { manual = true; clearTimeout(pending); pending = null; settle(); });
   on(win, 'move', () => {
-    if (!alive() || manual) return;
+    if (!alive() || positioning) return;
+    if (host) captureHostAnchor();
     if (key(display()) !== displayKey) schedule();
   });
   for (const event of ['restore', 'unmaximize', 'leave-full-screen']) on(win, event, schedule);
   on(screen, 'display-metrics-changed', schedule);
   on(screen, 'display-removed', schedule);
+  for (const event of ['resize', 'move', 'restore', 'unmaximize', 'leave-full-screen', 'maximize', 'enter-full-screen']) on(host, event, schedule);
+  on(host, 'closed', dispose);
   on(win, 'closed', dispose);
   on(contents, 'destroyed', dispose);
   readyTimer = setTimeout(() => { apply(); settle(); }, initialWait);

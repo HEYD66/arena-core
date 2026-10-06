@@ -9,8 +9,8 @@ const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 class FakeWindow extends EventEmitter {
   constructor() {
     super(); this.content = [360,480]; this.bounds = {x:120,y:80,width:376,height:512}; this.calls=[]; this.destroyed=false;
-    this.webContents = new EventEmitter(); this.webContents.isDestroyed=()=>this.destroyed;
-    this.webContents.getZoomFactor=()=>{throw Error('Do not scale native preferred sizes twice');};
+    this.zoom=1; this.webContents = new EventEmitter(); this.webContents.isDestroyed=()=>this.destroyed;
+    this.webContents.getZoomFactor=()=>this.zoom; this.webContents.setZoomFactor=value=>{this.zoom=value;};
   }
   getBounds(){return {...this.bounds};}
   getContentSize(){return [...this.content];}
@@ -21,6 +21,13 @@ class FakeWindow extends EventEmitter {
   isMinimized(){return this.minimized===true;}
   isFullScreen(){return this.fullscreen===true;}
   destroy(){this.destroyed=true;this.webContents.emit('destroyed');this.emit('closed');}
+}
+class FakeHost extends EventEmitter {
+  constructor() { super(); this.bounds={x:50,y:40,width:1000,height:800}; this.destroyed=false; }
+  getBounds(){return {...this.bounds};}
+  isDestroyed(){return this.destroyed;}
+  resize(x,y,width,height){this.bounds={x,y,width,height};this.emit('resize');}
+  close(){this.destroyed=true;this.emit('closed');}
 }
 function fixture(t, options={}) {
   const win=new FakeWindow(),screen=new EventEmitter();screen.display={id:1,workArea:{...area},scaleFactor:1.25};screen.getDisplayMatching=()=>screen.display;
@@ -93,6 +100,23 @@ test('moving to another display recalculates available space without modifying p
   const {win,screen,sizing}=fixture(t);win.webContents.emit('preferred-size-changed',{}, {width:700,height:550});await sizing.ready;
   screen.display={id:2,workArea:{x:-800,y:0,width:600,height:420},scaleFactor:2};win.bounds.x=-1000;win.emit('move');await pause(12);
   assert.deepEqual(win.content,[560,364]);assert.equal(win.bounds.x,-788);assert(win.bounds.y+win.bounds.height<=420);
+});
+test('popup follows host resize with bounded proportional zoom and position',async t=>{
+  const win=new FakeWindow(),host=new FakeHost(),screen=new EventEmitter();
+  screen.display={id:1,workArea:{...area},scaleFactor:1};screen.getDisplayMatching=()=>screen.display;
+  const sizing=attachPopupSizing(win,screen,{host,initialWait:30,debounceMs:2});t.after(()=>sizing.dispose());
+  win.webContents.emit('preferred-size-changed',{}, {width:340,height:180});await sizing.ready;
+  const first=win.getBounds();
+  host.resize(80,20,700,560);await pause(8);
+  assert.equal(win.webContents.getZoomFactor(),0.7);
+  win.webContents.emit('preferred-size-changed',{}, {width:238,height:126});await pause(8);
+  assert.deepEqual(win.content,[240,128]);
+  const moved=win.getBounds();
+  assert.equal(moved.x,Math.round(80+((first.x-50)/1000)*700));
+  assert.equal(moved.y,Math.round(20+((first.y-40)/800)*560));
+  host.resize(80,20,2200,1600);await pause(8);
+  assert.equal(win.webContents.getZoomFactor(),1.5);
+  host.close();assert.equal(host.listenerCount('resize'),0);
 });
 test('closing a window cancels scheduled work and removes native listeners',async t=>{
   const {win,screen,sizing}=fixture(t);win.webContents.emit('preferred-size-changed',{}, {width:620,height:400});win.destroy();await sizing.ready;await pause(12);

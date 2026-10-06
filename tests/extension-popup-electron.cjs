@@ -83,6 +83,17 @@ if (!root || !path.basename(root).startsWith('facet-popup-acceptance-') ||
       ok('oversized content is bounded by the screen without shrinking the page');
       await popup.webContents.executeJavaScript("document.body.style.width='340px';document.body.style.height='180px'");
       await wait(()=>near(popup.getContentSize()[0],342),'reset narrow width');
+      const hostBefore=parent.getBounds(),popupBeforeHostResize=popup.getBounds();
+      const hostXRatio=(popupBeforeHostResize.x-hostBefore.x)/hostBefore.width;
+      parent.setContentSize(700,560);
+      await wait(()=>popup.webContents.getZoomFactor()<=0.7&&near(popup.getContentSize()[0],223,12),'host resize downscales popup');
+      const hostSmall=parent.getBounds(),popupSmall=popup.getBounds();
+      assert(Math.abs((popupSmall.x-hostSmall.x)/hostSmall.width-hostXRatio)<0.08);
+      parent.setContentSize(1650,1200);
+      await wait(()=>popup.webContents.getZoomFactor()>=1.45&&near(popup.getContentSize()[0],513,16),'host resize upscales popup');
+      parent.setContentSize(1100,800);
+      await wait(()=>near(popup.webContents.getZoomFactor(),1,0.04)&&near(popup.getContentSize()[0],342,12),'host resize restores popup scale');
+      ok('popup follows host size and position in both directions');
       popup.webContents.setZoomFactor(1.25);
       await wait(()=>near(popup.getContentSize()[0],426,9)&&near(popup.getContentSize()[1],226,9),'zoomed native size');
       const zoomed=await metrics(popup);assert.equal(popup.webContents.getZoomFactor(),1.25);assert.equal(zoomed.bodyWidth,340);assert(zoomed.scrollWidth<=zoomed.clientWidth+1);
