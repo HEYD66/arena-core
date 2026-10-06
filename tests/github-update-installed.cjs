@@ -2,7 +2,7 @@
 const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),assert=require('node:assert/strict'),{spawn}=require('node:child_process'),{chromium}=require('playwright');
 const executable=path.resolve(process.argv[2]),data=fs.mkdtempSync(path.join(os.tmpdir(),'facet-github-update-'));
 const expectedVersion=process.argv[3]||require('../package.json').version,expectedStatus=process.argv[4]||'current';
-let child,browser,ui;const report={data,executable,passed:false,error:null};
+let child,browser,ui;const report={data,executable,checkMode:process.argv.includes('--startup')?'startup':'manual',passed:false,error:null};
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function wait(fn,label,ms=45000){const end=Date.now()+ms;while(Date.now()<end){if(await fn())return;await sleep(80);}throw Error('Timeout: '+label);}
 async function main(){
@@ -11,8 +11,9 @@ async function main(){
  const portFile=path.join(data,'DevToolsActivePort');await wait(()=>{if(child.exitCode!==null)throw Error('App exited '+child.exitCode);return fs.existsSync(portFile);},'debugger');
  const port=Number(fs.readFileSync(portFile,'utf8').split(/\r?\n/)[0]);browser=await chromium.connectOverCDP('http://127.0.0.1:'+port);
  await wait(()=>{ui=browser.contexts().flatMap(c=>c.pages()).find(p=>p.url().includes('/src/renderer/index.html'));return !!ui;},'control page');
- await ui.waitForFunction(()=>typeof bridge!=='undefined'&&state.instances.length>0);await ui.locator('#sidebar .nav[data-view="global"]').click();await ui.waitForFunction(()=>appUpdateState.status==='idle');
- await ui.locator('#updateCheck').click();await ui.waitForFunction(()=>['current','available','error'].includes(appUpdateState.status),null,{timeout:60000});
+ await ui.waitForFunction(()=>typeof bridge!=='undefined'&&state.instances.length>0);await ui.locator('#sidebar .nav[data-view="global"]').click();
+ if(report.checkMode==='manual'){await ui.waitForFunction(()=>appUpdateState.status==='idle');await ui.locator('#updateCheck').click();}
+ await ui.waitForFunction(()=>['current','available','error'].includes(appUpdateState.status),null,{timeout:60000});
  report.update=await ui.evaluate(()=>({...appUpdateState}));assert.equal(report.update.status,expectedStatus,report.update.error);assert.equal(report.update.currentVersion,expectedVersion);
  if(expectedStatus==='available')assert.equal(report.update.version,process.argv[5]||require('../package.json').version);
  await ui.screenshot({path:path.join(data,'github-update-current.png')});report.passed=true;console.log('PASS: Production app checks real GitHub Releases: v'+expectedVersion+' '+expectedStatus);
