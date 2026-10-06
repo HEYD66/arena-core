@@ -12,7 +12,7 @@ async function appearance(){return ui.evaluate(()=>({mode:document.documentEleme
 async function launch(){
  const portFile=path.join(data,'DevToolsActivePort');fs.rmSync(portFile,{force:true});
  const env={...process.env};delete env.ELECTRON_RUN_AS_NODE;
- child=spawn(executable,['--user-data-dir='+data,'--remote-debugging-port=0','--remote-debugging-address=127.0.0.1'],{env,windowsHide:true,stdio:'ignore'});
+ child=spawn(executable,['--user-data-dir='+data,'--remote-debugging-port=0','--remote-debugging-address=127.0.0.1'],{env,windowsHide:false,stdio:'ignore'});
  let error;child.once('error',e=>error=e);
  await wait(()=>{if(error)throw error;if(child.exitCode!==null)throw Error('App exited '+child.exitCode);return fs.existsSync(portFile);},'debugger');
  const port=Number(fs.readFileSync(portFile,'utf8').split(/\r?\n/)[0]);browser=await chromium.connectOverCDP('http://127.0.0.1:'+port);
