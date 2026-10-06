@@ -20,7 +20,10 @@ function main(){
   run('gh',['release','create',tag,...assets,'--repo','HEYD66/arena-core','--target',sha,'--draft','--title','千面 Facet '+pkg.version,'--notes-file',notes]);
   const release=JSON.parse(run('gh',['release','view',tag,'--repo','HEYD66/arena-core','--json','assets,isDraft,url']));
   for(const file of assets){const row=release.assets.find(item=>item.name===path.basename(file));if(!row||row.size!==fs.statSync(file).size)throw Error('GitHub 发布文件未完整上传；保留草稿，请核对后发布');}
-  run('gh',['release','edit',tag,'--repo','HEYD66/arena-core','--draft=false','--latest']);console.log(release.url);
+  run('gh',['release','edit',tag,'--repo','HEYD66/arena-core','--draft=false','--latest']);
+  const published=JSON.parse(run('gh',['release','view',tag,'--repo','HEYD66/arena-core','--json','url,isDraft']));
+  if(published.isDraft)throw Error('发布仍处于草稿状态，请核对 GitHub 发布结果');
+  console.log(published.url);
  }finally{fs.unlinkSync(notes);fs.rmdirSync(path.dirname(notes));}
 }
 if(require.main===module)try{main();}catch(error){console.error(error.message);process.exitCode=1;}
