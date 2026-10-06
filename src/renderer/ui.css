@@ -424,6 +424,20 @@ html[data-frame="custom"] .window-bar{display:flex;align-items:center;justify-co
 .search-box .search:focus-visible{outline:none}
 .batchbar{display:flex;align-items:center;gap:8px;margin:0 0 10px;padding:6px 8px 6px 12px;border:1px solid color-mix(in srgb,var(--accent) 30%,var(--line));border-radius:var(--r);background:var(--accent-weak);font-size:12px;color:var(--text)}
 .batchbar>span{margin-right:auto;font-weight:600}
+.batchbar{flex-wrap:wrap}
+.instance-selection-tools,.instance-batch-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px;min-width:0}
+.instance-batch-actions{margin-left:auto}
+.instance-selection-tools .selection-count{font-weight:600;overflow-wrap:anywhere}
+.instance-delete-results{max-height:45vh;overflow:auto;padding:0;list-style:none}
+.instance-delete-results li{display:flex;flex-direction:column;gap:4px;padding:8px 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}
+.instance-delete-modal{display:flex;flex-direction:column;max-height:calc(100vh - 40px)}
+.instance-delete-modal .description{overflow:auto;min-height:0;max-height:35vh}
+.instance-delete-modal .modal-head,.instance-delete-modal .modal-actions{flex-shrink:0}
+.batch-locale-option{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.batch-locale-option>span{display:flex;align-items:center;gap:8px}
+.batch-locale-option input[type=checkbox]{width:14px;flex:none}
+.batch-locale-option small{color:var(--muted);font-size:12px;line-height:1.6}
+.batch-preview-table td small{display:block;margin-top:4px}
 .table-wrap{overflow:visible}
 .instance-table{table-layout:fixed}
 .instance-table th:first-child{border-top-left-radius:var(--r)}.instance-table th:last-child{border-top-right-radius:var(--r)}

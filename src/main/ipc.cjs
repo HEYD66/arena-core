@@ -73,7 +73,7 @@ function installIPC(window,controller){
     case 'diagnostic-cancel':controller.diagnostics.cancel();break;
 
     case 'instance-batch-options':return {ok:true,value:require('./instance-batch.cjs').options(controller)};
-    case 'instance-batch-plan':return {ok:true,value:require('./instance-batch.cjs').prepare(controller,message)};
+    case 'instance-batch-plan':return {ok:true,value:await require('./instance-batch.cjs').prepareLocale(controller,message)};
     case 'instance-batch-create':return {ok:true,value:await controller.queue('instance-create',()=>require('./instance-batch.cjs').execute(controller,message.token))};
     case 'instance-batch-cancel':return {ok:true,value:require('./instance-batch.cjs').cancel(controller)};
     case 'create':{const value=await controller.queue('instance-create',()=>require('./operations.cjs').createInstance(controller,message));return {ok:true,value:message.detailed?value:value.id};}
@@ -92,6 +92,7 @@ function installIPC(window,controller){
     case 'start':await controller.start(id);break;
     case 'stop':await controller.stop(id);break;
     case 'remove':await controller.remove(id);break;
+    case 'instance-remove-many':return {ok:true,value:await controller.queue('instance-delete',()=>require('./instance-bulk.cjs').removeMany(controller,message.ids))};
     case 'navigate':await controller.navigate(id,message.url);break;
     case 'back':case 'forward':case 'reload':await controller.action(id,action);break;
     case 'settings':return {ok:true,value:await controller.settings(id,message.patch||{})};

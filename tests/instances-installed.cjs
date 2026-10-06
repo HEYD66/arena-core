@@ -28,7 +28,7 @@ async function main(){
  const base='http://127.0.0.1:'+server.address().port+'/';await launch();
  let snapshot=await call('snapshot');const initial=snapshot.instances.length;
  await ui.evaluate(()=>route('overview'));await ui.locator('[data-action="new-batch"]').click();await ui.waitForFunction(()=>modal?.type==='batch-create'&&!!document.querySelector('#batchCount'));
- await ui.locator('#batchCount').fill(String(64-initial));await ui.locator('#batchPrefix').fill('安装批量验证');await ui.locator('[data-batch-action="random"]').click();await ui.waitForFunction(count=>modal.batchPlan?.items.length===count,64-initial);
+ await ui.locator('#batchLocale').uncheck();await ui.locator('#batchCount').fill(String(64-initial));await ui.locator('#batchPrefix').fill('安装批量验证');await ui.locator('[data-batch-action="random"]').click();await ui.waitForFunction(count=>modal.batchPlan?.items.length===count,64-initial);
  const draft=await ui.evaluate(()=>modal.batchPlan);assert.equal(new Set(draft.items.map(x=>x.environment.fingerprint.seed)).size,64-initial);
  await ui.locator('#modal [data-action="confirm"]').click();await ui.waitForFunction(()=>modal.batchFinished);await ui.locator('#modal [data-action="confirm"]').click();
  snapshot=await call('snapshot');const ids=snapshot.instances.map(x=>x.id);

@@ -34,7 +34,7 @@ function prepare(controller,message){
   const item={name,...node,environment:message.random===true?environment(preset('random',base)):base};
   bytes+=Buffer.byteLength(JSON.stringify(item));if(bytes>2*1024*1024)throw Error('单批环境草稿超过 2MB，请减少本次数量后分批创建；实例总数不限');items.push(item);
  }
- const plan={token:crypto.randomUUID(),items,start:message.start===true,random:message.random===true};
+ const plan={token:crypto.randomUUID(),items,start:message.start===true,random:message.random===true,syncLocale:message.syncLocale===true};
  controller.instanceBatchPlan=plan;return plan;
 }
 async function execute(controller,token){
@@ -49,7 +49,7 @@ async function execute(controller,token){
  try{
   save();for(const item of plan.items){
    if(job.cancelling||controller.disposing)break;
-   try{if(item.sourceId&&controller.library.get(item.sourceId).updatedAt!==item.sourceVersion)throw Error('节点源已更新，未创建此实例；请重新生成草稿');const value=await createInstance(controller,{...item,start:plan.start,syncTimezone:false});job.created+=Number(value.created);const error=[value.configurationError,value.startError].filter(Boolean).join('；');if(error)job.failed++;job.results.push({name:item.name,...value,status:error?'warning':'success'});}
+   try{if(item.sourceId&&controller.library.get(item.sourceId).updatedAt!==item.sourceVersion)throw Error('节点源已更新，未创建此实例；请重新生成草稿');const value=await createInstance(controller,{...item,start:plan.start,syncTimezone:false,syncLocale:plan.syncLocale});job.created+=Number(value.created);const error=[value.configurationError,value.startError].filter(Boolean).join('；');if(error)job.failed++;job.results.push({name:item.name,...value,status:error?'warning':'success'});}
    catch(error){job.failed++;job.results.push({name:item.name,created:false,status:'failed',error:redact(error.message)});}
    job.done++;save();controller.emit();await new Promise(resolve=>setImmediate(resolve));
   }
@@ -58,4 +58,20 @@ async function execute(controller,token){
  return {...job};
 }
 function cancel(controller){if(controller.batchCreation?.running){controller.batchCreation.cancelling=true;controller.emit();}return {requested:controller.batchCreation?.running===true};}
-module.exports={options,prepare,execute,cancel};
+async function prepareLocale(controller,message){
+ if(controller.instanceBatchPlanning)throw Error('正在查询出口地区，请稍候');
+ const plan=prepare(controller,message);if(!plan.syncLocale)return plan;
+ controller.instanceBatchPlan=null;controller.instanceBatchPlanning=true;
+ try{
+  const locales=new Map();
+  for(const item of plan.items){
+   if(controller.disposing)throw Error('应用正在退出，未创建实例');
+   const key=JSON.stringify([item.sourceId||null,item.nodeName||null]);
+   if(!locales.has(key))locales.set(key,await require('./exit-locale.cjs').lookup(controller,item.sourceId?controller.library.node(item.sourceId,item.nodeName):null));
+   if(item.sourceId&&controller.library.get(item.sourceId).updatedAt!==item.sourceVersion)throw Error('节点源已更新，请重新生成草稿');
+   item.exitLocale=locales.get(key);item.environment=environment({...item.environment,timezone:item.exitLocale.timezone,language:item.exitLocale.language});
+  }
+  controller.instanceBatchPlan=plan;return plan;
+ }finally{controller.instanceBatchPlanning=false;}
+}
+module.exports={options,prepare,prepareLocale,execute,cancel};
