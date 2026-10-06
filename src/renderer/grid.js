@@ -4,6 +4,7 @@
 // 注意：本文件在 app.js 之前加载，只能在函数内部引用 app.js 的全局变量（bridge、state、view 等）。
 let gridPrefs=(()=>{try{const v=JSON.parse(localStorage.getItem('facet-grid')||'{}');return {mode:v.mode==='saver'?'saver':'live',cols:[2,3,4,5,6].includes(v.cols)?v.cols:'auto'};}catch{return {mode:'live',cols:'auto'};}})();
 let gridZoom=null,gridMetrics={},gridFocus=null,gridTimer=null,gridFrame=0,gridSig='',gridActive=false,lastBrowserHostSize=null,gridLiveIds=new Set(),gridQuickPoll=0,gridScrollTimer=0,gridScrolling=false,gridLayoutKey='';
+let gridGeometryDirty=true,gridContextKey='',gridRevision=0,gridSentScroll=null,gridPending=null,gridInFlight=false,gridObserver=null,gridResyncUnsub=null;
 const gridThumbCache=new Map();
 // 每个格子标题栏里的实例占用（来自 window-bar.js 每 2 秒广播的 facet-metrics）。GPU 由所有实例共用一个进程，无法拆分，只在顶部显示总数。
 function gridResText(id){const m=gridMetrics[id];return m?`CPU ${window.facetPct?window.facetPct(m.cpu):Math.round(m.cpu)+'%'} · ${window.facetSize?window.facetSize(m.memoryMB):Math.round(m.memoryMB)+' MB'}`:'';}
@@ -17,7 +18,7 @@ function gridSave(){try{localStorage.setItem('facet-grid',JSON.stringify(gridPre
 // 页面按“正常浏览页面”的尺寸排版；还没打开过浏览页面时按内容区估算。
 function gridBaseSize(){if(lastBrowserHostSize)return lastBrowserHostSize;const c=document.getElementById('content')?.getBoundingClientRect();return c&&c.width>=320&&c.height>=240?{width:Math.round(c.width),height:Math.round(c.height)}:{width:1280,height:800};}
 function gridAspect(x,base){const e=x.environment||{};return e.width&&e.height?`${e.width}/${e.height}`:`${base.width}/${base.height}`;}
-function gridColumns(n){if(gridPrefs.cols!=='auto')return gridPrefs.cols;const want=n<=1?1:n<=4?2:n<=9?3:n<=16?4:5;const board=document.getElementById('content')?.clientWidth||1200;return Math.max(1,Math.min(want,Math.floor((board-40)/240)));}
+function gridColumns(n){if(gridPrefs.cols!=='auto')return gridPrefs.cols;const board=document.getElementById('content')?.clientWidth||1200;return Math.max(1,Math.min(Math.ceil(Math.sqrt(n)),Math.floor((board-40)/240)));}
 function gridSignature(){return gridPrefs.mode+'|'+gridPrefs.cols+'|'+(state.audioMuted?1:0)+'|'+state.instances.map(i=>[i.id,i.name,i.status,i.muted?1:0,volOf(i)===0?0:volOf(i)<50?1:2,i.proxyAlert&&i.status==='running'?1:0,i.environment?.width||0,i.environment?.height||0].join(':')).join(',');}
 function gridBodyHtml(x){const running=x.status==='running',starting=x.status==='starting';
  return running?(gridPrefs.mode==='saver'?`<img class="grid-thumb" alt="">`:''):`<div class="grid-placeholder">${starting?'<span>启动中…</span>':`<button class="grid-play" data-grid-act="start" title="启动 ${esc(x.name)}" aria-label="启动 ${esc(x.name)}">${icon('play')}</button><span>${x.status==='error'?'异常 · 点击重新启动':'未启动 · 不占内存'}</span>`}</div>`;}
@@ -31,7 +32,7 @@ function gridPlaceZoom(){const content=$('#content'),zoom=content?.querySelector
  const box=zoom.querySelector('.grid-zoom-box'),body=zoom.querySelector('.grid-zoom-body');box.style.width=w+'px';body.style.width=w+'px';body.style.height=h+'px';}
 function gridSetZoom(id){const content=$('#content');if(!content)return;const x=id&&state.instances.find(i=>i.id===id);gridZoom=x?id:null;content.querySelector('.grid-zoom')?.remove();content.classList.toggle('grid-zoomed',!!gridZoom);
  if(gridZoom){content.insertAdjacentHTML('beforeend',gridZoomHtml(x));gridPlaceZoom();gridPaintThumbs();content.querySelector('.grid-zoom [data-grid-act="unzoom"]')?.focus();}
- gridSendLayout();}
+ gridSendLayout(true);}
 function gridPage(){gridActive=true;const list=state.instances,base=gridBaseSize(),running=list.filter(i=>i.status==='running').length,idle=list.filter(i=>i.status==='stopped'||i.status==='error').length,live=gridPrefs.mode==='live';
  for(const id of [...gridThumbCache.keys()])if(!list.some(i=>i.id===id&&i.status==='running'))gridThumbCache.delete(id);
  if(gridFocus&&!list.some(i=>i.id===gridFocus&&i.status==='running'))gridFocus=null;
@@ -39,25 +40,34 @@ function gridPage(){gridActive=true;const list=state.instances,base=gridBaseSize
  $('#content').innerHTML=`<div class="grid-toolbar"><div class="segments" role="group" aria-label="格子显示方式"><button data-grid-mode="live" class="${live?'active':''}" aria-pressed="${live}" title="可见的格子都显示真实网页，可直接操作">实时</button><button data-grid-mode="saver" class="${live?'':'active'}" aria-pressed="${!live}" title="只有选中的格子实时显示，其余显示定时刷新的缩略图">省资源</button></div><label class="grid-cols">列数<select id="gridCols" aria-label="列数"><option value="auto" ${gridPrefs.cols==='auto'?'selected':''}>自动</option>${[2,3,4,5,6].map(n=>`<option value="${n}" ${gridPrefs.cols===n?'selected':''}>${n} 列</option>`).join('')}</select></label><span class="grid-hint">${live?'完整可见的格子是真实网页，可直接点击和输入；滚出视野的格子显示缩略图。':'点击格子让它实时显示，其余每 2 秒刷新缩略图，更省 CPU 和显卡。'}</span><span class="grid-count"><b>${running}</b> / ${list.length} 运行</span><button class="btn tiny" data-grid-act="start-all" ${idle?'':'disabled'}>${icon('play')}全部启动</button><button class="btn tiny danger" data-grid-act="stop-all" ${running?'':'disabled'}>${icon('stop')}全部停止</button></div>${list.length?`<div class="grid-board" style="--grid-cols:${gridColumns(list.length)}">${list.map(x=>gridTile(x,base)).join('')}</div>`:`<div class="grid-empty"><p>还没有实例。</p><button class="btn primary" data-action="new">${icon('plus')}新建实例</button></div>`}`;
   if(live){const hint=$('#content .grid-hint');if(hint)hint.textContent='所有运行中的格子都保持实时网页，可直接点击和输入；滚动不会切换缩略图。';}
   if(gridZoom&&!list.some(i=>i.id===gridZoom))gridZoom=null;$('#content').classList.toggle('grid-zoomed',!!gridZoom);$('#content').classList.toggle('grid-live',live);if(gridZoom){$('#content').insertAdjacentHTML('beforeend',gridZoomHtml(list.find(i=>i.id===gridZoom)));gridPlaceZoom();}
- gridSig=gridSignature();gridLayoutKey='';gridPaintThumbs();gridStartTimer();window.facetMetricsNow?.();}
+ gridSig=gridSignature();gridLayoutKey='';gridGeometryDirty=true;gridObserver?.disconnect();gridObserver=new ResizeObserver(()=>gridSendLayout(true));gridObserver.observe($('#content'));const board=$('#content .grid-board');if(board)gridObserver.observe(board);if(!gridResyncUnsub)gridResyncUnsub=bridge?.onGridResync?.(revision=>{if(view==='grid'&&revision===gridRevision)gridSendLayout(true);});gridPaintThumbs();gridStartTimer();window.facetMetricsNow?.();}
 function gridPaintThumbs(){if(gridPrefs.mode!=='saver')return;for(const el of document.querySelectorAll('.grid-tile,.grid-zoom-box')){const img=el.querySelector('.grid-thumb'),url=gridThumbCache.get(el.dataset.gridId);if(img&&url&&img.getAttribute('src')!==url)img.src=url;}}
 function gridStartTimer(){if(gridPrefs.mode!=='saver'){clearInterval(gridTimer);gridTimer=null;return;}if(gridTimer)return;gridTimer=setInterval(gridPollThumbs,2000);setTimeout(gridPollThumbs,350);}
-function gridScrollStart(){if(view!=='grid'||gridPrefs.mode!=='live')return;gridSendLayout();}
 async function gridPollThumbs(){if(view!=='grid'){gridLeave();return;}if(gridPrefs.mode!=='saver'||document.hidden||!bridge)return;try{const res=await bridge.request('grid-thumbs',{});if(!res?.ok||view!=='grid')return;for(const [id,url] of Object.entries(res.value||{}))if(typeof url==='string'&&url.startsWith('data:image/'))gridThumbCache.set(id,url);gridPaintThumbs();}catch{}}
-// 把每个运行中格子的位置告诉主进程。实时模式即使滚出视野也保持网页层，省资源模式才按可见范围切换缩略图。
-function gridSendLayout(){if(view!=='grid'||!bridge||gridFrame)return;gridFrame=requestAnimationFrame(()=>{gridFrame=0;if(view!=='grid')return;const content=$('#content');if(!content)return;
+// 完整布局最多一个请求在途、一个最新状态待发。位置单向发送，主进程合并最新位置，不等待逐帧回执。
+function gridQueue(action,payload){if(action==='grid-scroll'&&gridPending?.action==='grid-layout'&&gridPending.payload.grid.revision===payload.revision)gridPending.payload.grid.scrollTop=payload.scrollTop;else gridPending={action,payload};gridFlush();}
+function gridFlush(){if(gridInFlight||!gridPending)return;const next=gridPending;gridPending=null;gridInFlight=true;const revision=next.payload.grid?.revision??next.payload.revision;
+ if(next.action==='grid-scroll'){gridInFlight=false;bridge.scrollGrid(next.payload);return;}
+ let work;try{work=bridge.request(next.action,next.payload);}catch(e){work=Promise.reject(e);}
+ Promise.resolve(work).then(res=>{if(!res?.ok)throw Error('宫格布局需重新同步');}).catch(()=>{if(view==='grid'&&revision===gridRevision){gridGeometryDirty=true;gridSentScroll=null;gridPending=null;gridSendLayout();}}).finally(()=>{gridInFlight=false;gridFlush();});}
+// 完整布局只在结构/尺寸/显示状态变化时重建。实时滚动只发送位置，既不读每个格子的 DOM，也不发送实例列表。
+function gridSendLayout(invalidate=false){if(invalidate)gridGeometryDirty=true;if(view!=='grid'||!bridge||gridFrame)return;gridFrame=requestAnimationFrame(()=>{gridFrame=0;if(view!=='grid')return;const content=$('#content');if(!content)return;
  const board=content.querySelector('.grid-board');if(board){const cols=String(gridColumns(state.instances.length));if(board.style.getPropertyValue('--grid-cols')!==cols)board.style.setProperty('--grid-cols',cols);}
- const c=content.getBoundingClientRect(),covered=!!modal||!!document.querySelector('dialog[data-browser-overlay][open],details.row-menu[open]'),tiles=[];
+ const c=content.getBoundingClientRect(),covered=!!modal||!!document.querySelector('dialog[data-browser-overlay][open],details.row-menu[open]'),tiles=[],scrollTop=Math.round(content.scrollTop),base=gridBaseSize();
+ const viewport={x:Math.round(c.x),y:Math.round(c.y),width:content.clientWidth,height:content.clientHeight};
+ const contextKey=JSON.stringify({viewport,height:content.scrollHeight,base,covered,zoom:gridZoom,mode:gridPrefs.mode,focus:gridFocus,cols:gridPrefs.cols});
+ if(gridPrefs.mode==='live'&&!gridGeometryDirty&&contextKey===gridContextKey){if(scrollTop!==gridSentScroll){gridSentScroll=scrollTop;gridQueue('grid-scroll',{revision:gridRevision,scrollTop});}return;}
+ const instances=new Map(state.instances.map(x=>[x.id,x]));
  gridPlaceZoom();const zoomBody=gridZoom&&content.querySelector('.grid-zoom-body');
- for(const el of content.querySelectorAll('.grid-tile')){const x=state.instances.find(i=>i.id===el.dataset.gridId);if(x?.status!=='running')continue;if(zoomBody&&x.id===gridZoom){const z=zoomBody.getBoundingClientRect();if(z.width>=40&&z.height>=30)tiles.push({id:x.id,x:z.x,y:z.y,width:z.width,height:z.height,live:!covered});continue;}const b=el.querySelector('.grid-body')?.getBoundingClientRect();if(!b||b.width<40||b.height<30)continue;
+ for(const el of content.querySelectorAll('.grid-tile')){const x=instances.get(el.dataset.gridId);if(x?.status!=='running')continue;if(zoomBody&&x.id===gridZoom){const z=zoomBody.getBoundingClientRect();if(z.width>=40&&z.height>=30)tiles.push({id:x.id,x:Math.round(z.x)-viewport.x,y:Math.round(z.y)-viewport.y+scrollTop,width:Math.round(z.width),height:Math.round(z.height),live:!covered});continue;}const b=el.querySelector('.grid-body')?.getBoundingClientRect();if(!b||b.width<40||b.height<30)continue;
   const inside=b.top>=c.top-0.5&&b.bottom<=c.bottom+0.5&&b.left>=c.left-0.5&&b.right<=c.right+0.5;
    const live=gridPrefs.mode==='live'?(!covered&&!zoomBody):(!gridScrolling&&!covered&&!zoomBody&&inside&&gridFocus===x.id);
-   tiles.push({id:x.id,x:b.x,y:b.y,width:b.width,height:b.height,live});}
-  const payload={mode:gridPrefs.mode,base:gridBaseSize(),viewport:{x:c.x,y:c.y,width:content.clientWidth,height:content.clientHeight},scrollTop:content.scrollTop,scrollHeight:content.scrollHeight,tiles},key=JSON.stringify(payload);if(key!==gridLayoutKey){gridLayoutKey=key;bridge.request('grid-layout',{grid:payload}).catch(()=>{if(gridLayoutKey===key)gridLayoutKey='';});}
+   tiles.push({id:x.id,x:Math.round(b.x)-viewport.x,y:Math.round(b.y)-viewport.y+scrollTop,width:Math.round(b.width),height:Math.round(b.height),live});}
+  const payload={coordinates:'content',mode:gridPrefs.mode,base,viewport,scrollTop,scrollHeight:content.scrollHeight,tiles},key=JSON.stringify(payload);if(gridGeometryDirty||key!==gridLayoutKey){gridLayoutKey=key;payload.revision=++gridRevision;gridSentScroll=scrollTop;gridQueue('grid-layout',{grid:payload});}gridGeometryDirty=false;gridContextKey=contextKey;
  // 省资源模式中有格子从实时切到缩略图时尽快刷新一次。
   const live=new Set(tiles.filter(t=>t.live).map(t=>t.id));if(gridPrefs.mode==='saver'&&[...gridLiveIds].some(id=>!live.has(id))&&!gridQuickPoll)gridQuickPoll=setTimeout(()=>{gridQuickPoll=0;gridPollThumbs();},120);gridLiveIds=live;});}
-function gridLeave(){if(!gridActive)return;gridActive=false;gridZoom=null;gridScrolling=false;gridLayoutKey='';clearTimeout(gridScrollTimer);gridScrollTimer=0;$('#content')?.classList.remove('grid-zoomed','grid-live');gridLiveIds=new Set();clearTimeout(gridQuickPoll);gridQuickPoll=0;clearInterval(gridTimer);gridTimer=null;if(gridFrame){cancelAnimationFrame(gridFrame);gridFrame=0;}bridge?.request('grid-layout',{grid:null}).catch(()=>{});}
-function gridSetFocus(id){if(gridFocus===id)return;gridFocus=id;document.querySelectorAll('.grid-tile').forEach(el=>el.classList.toggle('focused',gridPrefs.mode==='saver'&&el.dataset.gridId===gridFocus));gridSendLayout();}
+function gridLeave(){if(!gridActive)return;gridActive=false;gridZoom=null;gridScrolling=false;gridLayoutKey='';gridContextKey='';gridGeometryDirty=true;gridSentScroll=null;gridPending=null;gridRevision++;gridObserver?.disconnect();gridObserver=null;gridResyncUnsub?.();gridResyncUnsub=null;clearTimeout(gridScrollTimer);gridScrollTimer=0;$('#content')?.classList.remove('grid-zoomed','grid-live');gridLiveIds=new Set();clearTimeout(gridQuickPoll);gridQuickPoll=0;clearInterval(gridTimer);gridTimer=null;if(gridFrame){cancelAnimationFrame(gridFrame);gridFrame=0;}bridge?.request('grid-layout',{grid:null}).catch(()=>{});}
+function gridSetFocus(id){if(gridFocus===id)return;gridFocus=id;document.querySelectorAll('.grid-tile').forEach(el=>el.classList.toggle('focused',gridPrefs.mode==='saver'&&el.dataset.gridId===gridFocus));gridSendLayout(true);}
 document.addEventListener('click',async e=>{if(view!=='grid')return;const t=e.target;
  const mode=t.closest('[data-grid-mode]');if(mode){if(gridPrefs.mode!==mode.dataset.gridMode){gridPrefs.mode=mode.dataset.gridMode;gridSave();render(true);}return;}
  if(t.classList?.contains('grid-zoom')){gridSetZoom(null);return;}

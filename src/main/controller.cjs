@@ -93,24 +93,30 @@ class Controller {
  clearProxyAlert(id,r){r.issueTimes=[];if(!r.proxyAlert||this.runtimes.get(id)!==r)return;r.proxyAlert=null;this.log(id,'代理连接已恢复：页面经代理加载成功');this.emitSoon();}
  // 宫格总览：控制界面报告每个格子的位置；实时模式保持真实网页层，省资源模式才隐藏未选中的格子并使用缩略图。
  setGrid(grid){if(!grid){if(!this.grid)return;this.grid=null;for(const [id,r]of this.runtimes){this.releaseCapture(r);r.gridThumbAt=0;r.gridApplied=null;r.gridBounds=null;if(!r.view)continue;r.view.setVisible(false);r.view.webContents.setBackgroundThrottling(true);if(r.gridParent){r.gridParent.removeChildView(r.view);this.window.contentView.addChildView(r.view);r.gridParent=null;}if(r.status==='running')this.fitViewport(r,id===this.activeId&&this.bounds?this.bounds:this.lastPageSize||{});}if(this.gridClip){this.window.contentView.removeChildView(this.gridClip);this.gridClip=null;this.gridCanvas=null;this.gridClipBounds=null;this.gridCanvasBounds=null;}return;}
-   const tiles=new Map();for(const t of Array.isArray(grid.tiles)?grid.tiles.slice(0,200):[]){if(typeof t?.id!=='string')continue;const b={x:Math.round(Number(t.x)),y:Math.round(Number(t.y)),width:Math.round(Number(t.width)),height:Math.round(Number(t.height))};if(!Object.values(b).every(Number.isFinite)||b.x<-10000||b.x>10000||b.y<-10000||b.y>10000||b.width<40||b.height<30||b.width>10000||b.height>10000)continue;tiles.set(t.id,{...b,live:t.live===true});}
+   const input=Array.isArray(grid.tiles)?grid.tiles:[];if(input.length>this.store.list().length)throw Error('宫格布局数量超过实际实例数');
+   const tiles=new Map();for(const t of input){if(typeof t?.id!=='string'||!this.runtimes.has(t.id))continue;const b={x:Math.round(Number(t.x)),y:Math.round(Number(t.y)),width:Math.round(Number(t.width)),height:Math.round(Number(t.height))};if(!Object.values(b).every(Number.isFinite)||Math.abs(b.x)>100000||Math.abs(b.y)>100000||b.width<40||b.height<30||b.width>10000||b.height>10000)continue;tiles.set(t.id,{...b,live:t.live===true});}
   const bw=Math.round(Number(grid.base?.width)),bh=Math.round(Number(grid.base?.height));
   const viewport=grid.viewport,b=viewport&&{x:Math.round(Number(viewport.x)),y:Math.round(Number(viewport.y)),width:Math.round(Number(viewport.width)),height:Math.round(Number(viewport.height))};
   const valid=b&&Object.values(b).every(Number.isFinite)&&b.x>=0&&b.y>=0&&b.width>0&&b.height>0&&b.width<=10000&&b.height<=10000;
   const scroll=Math.round(Number(grid.scrollTop)),height=Math.round(Number(grid.scrollHeight));
-  this.grid={tiles,mode:grid.mode==='live'?'live':'saver',base:bw>=320&&bh>=240&&bw<=10000&&bh<=10000?{width:bw,height:bh}:null,viewport:valid?b:null,scrollTop:Number.isFinite(scroll)?Math.max(0,Math.min(100000,scroll)):0,scrollHeight:Number.isFinite(height)?Math.max(1,Math.min(100000,height)):1};this.applyGrid();}
+  this.grid={tiles,revision:Number.isSafeInteger(grid.revision)?grid.revision:null,coordinates:grid.coordinates==='content'?'content':'window',mode:grid.mode==='live'?'live':'saver',base:bw>=320&&bh>=240&&bw<=10000&&bh<=10000?{width:bw,height:bh}:null,viewport:valid?b:null,scrollTop:Number.isFinite(scroll)?Math.max(0,Math.min(100000,scroll)):0,scrollHeight:Number.isFinite(height)?Math.max(1,Math.min(100000,height)):1};this.applyGrid();}
+ // 高频滚动不解析列表、不遍历实例，只更新一个原生画布。过期布局的位置消息拒绝并要求重新同步。
+ scrollGrid(message){if(!message||!this.grid||!this.grid.viewport||this.grid.mode!=='live'||this.grid.coordinates!=='content'||!this.gridCanvas||!Number.isSafeInteger(message.revision)||message.revision!==this.grid.revision)return false;
+  const top=Number(message.scrollTop);if(!Number.isFinite(top)||top<0||top>100000)return false;
+  this.grid.scrollTop=Math.min(Math.round(top),Math.max(0,this.grid.scrollHeight-this.grid.viewport.height));this.syncGridCanvas();return true;}
  gridBase(){return this.grid?.base||this.lastPageSize||{width:1280,height:800};}
  screenSize(){try{const {screen}=require('electron');return screen.getDisplayMatching(this.window.getBounds()).size;}catch{return {};}}
- applyGrid(){if(!this.grid)return;const {viewport,scrollTop,scrollHeight}=this.grid;
+ syncGridCanvas(){const {viewport,scrollTop,scrollHeight}=this.grid;
   if(viewport){if(!this.gridClip){this.gridClip=new View();this.gridClip.setBorderRadius(0);this.gridCanvas=new View();this.gridClip.addChildView(this.gridCanvas);this.window.contentView.addChildView(this.gridClip);}
    const canvas={x:0,y:-scrollTop,width:viewport.width,height:Math.max(viewport.height,scrollHeight)};
    if(JSON.stringify(viewport)!==JSON.stringify(this.gridClipBounds)){this.gridClip.setBounds(viewport);this.gridClipBounds=viewport;}
-   if(JSON.stringify(canvas)!==JSON.stringify(this.gridCanvasBounds)){this.gridCanvas.setBounds(canvas);this.gridCanvasBounds=canvas;}}
+   if(JSON.stringify(canvas)!==JSON.stringify(this.gridCanvasBounds)){this.gridCanvas.setBounds(canvas);this.gridCanvasBounds=canvas;}}}
+ applyGrid(){if(!this.grid)return;this.syncGridCanvas();const {viewport,scrollTop}=this.grid;
   for(const [id,r]of this.runtimes){if(!r.view)continue;const t=this.grid.tiles.get(id);if(!t||r.status!=='running'){if(r.gridApplied?.visible)r.view.setVisible(false);r.gridApplied=null;this.releaseCapture(r);continue;}
   const parent=viewport?this.gridCanvas:this.window.contentView;const parentChanged=r.gridParent!==parent;
   if(parentChanged){(r.gridParent||this.window.contentView).removeChildView(r.view);parent.addChildView(r.view);r.gridParent=parent;}
   const throttle=this.grid.mode!=='live';if(r.view.webContents.getBackgroundThrottling()!==throttle)r.view.webContents.setBackgroundThrottling(throttle);
-  const live=t.live,b={x:t.x,y:t.y,width:t.width,height:t.height},local=viewport?{...b,x:t.x-viewport.x,y:t.y-viewport.y+scrollTop}:b;
+  const live=t.live,b={x:t.x,y:t.y,width:t.width,height:t.height},local=this.grid.coordinates==='content'?b:viewport?{...b,x:t.x-viewport.x,y:t.y-viewport.y+scrollTop}:b;
   const prev=r.gridApplied,last=r.gridBounds,sizeChanged=!last||last.width!==b.width||last.height!==b.height,positionChanged=!last||last.x!==local.x||last.y!==local.y,visibilityChanged=!prev||prev.visible!==live;
   // 滚动只移动整个画布；网页的尺寸和相对位置保持稳定，裁剪交给原生父容器。
   if(parentChanged||(live?(positionChanged||sizeChanged):sizeChanged)){r.view.setBounds(local);r.gridBounds=local;}if(sizeChanged)this.fitViewport(r,b,true);

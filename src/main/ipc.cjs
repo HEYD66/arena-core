@@ -4,6 +4,13 @@ function installIPC(window,controller){
  // 扩展菜单原生浮层：只接受浮层自身页面发来的消息。
  const overlay=new (require('./menu-overlay.cjs').MenuOverlay)(window,message=>{if(!window.isDestroyed()&&!window.webContents.isDestroyed())window.webContents.send('core:overlay',message);});controller.overlay=overlay;
  const onOverlay=(event,message)=>overlay.receive(event.sender,message);ipcMain.on('overlay:event',onOverlay);
+ // 高频位置消息只保留一个最新值；与完整布局使用同一控制窗口身份校验。
+ let latestScroll=null,scrollTask=null;
+ const onGridScroll=(event,message)=>{if(window.isDestroyed()||controller.disposing||event.sender!==window.webContents||event.senderFrame!==window.webContents.mainFrame)return;
+  if(!message||!Number.isSafeInteger(message.revision)||!Number.isFinite(message.scrollTop)||message.scrollTop<0||message.scrollTop>100000)return;
+  latestScroll={revision:message.revision,scrollTop:message.scrollTop};if(scrollTask)return;
+  scrollTask=true;queueMicrotask(()=>{scrollTask=null;const next=latestScroll;latestScroll=null;if(!next||window.isDestroyed()||controller.disposing||!controller.grid)return;if(!controller.scrollGrid(next))window.webContents.send('core:grid-resync',next.revision);});};
+ ipcMain.on('core:grid-scroll',onGridScroll);
  const assignNode=(id,sourceId,name)=>controller.queue(id,async()=>{controller.store.get(id);const node=controller.library.node(sourceId,name);await controller.stopInner(id);controller.store.saveNodes(id,[node],null,{sourceId,name:node.name});controller.store.update(id,{network:{mode:'mihomo',nodeName:node.name}});controller.log(id,'已从全局库分配节点；当前实例已停止，请手动启动');return {id,sourceId,name:node.name,status:'success'};});
  ipcMain.handle('core:request',async(event,message)=>{
   try{if(window.isDestroyed()||controller.disposing)return {ok:false,error:'应用正在关闭'};const controls=window.webContents;if(!controls||controls.isDestroyed())return {ok:false,error:'控制窗口已关闭'};if(event.sender!==controls||event.senderFrame!==controls.mainFrame)throw Error('拒绝非控制界面调用');
@@ -88,6 +95,6 @@ function installIPC(window,controller){
    }return {ok:true};
   }catch(e){controller.workspace.log('application','操作失败：'+require('./workspace.cjs').redact(e.message),'ERROR');controller.emit();return {ok:false,error:e.message};}finally{controller.flushEmit?.();}
  });
-return ()=>{ipcMain.removeHandler('core:request');ipcMain.removeListener('overlay:event',onOverlay);overlay.destroy();};
+return ()=>{ipcMain.removeHandler('core:request');ipcMain.removeListener('core:grid-scroll',onGridScroll);latestScroll=null;ipcMain.removeListener('overlay:event',onOverlay);overlay.destroy();};
 }
 module.exports={installIPC};
