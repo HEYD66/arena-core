@@ -27,6 +27,8 @@ app.whenReady().then(async()=>{
  window.on('close',event=>{if(quitting)return;event.preventDefault();if(closing)return;closing=true;require('./exit-guard.cjs').confirmExit(controller,window,{showMessageBox:require('./exit-dialog.cjs').showExitDialog},app.getPath('userData')).then(go=>{if(!go){closing=false;return;}return controller.closeAll().then(()=>{quitting=true;app.quit();});}).catch(e=>{closing=false;dialog.showErrorBox('暂不能退出',e.message);});});
  app.on('before-quit',event=>{if(!quitting&&window&&!window.isDestroyed()){event.preventDefault();window.close();}});
  await window.loadFile(path.join(__dirname,'../renderer/index.html'),customFrame?{query:{frame:'custom'}}:undefined);
+ controller.updates.scheduleStartupCheck();
+ window.once('closed',()=>controller.updates.dispose());
  console.log('千面 Facet '+require('./application-version.cjs').applicationVersion(app)+' ready; instances are not auto-started.');
 }).catch(e=>{dialog.showErrorBox('千面 Facet 启动失败',e.message);quitting=true;app.quit();});
 app.on('window-all-closed',()=>app.quit());}

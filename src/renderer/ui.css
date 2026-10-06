@@ -128,10 +128,10 @@ input[aria-invalid="true"],select[aria-invalid="true"]{border-color:var(--red)!i
 .status.running{color:var(--green)}.status.starting{color:var(--amber)}.status.error{color:var(--red)}
 
 /* ── 4. Shell ──────────────────────────────────────────────── */
-.app{height:100vh;min-height:600px;display:grid;grid-template-rows:42px minmax(0,1fr) 24px;overflow:hidden}
+.app{height:100vh;min-height:600px;display:grid;grid-template-rows:42px auto minmax(0,1fr) 24px;overflow:hidden}
 /* 自绘标题栏（Windows）：可拖动窗口；右侧约 138px 留给系统的最小化/最大化/关闭按钮。 */
 .window-bar{display:none}
-html[data-frame="custom"] .app{grid-template-rows:32px 42px minmax(0,1fr) 24px}
+html[data-frame="custom"] .app{grid-template-rows:32px 42px auto minmax(0,1fr) 24px}
 html[data-frame="custom"] .window-bar{display:flex;align-items:center;justify-content:space-between;min-width:0;height:32px;padding:0 152px 0 12px;background:var(--winbar,var(--bg));-webkit-app-region:drag;user-select:none;overflow:hidden}
 .window-app-icon{display:flex;align-items:center;gap:8px;width:auto;min-width:38px;height:30px;padding-right:8px;color:var(--text);opacity:.9;flex:0 0 auto;-webkit-app-region:drag}
 .window-app-icon svg{width:31px;height:31px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
@@ -812,3 +812,11 @@ html[data-frame="custom"] .window-bar{display:flex;align-items:center;justify-co
 .assign-many-bar label{display:inline-flex;align-items:center;gap:4px;cursor:pointer}
 .assign-many-fill{flex:1}
 .assign-plan-node.planned{color:var(--accent-text,var(--accent));font-weight:600}
+
+/* Startup update reminder lives above the native browser surface. */
+.update-notice{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;padding:6px 18px;border-bottom:1px solid var(--line);background:var(--accent-weak);color:var(--text);font-size:13px}
+.update-notice>span,.update-notice>div{display:flex;align-items:center;gap:10px}
+.update-notice>span svg{color:var(--accent-text);width:18px;height:18px}
+.update-notice .btn{padding:5px 10px}
+.update-available{color:var(--accent-text);border:1px solid var(--line);white-space:nowrap}
+.update-available[hidden]{display:none}

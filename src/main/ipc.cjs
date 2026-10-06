@@ -34,6 +34,7 @@ function installIPC(window,controller){
     case 'snapshot':return {ok:true,value:controller.snapshot()};
     case 'update-status':return {ok:true,value:controller.updates?.snapshot()||{supported:false,status:'unsupported',error:'当前运行方式未接入在线更新'}};
     case 'update-check':return {ok:true,value:await controller.updates.check()};
+    case 'update-reminder-shown':return {ok:true,value:controller.updates.acknowledgeReminder(message.version)};
     case 'update-download':return {ok:true,value:await controller.updates.download()};
     case 'update-install':return {ok:true,value:await controller.updates.install(message.confirmed)};
     case 'runtime-output':return {ok:true,value:require('./runtime-output.cjs').readRuntimeOutput()};

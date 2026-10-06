@@ -1,10 +1,24 @@
 'use strict';
 let appUpdateState={supported:false,status:'loading',currentVersion:'',version:null,progress:0,error:'',restart:true};
+let activeUpdateNotice=null;
+const shownUpdateNotices=new Set();
+function paintUpdateNotice(){
+ const u=appUpdateState,available=!!u.version&&['available','downloading','downloaded'].includes(u.status);
+ const slot=document.getElementById('updateNoticeSlot');if(!slot)return;
+ const badge=document.getElementById('updateAvailable');if(badge)badge.hidden=!available;
+ if(!available||activeUpdateNotice&&activeUpdateNotice!==u.version){activeUpdateNotice=null;slot.replaceChildren();}
+ if(!available||!u.reminderVersion||shownUpdateNotices.has(u.reminderVersion)||document.visibilityState!=='visible')return;
+ const version=u.reminderVersion;activeUpdateNotice=version;shownUpdateNotices.add(version);
+ slot.innerHTML=`<div class="update-notice" role="status"><span>${icon('download')}发现新版本 <b>v${esc(version)}</b></span><div><button class="btn subtle" data-update-action="view">查看更新</button><button class="btn subtle" data-update-action="later">稍后</button></div></div>`;
+ window.dispatchEvent(new Event('resize'));
+ requestAnimationFrame(()=>{if(activeUpdateNotice!==version)return;if(document.visibilityState!=='visible'){shownUpdateNotices.delete(version);activeUpdateNotice=null;slot.replaceChildren();return;}window.arenaCore.request('update-reminder-shown',{version}).catch(()=>{});});
+}
+function acceptUpdateState(value){appUpdateState=value;paintUpdateCard();paintUpdateNotice();}
 function updateCardHTML(){
  const u=appUpdateState,busy=['loading','checking','downloading','installing'].includes(u.status);
  const labels={loading:'正在读取更新信息…',idle:'点击检查 GitHub Releases 中的最新版本',checking:'正在检查更新…',current:'当前已是最新版本',available:`发现新版本 v${u.version}`,downloading:`正在下载：${Math.round(u.progress)}%`,downloaded:`v${u.version} 已下载并通过校验`,installing:'正在停止实例，随后退出并安装…',unsupported:'当前运行方式不支持在线更新',error:'更新未完成'};
  const canDownload=u.supported&&u.version&&['available','error'].includes(u.status);
- return `<section class="settings-card full" id="appUpdates"><h3>${icon('download')}软件更新</h3><div class="inner"><div class="update-controls"><div><p>当前版本：v${esc(u.currentVersion||state.versions?.app||'—')}</p><p class="update-status" role="status" aria-live="polite">${esc(labels[u.status]||'等待检查')}</p></div><div class="update-buttons"><button class="btn subtle" id="updateCheck" data-update-action="check" ${!u.supported||busy||u.status==='downloaded'?'disabled':''}>检查更新</button>${canDownload?'<button class="btn primary" id="updateDownload" data-update-action="download">下载新版</button>':''}${u.status==='downloaded'?'<button class="btn primary" id="updateInstall" data-update-action="confirm">退出并更新</button>':''}</div></div>${u.status==='downloading'?`<progress class="update-progress" max="100" value="${u.progress}" aria-label="更新下载进度"></progress>`:''}${u.error?`<p class="update-error" role="alert">${esc(u.error)}</p>`:''}<p class="actions-note">由你决定检查、下载和安装时间。更新保留实例配置、登录资料和扩展。</p></div></section>`;
+ return `<section class="settings-card full" id="appUpdates"><h3>${icon('download')}软件更新</h3><div class="inner"><div class="update-controls"><div><p>当前版本：v${esc(u.currentVersion||state.versions?.app||'—')}</p><p class="update-status" role="status" aria-live="polite">${esc(labels[u.status]||'等待检查')}</p></div><div class="update-buttons"><button class="btn subtle" id="updateCheck" data-update-action="check" ${!u.supported||busy||u.status==='downloaded'?'disabled':''}>检查更新</button>${canDownload?'<button class="btn primary" id="updateDownload" data-update-action="download">下载新版</button>':''}${u.status==='downloaded'?'<button class="btn primary" id="updateInstall" data-update-action="confirm">退出并更新</button>':''}</div></div>${u.status==='downloading'?`<progress class="update-progress" max="100" value="${u.progress}" aria-label="更新下载进度"></progress>`:''}${u.error?`<p class="update-error" role="alert">${esc(u.error)}</p>`:''}<p class="actions-note">每次启动自动检查一次，同一新版只提醒一次。下载和安装由你确认，更新保留实例配置、登录资料和扩展。</p></div></section>`;
 }
 function paintUpdateCard(){const old=document.getElementById('appUpdates');if(old)old.outerHTML=updateCardHTML();}
 function confirmUpdateInstall(){
@@ -15,19 +29,22 @@ function confirmUpdateInstall(){
  document.getElementById('modalBackdrop').hidden=false;layout();document.querySelector('#modal [data-action="modal-close"]').focus();
 }
 document.addEventListener('DOMContentLoaded',()=>{
+ const badge=document.createElement('button');badge.id='updateAvailable';badge.className='btn subtle update-available';badge.hidden=true;badge.type='button';badge.dataset.updateAction='view';badge.textContent='有更新';document.querySelector('.top-actions').prepend(badge);
  if(!window.arenaCore){appUpdateState={...appUpdateState,status:'unsupported',error:'浏览器预览不能执行在线更新'};paintUpdateCard();return;}
- window.arenaCore.onUpdate?.(value=>{appUpdateState=value;paintUpdateCard();});
- window.arenaCore.request('update-status').then(result=>{if(!result.ok)throw Error(result.error);appUpdateState=result.value;paintUpdateCard();}).catch(error=>{appUpdateState={...appUpdateState,status:'error',error:error.message};paintUpdateCard();});
+ window.arenaCore.onUpdate?.(acceptUpdateState);
+ window.arenaCore.request('update-status').then(result=>{if(!result.ok)throw Error(result.error);acceptUpdateState(result.value);}).catch(error=>{appUpdateState={...appUpdateState,status:'error',error:error.message};paintUpdateCard();});
 });
+document.addEventListener('visibilitychange',paintUpdateNotice);
 document.addEventListener('click',async event=>{
  const button=event.target.closest('[data-update-action]');if(!button||button.disabled)return;
  const action=button.dataset.updateAction;if(action==='confirm'){confirmUpdateInstall();return;}
+ if(action==='view'||action==='later'){activeUpdateNotice=null;document.getElementById('updateNoticeSlot').replaceChildren();window.dispatchEvent(new Event('resize'));if(action==='view'){route('global');document.getElementById('appUpdates')?.scrollIntoView({block:'start'});}return;}
  if(action==='install'&&modal?.type!=='update-install')return;
  button.disabled=true;
  if(action==='install'){modal.busy=true;document.querySelectorAll('#modal [data-action="modal-close"]').forEach(b=>b.disabled=true);}
  try{
   const value=await request('update-'+action,action==='install'?{confirmed:true}:{});
-  appUpdateState=value;paintUpdateCard();
+  acceptUpdateState(value);
  }catch(error){
   if(action==='install'&&modal?.type==='update-install'){modal.busy=false;document.getElementById('updateInstallError').textContent=error.message;document.querySelectorAll('#modal button').forEach(b=>b.disabled=false);}
   else toast(error.message);

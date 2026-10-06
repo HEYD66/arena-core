@@ -1,6 +1,6 @@
 {
   "name": "arena-core",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "private": true,
   "description": "Independent multi-instance browser with explicit direct networking and bundled Mihomo",
   "author": "HEYD66",
