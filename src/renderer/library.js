@@ -1,19 +1,16 @@
 "use strict";
-let libraryTargetId = "",
-  libraryDraft = { name: "", url: "", editing: null };
+let libraryTargetId = "";
 const diagnosticConsent = new Set();
 let libraryConcurrency = 3,
   librarySort = "original",
   libraryOnly = "all",
   libraryIncludeHints = false,
   libraryMinSuccess = 0,
-  librarySourceFormOpen = false,
   libraryRegion = "",
   libraryProtocol = "";
 let librarySource = "",
   librarySearch = "",
   libraryPageIndex = 0,
-  libraryEditing = null,
   libraryBusy = false;
 const librarySelected = new Set();
 // 「全部节点源」：librarySource 为 "*" 时表格合并所有节点源；已选用「节点源ID + 节点名」区分不同订阅里的同名节点。
@@ -30,8 +27,6 @@ function rowSource(el) {
 }
 function libraryPage() {
   const scroll = $("#content").scrollTop;
-  if ($("#libraryName"))
-    libraryDraft = { name: $("#libraryName").value, url: $("#libraryURL").value, editing: libraryEditing };
   if (!state.instances.some((x) => x.id === libraryTargetId))
     libraryTargetId = state.instances.some((x) => x.id === activeId)
       ? activeId
@@ -73,11 +68,10 @@ function libraryPage() {
   const pages = Math.max(1, Math.ceil(filtered.length / 100));
   libraryPageIndex = Math.min(libraryPageIndex, pages - 1);
   const nodes = filtered.slice(libraryPageIndex * 100, libraryPageIndex * 100 + 100);
-  const formOpen = librarySourceFormOpen || !!libraryDraft.editing || !!libraryDraft.name || !!libraryDraft.url;
   const help = (text, label = "说明") =>
     `<details class="inline-help"><summary>${icon("info")}<span>${label}</span></summary><p>${text}</p></details>`;
   $("#content").innerHTML =
-    `<div id="libraryTaskbar" class="library-taskbar" role="status"></div><section class="settings-card proxy-workbench" id="librarySubscriptionCard"><aside class="proxy-sources"><div class="panel-head"><h3>节点源</h3><span class="tag">${sources.length} / 30</span></div><div class="library-sources">${(sources.length > 1 ? allSourcesHTML(sources) : "") + sources.map(sourceGroupHTML).join("") || '<p class="actions-note empty-sources">尚无订阅。在下方保存后即可选择节点。</p>'}</div><details class="source-form" id="librarySourceForm" ${formOpen ? "open" : ""}><summary class="source-form-toggle"><span id="librarySourceFormTitle">${libraryDraft.editing ? "编辑节点源" : "＋ 添加节点源"}</span><svg class="source-chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></summary><div class="library-form"><label class="field"><span>名称</span><input id="libraryName" maxlength="80" placeholder="例如：日本线路 / 备用订阅"></label><label class="field"><span>Clash / Mihomo 订阅链接</span><input id="libraryURL" type="password" autocomplete="off" spellcheck="false" placeholder="https://…（默认隐藏）"></label><div class="subscription-actions"><button class="btn primary" data-lib="save">导入并保存订阅</button><button class="btn" data-lib="file">导入本地文件</button><button class="btn ghost" data-lib="cancel-edit" hidden>取消编辑</button></div></div>${help("链接与节点凭证仅保存在本机，尚未加密；下载订阅走本机网络，推荐 HTTPS。支持含 proxies 的 YAML/JSON，不支持 Base64 列表或仅 providers 的配置。更新/删除全局源不会修改已分配给实例的节点副本。")}</details></aside>
+    `<div id="libraryTaskbar" class="library-taskbar" role="status"></div><section class="settings-card proxy-workbench" id="librarySubscriptionCard"><aside class="proxy-sources"><div class="panel-head"><h3>节点源</h3><span class="tag">${sources.length} / 30</span></div><div class="library-sources">${(sources.length > 1 ? allSourcesHTML(sources) : "") + sources.map(sourceGroupHTML).join("") || '<p class="actions-note empty-sources">尚无订阅。在下方保存后即可选择节点。</p>'}</div><div class="source-add"><button class="btn soft wide" type="button" data-lib="add-source">${icon("plus")}添加节点源</button>${help("支持 Clash / Mihomo 订阅、本地 YAML/JSON 和单个 HTTP、HTTPS、SOCKS5 代理。更新或删除全局源不会修改已分配给实例的节点副本。")}</div></aside>
  <section class="library-nodes library-node-management"><div class="library-form node-filters"><label class="field"><span>节点源</span><select id="librarySource">${sources.length > 1 ? `<option value="${LIBRARY_ALL}" ${all ? "selected" : ""}>全部节点源（${sources.length}）</option>` : ""}${sources.map((s) => `<option value="${s.id}" ${s.id === librarySource ? "selected" : ""}>${esc(s.name)}</option>`).join("")}</select></label><label class="field"><span>搜索节点</span><input id="librarySearch" value="${esc(librarySearch)}" placeholder="名称 / 协议"></label></div><div class="library-controls"><label>并发 <select id="libraryConcurrency">${[1, 2, 3, 4, 5, 6, 8, 10, 12, 16].map((n) => `<option ${n === libraryConcurrency ? "selected" : ""}>${n}</option>`).join("")}</select></label><label>排序 <select id="librarySort">${[
    ["original", "订阅顺序"],
    ["latency", "延迟升序"],
@@ -103,15 +97,6 @@ function libraryPage() {
  ]
    .map(([v, l]) => `<option value="${v}" ${v === libraryMinSuccess ? "selected" : ""}>${l}</option>`)
    .join("")}</select></label><label class="check-label"><input type="checkbox" id="libraryIncludeHints" ${libraryIncludeHints ? "checked" : ""}> 显示疑似订阅提示</label>${help("使用临时独立 Mihomo 检测，无直连回退。延迟为访问 Cloudflare 的 HTTPS 首响应耗时，不是 ICMP Ping。IP 与地区由 ipwho.is 返回，地区仅供参考。下载测速每次约 5 MB。结果显示在对应节点行，悬停可查看地区、错误原因和检测时间。", "检测说明")}</div>${nodeChipsHTML(visible.length, regionCounts, protocolCounts)}<div class="subscription-actions node-batch"><button class="btn tiny" data-lib="batch-latency">${icon("bolt")}批量连通性 / 延迟</button><button class="btn tiny" data-lib="batch-ip">${icon("globe")}批量出口 IP</button><button class="btn tiny" data-lib="assign-many" ${librarySelected.size ? "" : "disabled"} title="把已选节点分别分配给多个实例">分配给多个实例…</button><button class="btn ghost danger tiny" data-lib="delete-selected" ${librarySelected.size ? "" : "disabled"}>删除已选</button><span class="actions-note selection-count">已选 <span id="librarySelectionCount">${librarySelected.size}</span> · 共 ${filtered.length} 个节点</span></div><div class="library-table"><table class="logs-table compact-node-table"><thead><tr><th class="col-check"><input type="checkbox" id="librarySelectAll" aria-label="全选本页节点" title="全选 / 取消全选本页节点"></th><th>节点 / 协议</th><th>连通性 / 延迟</th><th>出口 IP</th><th>下载速度</th><th class="col-actions">操作</th></tr></thead><tbody>${nodes.map((n) => `<tr data-hint="${!!n.hint}" data-source="${n.sid}"><td><input type="checkbox" data-library-node="${esc(n.name)}" ${n.hint ? "disabled" : ""} ${librarySelected.has(libKey(n.sid, n.name)) ? "checked" : ""} aria-label="选择 ${esc(n.name)}"></td><td class="node-identity"><button class="node-favorite" data-lib="favorite" data-node="${esc(n.name)}" title="${favoriteExists(n.sid, n.name) ? "取消收藏" : "收藏节点"}" ${n.hint ? "disabled" : ""}>${favoriteExists(n.sid, n.name) ? "★" : "☆"}</button>${all ? nodeSourceMark(sources.find((s) => s.id === n.sid)) : ""}<span class="node-name" title="${esc(n.name)}">${esc(n.name)}</span><small class="node-protocol">${esc(n.type)}</small><small class="node-stat" data-stat-node="${esc(n.name)}"></small></td>${["latency", "ip", "speed"].map((kind) => `<td class="node-result" data-result-node="${esc(n.name)}" data-result-kind="${kind}">—</td>`).join("")}<td class="col-actions"><div class="row-actions"><button class="btn tiny" data-lib="assign" data-node="${esc(n.name)}" ${n.hint ? "disabled" : ""}>分配</button><details class="row-menu"><summary class="icon-btn" title="更多操作" aria-label="${esc(n.name)} 的更多操作">${icon("more")}</summary><div class="menu"><button class="menu-item" data-lib="latency" data-node="${esc(n.name)}">${icon("bolt")}连通性检测</button><button class="menu-item" data-lib="ip" data-node="${esc(n.name)}">${icon("globe")}查询出口 IP</button><button class="menu-item" data-lib="speed" data-node="${esc(n.name)}">${icon("download")}下载测速（约 5 MB）</button><hr><button class="menu-item danger" data-lib="delete-node" data-node="${esc(n.name)}">${icon("trash")}删除节点</button></div></details></div></td></tr>`).join("") || '<tr><td colspan="6" class="empty-list">没有匹配节点</td></tr>'}</tbody></table></div><div class="subscription-actions pager"><button class="btn tiny ghost" data-lib="prev" ${libraryPageIndex === 0 ? "disabled" : ""}>上一页</button><span>${libraryPageIndex + 1} / ${pages}</span><button class="btn tiny ghost" data-lib="next" ${libraryPageIndex + 1 >= pages ? "disabled" : ""}>下一页</button></div></section></section>`;
-  libraryEditing = libraryDraft.editing;
-  $("#libraryName").value = libraryDraft.name;
-  $("#libraryURL").value = libraryDraft.url;
-  if (libraryEditing) {
-    $("#librarySourceForm").open = true;
-    $('[data-lib="save"]').textContent = "保存修改";
-    $('[data-lib="cancel-edit"]').hidden = false;
-    $("#libraryURL").placeholder = "留空仅改名；输入新链接会重新下载";
-  }
   renderDiagnostics();
   $("#content").scrollTop = scroll;
 }
@@ -225,6 +210,7 @@ document.addEventListener("click", async (event) => {
     sourceId = button.dataset.source || rowSource(button),
     source = state.library?.find((s) => s.id === sourceId);
   try {
+    if (action === "add-source") { openProxyEntry(); return; }
     if (action === "region" || action === "protocol") {
       if (action === "region") libraryRegion = button.dataset.value || "";
       else libraryProtocol = button.dataset.value || "";
@@ -294,29 +280,7 @@ document.addEventListener("click", async (event) => {
       );
       return;
     }
-    if (action === "edit") {
-      libraryEditing = sourceId;
-      librarySourceFormOpen = true;
-      $("#librarySourceForm").open = true;
-      $("#librarySourceFormTitle").textContent = "编辑节点源";
-      $("#libraryName").value = source.name;
-      $("#libraryURL").value = "";
-      $("#libraryURL").placeholder = source.subscription
-        ? "留空仅改名；输入新链接会重新下载"
-        : "本地节点源：可输入订阅链接替换";
-      $('[data-lib="save"]').textContent = "保存修改";
-      $('[data-lib="cancel-edit"]').hidden = false;
-      $("#librarySubscriptionCard").scrollIntoView({ block: "start" });
-      $("#libraryName").focus();
-      libraryDraft = { name: $("#libraryName").value, url: "", editing: libraryEditing };
-      return;
-    }
-    if (action === "cancel-edit") {
-      clearLibraryDraft();
-      librarySourceFormOpen = false;
-      libraryPage();
-      return;
-    }
+    if (action === "edit") { openProxyEntry(source); return; }
     if (action === "delete-node" || action === "delete-selected") {
       const items = action === "delete-node" ? [{ sourceId, name: button.dataset.node }] : selectedItems();
       if (!items.length) throw Error("请先勾选要删除的节点");
@@ -386,28 +350,7 @@ document.addEventListener("click", async (event) => {
     libraryBusy = true;
     button.disabled = true;
     try {
-      if (action === "save") {
-        const url = $("#libraryURL").value.trim();
-        let name = $("#libraryName").value.trim();
-        if (!name && url) {
-          try {
-            name = new URL(url).hostname;
-          } catch {
-            throw Error("请输入有效的 HTTP(S) 订阅链接");
-          }
-        }
-        if (libraryEditing && !url) await request("library-rename", { sourceId: libraryEditing, name });
-        else {
-          if (!url) throw Error("请粘贴订阅链接");
-          await request("library-save", { sourceId: libraryEditing || undefined, name, url });
-        }
-      } else if (action === "refresh") await request("library-save", { sourceId });
-      else if (action === "file")
-        await request("library-file", { name: $("#libraryName").value.trim() || "本地节点" });
-      if (action === "save") {
-        clearLibraryDraft();
-        librarySourceFormOpen = false;
-      }
+      if (action === "refresh") await request("library-save", { sourceId });
       toast("代理库已更新；现有实例配置未改变");
       render(true);
     } finally {
@@ -454,8 +397,6 @@ document.addEventListener("change", (event) => {
   }
 });
 document.addEventListener("input", (event) => {
-  if (["libraryName", "libraryURL"].includes(event.target.id))
-    libraryDraft = { name: $("#libraryName").value, url: $("#libraryURL").value, editing: libraryEditing };
   if (event.target.id === "librarySearch") {
     librarySearch = event.target.value;
     librarySelected.clear();
@@ -524,10 +465,6 @@ document.addEventListener(
   "toggle",
   (event) => {
     const el = event.target;
-    if (el.id === "librarySourceForm") {
-      librarySourceFormOpen = el.open;
-      return;
-    }
     if (
       !el.isConnected ||
       !el.matches("[data-source-group]") ||
@@ -577,12 +514,6 @@ function diagnosticFailureLabel(error) {
   return "失败";
 }
 
-function clearLibraryDraft() {
-  libraryDraft = { name: "", url: "", editing: null };
-  libraryEditing = null;
-  if ($("#libraryName")) $("#libraryName").value = "";
-  if ($("#libraryURL")) $("#libraryURL").value = "";
-}
 function confirmDiagnostic(kind, items) {
   if (state.diagnostics?.job) {
     toast("已有检测任务，请等待或取消");

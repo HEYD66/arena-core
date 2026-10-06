@@ -407,6 +407,25 @@ html[data-frame="custom"] .window-bar{display:flex;align-items:center;justify-co
 
 /* ── 8. Proxy management ──────────────────────────────────── */
 #content.proxy-management{display:block;overflow-y:auto}
+.source-add{padding:16px;border-top:1px solid var(--line)}
+.proxy-entry-modal{width:640px;padding:24px}
+.proxy-entry-modal .modal-head{margin-bottom:20px}
+.proxy-entry-modal .modal-head h2{margin:0 0 6px}
+.proxy-entry-modal .modal-head p{margin:0}
+.entry-label{display:block;color:var(--muted);margin-bottom:8px}
+.proxy-type-options{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:20px}
+.proxy-type-option{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;min-height:88px;padding:12px 6px;border:1px solid var(--line);border-radius:var(--r);background:var(--panel2);color:var(--muted);font:inherit;cursor:pointer}
+.proxy-type-option svg{width:22px;height:22px}
+.proxy-type-option.active{border-color:var(--accent);background:var(--accent-weak);color:var(--accent-text);box-shadow:inset 0 0 0 1px var(--accent)}
+.proxy-entry-modal .field{margin-bottom:16px}
+.proxy-field-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 16px}
+.proxy-field-grid .required{color:var(--red)}
+.proxy-password{display:flex;align-items:center;gap:6px}
+.proxy-password input{min-width:0;flex:1}
+.proxy-test-row{display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:1px solid var(--line);padding-top:16px;font-size:12px;color:var(--muted)}
+.proxy-entry-footer{display:flex;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-top:20px;padding-top:16px;border-top:1px solid var(--line)}
+.proxy-entry-footer>div{display:flex;flex-wrap:wrap;gap:8px}
+@media(max-width:700px){.proxy-entry-modal{padding:16px}.proxy-type-options{gap:6px}.proxy-type-option{min-height:72px;font-size:12px}.proxy-field-grid{grid-template-columns:1fr}.proxy-entry-footer>div:last-child{margin-left:auto}}
 .library-taskbar{position:sticky;top:-16px;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:40px;margin:0 0 12px;padding:5px 8px 5px 14px;border:1px solid color-mix(in srgb,var(--accent) 25%,var(--line));border-radius:var(--r);background:var(--accent-weak);font-size:12px}
 .library-taskbar strong{font-size:13px;font-weight:600;color:var(--text)}
 .library-taskbar small{margin-left:10px;font-size:12px;color:var(--muted)}
