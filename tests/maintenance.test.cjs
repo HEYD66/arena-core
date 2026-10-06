@@ -11,9 +11,9 @@ test('diagnostic history counts success/total per node, keeps last and last succ
  assert.equal(h.record({...base,kind:'latency',ok:false,error:'连接超时',at:'2026-09-28T02:00:00.000Z'}),true);
  assert.equal(h.record({...base,kind:'latency',ok:false,error:'已取消'}),false);
  assert.equal(h.record({...base,kind:'latency',ok:false,error:'节点源已更新，请重新检测'}),false);
- assert.equal(h.record({...base,kind:'speed',ok:true,mbps:9}),false);
+ assert.equal(h.record({...base,kind:'speed',ok:true,mbps:9,bytes:5000000,elapsedMs:400}),true);
  h.record({...base,kind:'ip',ok:true,ip:'203.0.113.9',country:'HK',city:'Hong Kong',timezone:'Asia/Hong_Kong'});
- const row=h.list()[0];assert.equal(h.list().length,1);assert.deepEqual([row.latency.ok,row.latency.total,row.ip.ok,row.ip.total],[1,2,1,1]);
+ const row=h.list()[0];assert.equal(h.list().length,1);assert.deepEqual([row.latency.ok,row.latency.total,row.ip.ok,row.ip.total,row.speed.ok,row.speed.total],[1,2,1,1,1,1]);
  assert.equal(row.latency.lastOk.latencyMs,120);assert.equal(row.latency.last.error,'连接超时');assert.equal(row.ip.lastOk.ip,'203.0.113.9');
  assert.equal(fs.existsSync(path.join(dir,'diagnostic-history.json')),false,'writes are coalesced');h.flush();
  const again=new DiagnosticHistory(dir);assert.deepEqual(again.list(),h.list());

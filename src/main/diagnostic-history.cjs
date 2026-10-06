@@ -3,7 +3,7 @@
 // 取消的检测和「节点源已更新，请重新检测」不计入。写盘合并为一次，退出时立即写入。
 const fs = require("node:fs"),
   path = require("node:path");
-const KINDS = ["latency", "ip"],
+const KINDS = ["latency", "ip", "speed"],
   MAX_NODES = 20000,
   RECENT = 10;
 function pick(r) {
@@ -11,6 +11,8 @@ function pick(r) {
   if (!r.ok) return { ...base, error: String(r.error || "").slice(0, 200) };
   if (r.kind === "latency")
     return { ...base, latencyMs: r.latencyMs, provider: r.provider || "", fallback: !!r.fallback };
+  if (r.kind === "speed")
+    return { ...base, mbps: r.mbps, bytes: r.bytes, elapsedMs: r.elapsedMs, provider: r.provider || "" };
   return {
     ...base,
     ip: r.ip,
@@ -53,6 +55,7 @@ class DiagnosticHistory {
     const brief = { at: result.at, ok: !!result.ok };
     if (result.ok && result.kind === "latency") brief.ms = result.latencyMs;
     if (result.ok && result.kind === "ip") brief.ip = result.ip;
+    if (result.ok && result.kind === "speed") brief.mbps = result.mbps;
     if (!result.ok) brief.error = String(result.error || "").slice(0, 80);
     s.recent = [...(Array.isArray(s.recent) ? s.recent : []), brief].slice(-RECENT);
     if (result.ok) {

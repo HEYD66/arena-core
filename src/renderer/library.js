@@ -599,6 +599,7 @@ function syncDiagnosticHistory() {
     .catch(() => {})
     .finally(() => {
       diagHistoryLoading = false;
+      if(view==='environment'){renderInstanceNodeActions();return;}
       if (view !== "proxies" || !$("#libraryTaskbar")) return;
       const dependent = libraryMinSuccess > 0 || libraryOnly === "available" || librarySort === "latency";
       if (dependent && !document.activeElement?.matches?.("input,textarea,select")) libraryPage();
