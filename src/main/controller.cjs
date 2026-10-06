@@ -1,6 +1,6 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path');
-const {app,session,WebContentsView}=require('electron');
+const {app,session,WebContentsView,View}=require('electron');
 const {installWebRTCPolicy}=require('./webrtc-policy.cjs');
 // 实例网页里的音量脚本启动时异步取当前音量（只返回一个 0–1 的数字）；由控制器自己注册，不依赖界面 IPC 是否安装。
 const volumeOwners=new Set();let volumeIPC=false;
@@ -92,23 +92,36 @@ class Controller {
  noteProxyIssue(id,r,message,strong){if(this.runtimes.get(id)!==r||!r.core||!['running','starting'].includes(r.status))return;const now=Date.now();r.issueTimes=(r.issueTimes||[]).filter(t=>now-t<30000);r.issueTimes.push(now);if(!strong&&r.issueTimes.length<3)return;const first=!r.proxyAlert;r.proxyAlert={message:String(message).slice(0,300),at:new Date().toISOString()};if(first)this.log(id,'代理可能已断开：'+r.proxyAlert.message+'。未自动切换节点，也不会改为直连；可在代理管理检测或更换节点','WARN');this.emitSoon();}
  clearProxyAlert(id,r){r.issueTimes=[];if(!r.proxyAlert||this.runtimes.get(id)!==r)return;r.proxyAlert=null;this.log(id,'代理连接已恢复：页面经代理加载成功');this.emitSoon();}
  // 宫格总览：控制界面报告每个格子的位置；实时模式保持真实网页层，省资源模式才隐藏未选中的格子并使用缩略图。
- setGrid(grid){if(!grid){if(!this.grid)return;this.grid=null;for(const [id,r]of this.runtimes){this.releaseCapture(r);r.gridThumbAt=0;r.gridApplied=null;if(!r.view)continue;r.view.setVisible(false);if(r.status==='running')this.fitViewport(r,id===this.activeId&&this.bounds?this.bounds:this.lastPageSize||{});}return;}
+ setGrid(grid){if(!grid){if(!this.grid)return;this.grid=null;for(const [id,r]of this.runtimes){this.releaseCapture(r);r.gridThumbAt=0;r.gridApplied=null;r.gridBounds=null;if(!r.view)continue;r.view.setVisible(false);r.view.webContents.setBackgroundThrottling(true);if(r.gridParent){r.gridParent.removeChildView(r.view);this.window.contentView.addChildView(r.view);r.gridParent=null;}if(r.status==='running')this.fitViewport(r,id===this.activeId&&this.bounds?this.bounds:this.lastPageSize||{});}if(this.gridClip){this.window.contentView.removeChildView(this.gridClip);this.gridClip=null;this.gridCanvas=null;this.gridClipBounds=null;this.gridCanvasBounds=null;}return;}
    const tiles=new Map();for(const t of Array.isArray(grid.tiles)?grid.tiles.slice(0,200):[]){if(typeof t?.id!=='string')continue;const b={x:Math.round(Number(t.x)),y:Math.round(Number(t.y)),width:Math.round(Number(t.width)),height:Math.round(Number(t.height))};if(!Object.values(b).every(Number.isFinite)||b.x<-10000||b.x>10000||b.y<-10000||b.y>10000||b.width<40||b.height<30||b.width>10000||b.height>10000)continue;tiles.set(t.id,{...b,live:t.live===true});}
-  const bw=Math.round(Number(grid.base?.width)),bh=Math.round(Number(grid.base?.height));this.grid={tiles,base:bw>=320&&bh>=240&&bw<=10000&&bh<=10000?{width:bw,height:bh}:null};this.applyGrid();}
+  const bw=Math.round(Number(grid.base?.width)),bh=Math.round(Number(grid.base?.height));
+  const viewport=grid.viewport,b=viewport&&{x:Math.round(Number(viewport.x)),y:Math.round(Number(viewport.y)),width:Math.round(Number(viewport.width)),height:Math.round(Number(viewport.height))};
+  const valid=b&&Object.values(b).every(Number.isFinite)&&b.x>=0&&b.y>=0&&b.width>0&&b.height>0&&b.width<=10000&&b.height<=10000;
+  const scroll=Math.round(Number(grid.scrollTop)),height=Math.round(Number(grid.scrollHeight));
+  this.grid={tiles,mode:grid.mode==='live'?'live':'saver',base:bw>=320&&bh>=240&&bw<=10000&&bh<=10000?{width:bw,height:bh}:null,viewport:valid?b:null,scrollTop:Number.isFinite(scroll)?Math.max(0,Math.min(100000,scroll)):0,scrollHeight:Number.isFinite(height)?Math.max(1,Math.min(100000,height)):1};this.applyGrid();}
  gridBase(){return this.grid?.base||this.lastPageSize||{width:1280,height:800};}
  screenSize(){try{const {screen}=require('electron');return screen.getDisplayMatching(this.window.getBounds()).size;}catch{return {};}}
- applyGrid(){if(!this.grid)return;for(const [id,r]of this.runtimes){if(!r.view)continue;const t=this.grid.tiles.get(id);if(!t||r.status!=='running'){if(r.gridApplied?.visible)r.view.setVisible(false);r.gridApplied=null;this.releaseCapture(r);continue;}
-  const live=t.live;const b={x:t.x,y:t.y,width:t.width,height:t.height};const prev=r.gridApplied;const sizeChanged=!prev||prev.width!==b.width||prev.height!==b.height;const positionChanged=!prev||prev.x!==b.x||prev.y!==b.y;const visibilityChanged=!prev||prev.visible!==live;
-   // 实时模式的离屏实例也保持原生网页层；滚动时移动网页层，回到视野即可直接看到最新页面。
-  if(live?(positionChanged||sizeChanged):sizeChanged)r.view.setBounds(b);if(sizeChanged)this.fitViewport(r,b,true);
+ applyGrid(){if(!this.grid)return;const {viewport,scrollTop,scrollHeight}=this.grid;
+  if(viewport){if(!this.gridClip){this.gridClip=new View();this.gridClip.setBorderRadius(0);this.gridCanvas=new View();this.gridClip.addChildView(this.gridCanvas);this.window.contentView.addChildView(this.gridClip);}
+   const canvas={x:0,y:-scrollTop,width:viewport.width,height:Math.max(viewport.height,scrollHeight)};
+   if(JSON.stringify(viewport)!==JSON.stringify(this.gridClipBounds)){this.gridClip.setBounds(viewport);this.gridClipBounds=viewport;}
+   if(JSON.stringify(canvas)!==JSON.stringify(this.gridCanvasBounds)){this.gridCanvas.setBounds(canvas);this.gridCanvasBounds=canvas;}}
+  for(const [id,r]of this.runtimes){if(!r.view)continue;const t=this.grid.tiles.get(id);if(!t||r.status!=='running'){if(r.gridApplied?.visible)r.view.setVisible(false);r.gridApplied=null;this.releaseCapture(r);continue;}
+  const parent=viewport?this.gridCanvas:this.window.contentView;const parentChanged=r.gridParent!==parent;
+  if(parentChanged){(r.gridParent||this.window.contentView).removeChildView(r.view);parent.addChildView(r.view);r.gridParent=parent;}
+  const throttle=this.grid.mode!=='live';if(r.view.webContents.getBackgroundThrottling()!==throttle)r.view.webContents.setBackgroundThrottling(throttle);
+  const live=t.live,b={x:t.x,y:t.y,width:t.width,height:t.height},local=viewport?{...b,x:t.x-viewport.x,y:t.y-viewport.y+scrollTop}:b;
+  const prev=r.gridApplied,last=r.gridBounds,sizeChanged=!last||last.width!==b.width||last.height!==b.height,positionChanged=!last||last.x!==local.x||last.y!==local.y,visibilityChanged=!prev||prev.visible!==live;
+  // 滚动只移动整个画布；网页的尺寸和相对位置保持稳定，裁剪交给原生父容器。
+  if(parentChanged||(live?(positionChanged||sizeChanged):sizeChanged)){r.view.setBounds(local);r.gridBounds=local;}if(sizeChanged)this.fitViewport(r,b,true);
   if(live){this.releaseCapture(r);if(visibilityChanged)r.view.setVisible(true);}else{this.holdCapture(r);if(visibilityChanged)r.view.setVisible(false);}r.gridApplied={...b,visible:live};}}
  // 隐藏的格子仍可截图（capturePage 的 stayHidden 不会让页面变成“可见”）；这里只标记哪些格子需要缩略图。
  holdCapture(r){r.gridCapture=true;}
  releaseCapture(r){r.gridCapture=false;}
  // 缩略图：从未显示过的隐藏视图，绘制画布还是旧尺寸；缩小渲染的网页只画在左上角（格子大小 × DPR），截图后按这个大小裁掉空白再缩放。
- // 隐藏的格子每次都截；实时格每 10 秒截一张备用，滚动时切换成缩略图不会空白。
+ // 仅省资源模式轮询；隐藏的格子每次截图，选中的实时格每 10 秒保留一张备用。
  async gridThumbs(){if(!this.grid)return {};let sf=1;try{sf=require('electron').screen.getDisplayMatching(this.window.getBounds()).scaleFactor||1;}catch{}const out={},now=Date.now(),vp=require('./viewport.cjs'),screen=this.screenSize(),base=this.gridBase();await Promise.all([...this.grid.tiles].map(async([id,t])=>{const r=this.runtimes.get(id);if(r?.status!=='running'||!r.view||r.view.webContents.isDestroyed())return;if(!r.gridCapture&&r.gridThumbAt&&now-r.gridThumbAt<10000)return;try{let image=await r.view.webContents.capturePage(undefined,{stayHidden:true});if(image.isEmpty())return;const {width:W,height:H}=image.getSize(),m=vp.tileMetrics(r.environment,t,base,screen),dpr=r.environment.scale||sf,cw=Math.max(1,Math.min(W,Math.round(m.width*m.scale*dpr))),ch=Math.max(1,Math.min(H,Math.round(m.height*m.scale*dpr)));if(cw<W-1||ch<H-1)image=image.crop({x:0,y:0,width:cw,height:ch});const w=Math.min(image.getSize().width,Math.round(t.width*Math.min(2,sf)));out[id]='data:image/jpeg;base64,'+image.resize({width:w,quality:'good'}).toJPEG(72).toString('base64');r.gridThumbAt=now;}catch{}}));return out;}
- destroyView(r){this.releaseCapture(r);this.extensions.unload(r);for(const w of r.popups||[])if(!w.isDestroyed())w.destroy();r.popups?.clear();if(!r.view)return;const view=r.view,wc=view.webContents;r.view=null;r.closingView=wc;try{this.window.contentView.removeChildView(view);}catch{}if(wc&&!wc.isDestroyed()){wc.stop();wc.close({waitForBeforeUnload:false});}}
+ destroyView(r){this.releaseCapture(r);this.extensions.unload(r);for(const w of r.popups||[])if(!w.isDestroyed())w.destroy();r.popups?.clear();if(!r.view)return;const view=r.view,wc=view.webContents;r.view=null;r.closingView=wc;try{(r.gridParent||this.window.contentView).removeChildView(view);}catch{}r.gridParent=null;r.gridBounds=null;if(wc&&!wc.isDestroyed()){wc.stop();wc.close({waitForBeforeUnload:false});}}
  async stop(id){return this.queue(id,()=>this.stopInner(id));}
  async stopInner(id){const r=this.runtimes.get(id);if(!r)return;this.destroyView(r);try{await r.core?.stop();if(r.loadedExtensions?.size)throw Error('扩展尚未卸载，请重试停止；实例配置未修改');const wc=r.closingView;if(wc&&!wc.isDestroyed())await new Promise((resolve,reject)=>{const done=()=>{clearTimeout(timer);resolve();};const timer=setTimeout(()=>{wc.removeListener('destroyed',done);reject(Error('浏览视图尚未关闭，请重试停止；数据未删除'));},5000);wc.once('destroyed',done);});r.closingView=null;r.status='stopped';r.error='';this.log(id,'实例已停止，登录存储与配置保留');}catch(e){r.status='error';r.error=e.message;this.emit();throw e;}}
  async navigate(id,url){const value=safeURL(url),r=this.runtimes.get(id);if(!r?.view||r.status!=='running')throw Error('请先启动实例');await r.view.webContents.loadURL(value);this.store.update(id,{url:value});this.emit();}
