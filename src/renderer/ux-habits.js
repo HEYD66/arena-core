@@ -66,7 +66,7 @@ function restoreModalFocus(){if(lastFocus?.isConnected&&!lastFocus.disabled){las
 // After a successful save the page is rebuilt; move focus to the save status instead of losing it.
 if(typeof saveEnvironment==='function'){const baseSaveEnvironment=saveEnvironment;saveEnvironment=async function(...args){const ok=await baseSaveEnvironment(...args);if(ok&&focusLost()){const info=$('#environmentSaveInfo');if(info){info.tabIndex=-1;info.focus({preventScroll:true});}}return ok;};}
 
-const uiShortcuts=[['Ctrl + L','定位到当前实例的地址栏'],['Ctrl + Enter','在「代理与指纹」页保存配置'],['Ctrl + Tab / Ctrl + Shift + Tab','切换到下一个 / 上一个实例标签'],['Ctrl + 1 … 9','切换到第 N 个标签（9 为最后一个）'],['Ctrl + T','新建实例'],['← / →、Home / End','在实例标签栏内移动焦点'],['Esc','关闭当前对话框']];
+const uiShortcuts=[['Ctrl + L','定位到当前实例的地址栏'],['Ctrl + Enter','在「环境配置」页保存配置'],['Ctrl + Tab / Ctrl + Shift + Tab','切换到下一个 / 上一个实例标签'],['Ctrl + 1 … 9','切换到第 N 个标签（9 为最后一个）'],['Ctrl + T','新建实例'],['← / →、Home / End','在实例标签栏内移动焦点'],['Esc','关闭当前对话框']];
 function shortcutListHTML(){return `<section class="settings-card full"><h3>键盘快捷键</h3><div class="inner"><dl class="shortcut-list">${uiShortcuts.map(([k,d])=>`<div><dt><kbd>${esc(k)}</kbd></dt><dd>${esc(d)}</dd></div>`).join('')}</dl><p class="actions-note">快捷键只在软件界面内生效；焦点在网页内容里时由网页自己处理。不提供 Ctrl + W，关闭标签会停止实例，请用标签上的 ×。</p></div></section>`;}
 function uiOpenTabs(){return [...document.querySelectorAll('#tabs .tab-select')];}
 async function uiGoToTab(index){const tabs=state.instances.filter(i=>localOpen.has(i.id));if(!tabs.length)return;const target=tabs[(index+tabs.length)%tabs.length];await route('browser',target.id);$('#tabs').querySelector(`[data-tab="${CSS.escape(target.id)}"]`)?.focus({preventScroll:true});}
