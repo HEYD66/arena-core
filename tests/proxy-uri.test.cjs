@@ -42,6 +42,11 @@ test('builds HTTP, HTTPS and SOCKS5 nodes from the dialog fields', () => {
   assert.equal(proxyFields({ protocol: 'https', host: 'fixture.example', port: 8443 }).tls, true);
   assert.equal(parseProxyUri('socks5://fixture-user:fixture-pass@203.0.113.9:1080#SOCKS-%E6%97%A5%E6%9C%AC').name, 'SOCKS-日本');
   assert.throws(() => proxyFields({ protocol: 'socks5', host: 'fixture.example', port: '1080', password: 'secret' }), /用户名/);
+  assert.deepEqual(parseProxyUri('fixture.example:2000:fixture-user:fixture-pass'), {
+    protocol: 'socks5', host: 'fixture.example', port: 2000,
+    username: 'fixture-user', password: 'fixture-pass',
+    name: 'fixture.example:2000',
+  });
 });
 
 test('rejects unsafe or incomplete SOCKS5 URI variants without echoing credentials', () => {
@@ -119,6 +124,9 @@ test('proxy entry IPC adapter saves and tests only the validated node', async ()
     const result = await proxyEntry(controller, { action: 'library-proxy-test', proxy: { protocol: 'socks5', host: '203.0.113.11', port: '1080', username: 'fixture-user', password: 'fixture-pass', name: 'Entry fixture' } }, { readText: () => '' });
     assert.equal(result.latencyMs, 3);
     assert.equal(calls[0].password, 'fixture-pass');
+    const parsed = await proxyEntry(controller, { action: 'library-proxy-clipboard', singleOnly: true }, { readText: () => 'fixture.example:2000:fixture-user:fixture-pass' });
+    assert.equal(parsed.protocol, 'socks5');
+    assert.equal(parsed.username, 'fixture-user');
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, clipboard } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
@@ -46,13 +46,16 @@ app.whenReady().then(async () => {
     await wait(() => ui('!!document.querySelector(\'[data-lib="add-source"]\')'), 'proxy management');
     await ui("document.querySelector('[data-lib=add-source]').click()");
     await wait(() => ui('!!document.querySelector("#proxyEntryForm")'), 'add proxy dialog');
-    await ui("document.querySelector('[data-type=socks5]').click(); document.querySelector('#proxyEntryHost').value='203.0.113.12'; document.querySelector('#proxyEntryPort').value='1080'; document.querySelector('#proxyEntryUsername').value='fixture-user'; document.querySelector('#proxyEntryPassword').value='fixture-pass'; document.querySelector('#proxyEntryName').value='UI fixture';");
+    clipboard.writeText('fixture.example:2000:fixture-user:fixture-pass');
+    await ui("document.querySelector('[data-proxy-entry=clipboard]').click()");
+    await wait(() => ui("document.querySelector('#proxyEntryHost')?.value === 'fixture.example' && document.querySelector('#proxyEntryPort')?.value === '2000'"), 'legacy clipboard fields');
+    await ui("document.querySelector('#proxyEntryName').value='UI fixture';");
     await ui("document.querySelector('#proxyEntryForm').requestSubmit();");
     await wait(() => controller.library.summaries().some((source) => source.name === 'UI fixture'), 'single proxy saved');
     const source = controller.library.summaries().find((item) => item.name === 'UI fixture');
     assert.equal(source.subscription, false);
     const saved = controller.library.node(source.id, 'UI fixture');
-    assert.deepEqual(saved, { name: 'UI fixture', type: 'socks5', server: '203.0.113.12', port: 1080, username: 'fixture-user', password: 'fixture-pass' });
+    assert.deepEqual(saved, { name: 'UI fixture', type: 'socks5', server: 'fixture.example', port: 2000, username: 'fixture-user', password: 'fixture-pass' });
     assert.equal(await ui('document.querySelector("#modalBackdrop").hidden'), true);
     console.log(JSON.stringify({ passed: true, name: 'Electron add proxy dialog saves a SOCKS5 node through real IPC' }));
     await controller.closeAll();

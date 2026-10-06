@@ -4,7 +4,8 @@ const { proxyFields, parseProxyUri } = require('./proxy-uri.cjs');
 async function proxyEntry(controller, message, clipboard) {
   if (message.action === 'library-proxy-parse') return parseProxyUri(message.url);
   if (message.action === 'library-proxy-clipboard') {
-    const text = clipboard.readText().trim();
+    const raw = await clipboard.readText();
+    const text = Buffer.isBuffer(raw) ? raw.toString('utf8').trim() : String(raw ?? '').trim();
     if (/^https?:\/\//i.test(text)) {
       let url; try { url = new URL(text); } catch { throw Error('剪贴板链接格式无效'); }
       if (!url.username && !url.password && !message.singleOnly) return { protocol: 'subscription', url: text };

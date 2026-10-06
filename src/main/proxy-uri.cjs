@@ -81,6 +81,11 @@ function proxyFields(input) {
 function parseProxyUri(input) {
   if (typeof input !== 'string' || input.trim().length > 8192 || /[\u0000-\u0020\u007f]/.test(input.trim())) throw Error('代理链接格式无效');
   const text = input.trim();
+  const legacy = /^(?<host>[^:]+):(?<port>\d+):(?<username>[^:]+):(?<password>.+)$/.exec(text);
+  if (legacy) {
+    const node = proxyFields({ protocol: 'socks5', host: legacy.groups.host, port: legacy.groups.port, username: legacy.groups.username, password: legacy.groups.password });
+    return { protocol: 'socks5', host: node.server, port: node.port, username: node.username || '', password: node.password || '', name: node.name };
+  }
   if (/^socks5:\/\//i.test(text)) {
     const { node } = parseSocks5Uri(text);
     return { protocol: 'socks5', host: node.server, port: node.port, username: node.username || '', password: node.password || '', name: node.name };
