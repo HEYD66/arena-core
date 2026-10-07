@@ -77,6 +77,7 @@ function installIPC(window,controller){
     case 'instance-batch-create':return {ok:true,value:await controller.queue('instance-create',()=>require('./instance-batch.cjs').execute(controller,message.token))};
     case 'instance-batch-cancel':return {ok:true,value:require('./instance-batch.cjs').cancel(controller)};
     case 'create':{const value=await controller.queue('instance-create',()=>require('./operations.cjs').createInstance(controller,message));return {ok:true,value:message.detailed?value:value.id};}
+    case 'instance-autostart':return {ok:true,value:await controller.queue(id,()=>{if(controller.disposing)throw Error('应用正在关闭');if(typeof message.enabled!=='boolean')throw Error('随应用启动设置无效');controller.store.update(id,{autoStart:message.enabled});controller.log(id,message.enabled?'已开启随应用启动；下次启动应用时依次启动此实例':'已关闭随应用启动');return {id,enabled:message.enabled};})};
     case 'rename':controller.store.update(id,{name:message.name});controller.emit();break;
     case 'activate':controller.choose(id??null);break;
     case 'grid-layout':controller.setGrid(message.grid&&typeof message.grid==='object'?message.grid:null);break;

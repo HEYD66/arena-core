@@ -443,7 +443,8 @@ html[data-frame="custom"] .window-bar{display:flex;align-items:center;justify-co
 .instance-table th:first-child{border-top-left-radius:var(--r)}.instance-table th:last-child{border-top-right-radius:var(--r)}
 .instance-table td{height:44px;padding:6px 12px}
 .instance-table .col-check{width:40px;padding-right:0}
-.instance-table th:nth-child(2){width:26%}.instance-table th:nth-child(3){width:96px}.instance-table th:nth-child(4){width:22%}.instance-table th:nth-child(6){width:120px}.instance-table .col-actions{width:212px}
+.instance-table th:nth-child(2){width:18%}.instance-table .col-autostart{width:118px}.instance-table th:nth-child(4){width:96px}.instance-table th:nth-child(5){width:22%}.instance-table th:nth-child(7){width:120px}.instance-table .col-actions{width:212px}
+.instance-autostart{display:inline-flex;align-items:center;gap:8px;padding:4px 0;border:0;background:transparent;color:var(--muted);font:inherit;cursor:pointer;white-space:nowrap}.instance-autostart[aria-checked="true"]{color:var(--accent)}.instance-autostart:disabled{opacity:.55;cursor:wait}.autostart-track{position:relative;display:inline-block;width:32px;height:18px;border:1px solid var(--line2);border-radius:10px;background:var(--panel2)}.autostart-track::after{content:"";position:absolute;top:2px;left:2px;width:12px;height:12px;background:var(--muted);border-radius:50%}.instance-autostart[aria-checked="true"] .autostart-track{background:var(--accent);border-color:var(--accent)}.instance-autostart[aria-checked="true"] .autostart-track::after{left:16px;background:#fff}
 .instance-table tr.selected td{background:var(--accent-weak)}
 .cell-name b{display:block;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cell-error{display:block;color:var(--red);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -775,7 +776,7 @@ html[data-frame="custom"] .window-bar{display:flex;align-items:center;justify-co
  .environment-save-bar{margin:14px -16px -16px;padding:10px 16px;bottom:-16px}
  .shortcut-hint{display:none}
  .overview-summary .actions-note{display:none}
- .instance-table th:nth-child(5),.instance-table td:nth-child(5),.instance-table th:nth-child(6),.instance-table td:nth-child(6){display:none}
+ .instance-table th:nth-child(6),.instance-table td:nth-child(6),.instance-table th:nth-child(7),.instance-table td:nth-child(7){display:none}
  .search-box{width:200px}
  .ip-editor{grid-template-columns:1fr 1fr}
  .ip-filter{flex-wrap:wrap}

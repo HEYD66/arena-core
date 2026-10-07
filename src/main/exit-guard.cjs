@@ -33,7 +33,7 @@ async function confirmExit(controller, window, dialog, dir) {
     type: "question",
     title: "退出千面 Facet",
     message: `有 ${names.length} 个实例正在运行，退出会全部停止`,
-    detail: `${shown}\n登录资料和配置都会保留，下次可手动启动。`,
+    detail: `${shown}\n登录资料和配置都会保留，下次按“随应用启动”设置启动，也可手动启动。`,
     buttons: ["取消", "退出"],
     defaultId: 0,
     cancelId: 0,

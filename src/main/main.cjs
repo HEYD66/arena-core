@@ -28,7 +28,8 @@ app.whenReady().then(async()=>{
  app.on('before-quit',event=>{if(!quitting&&window&&!window.isDestroyed()){event.preventDefault();window.close();}});
  await window.loadFile(path.join(__dirname,'../renderer/index.html'),customFrame?{query:{frame:'custom'}}:undefined);
  controller.updates.scheduleStartupCheck();
+ controller.startOnLaunch().catch(e=>controller.workspace.log('application','随应用启动任务失败：'+require('./workspace.cjs').redact(e.message),'ERROR'));
  window.once('closed',()=>controller.updates.dispose());
- console.log('千面 Facet '+require('./application-version.cjs').applicationVersion(app)+' ready; instances are not auto-started.');
+ console.log('千面 Facet '+require('./application-version.cjs').applicationVersion(app)+' ready; enabled instances start sequentially.');
 }).catch(e=>{dialog.showErrorBox('千面 Facet 启动失败',e.message);quitting=true;app.quit();});
 app.on('window-all-closed',()=>app.quit());}
