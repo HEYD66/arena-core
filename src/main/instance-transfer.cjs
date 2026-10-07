@@ -104,8 +104,7 @@ class InstanceTransfer{
    const value=selections[i],row=draft.metadata.instances[i];if(!value||!['direct','mihomo'].includes(value.mode))throw Error('请选择代理或明确选择本机 IP 直连');
    const node=value.mode==='mihomo'?structuredClone(this.c.library.node(value.sourceId,value.nodeName)):null;
    let name=row.name,n=1;while(used.has(name))name=row.name.slice(0,30)+'（导入 '+n+++'）';used.add(name);
-   let env=row.environment;if(value.syncLocale===true){const locale=await require('./exit-locale.cjs').lookup(this.c,node,{force:true});env=environment({...env,language:locale.language,timezone:locale.timezone});}
-   const id=crypto.randomUUID();plans.push({id,name,url:row.url,environment:env,notes:row.notes,muted:row.muted,volume:row.volume,autoStart:false,network:{mode:node?'mihomo':'direct',nodeName:node?.name||''},node,sourceId:value.sourceId,index:i,cookies:row.cookies});
+   const id=crypto.randomUUID();plans.push({id,name,url:row.url,environment:row.environment,notes:row.notes,muted:row.muted,volume:row.volume,autoStart:false,network:{mode:node?'mihomo':'direct',nodeName:node?.name||''},node,sourceId:value.sourceId,index:i,cookies:row.cookies,syncLocale:value.syncLocale===true});
   }
   if(this.c.disposing)throw Error('应用正在退出');
   const installed=[];let committed=false;
@@ -121,9 +120,19 @@ class InstanceTransfer{
     if(!safeStorage.isEncryptionAvailable())throw Error('系统加密不可用，无法保留首次启动前的会话 Cookie');
     const file=this.cookieFile(p.id);fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,safeStorage.encryptString(JSON.stringify(p.cookies)),{flag:'wx',mode:0o600});
    }}
-   const rows=plans.map(({node,sourceId,index,cookies,...p})=>p),data={...this.c.store.data,instances:[...this.c.store.list(),...rows]};
+   const rows=plans.map(({node,sourceId,index,cookies,syncLocale,...p})=>p),data={...this.c.store.data,instances:[...this.c.store.list(),...rows]};
    let warning='';try{this.c.store.commit(data);committed=true;}catch(error){if(!error.atomicWriteCommitted)throw error;committed=true;warning='实例已导入，但目录持久化尚未确认，请保留备份';}
-   this.c.workspace.log('application',`已导入 ${rows.length} 个实例，备注和网站存储已恢复；请手动启动`);this.c.emit();return {ids:rows.map(r=>r.id),count:rows.length,warning};
+   this.c.workspace.log('application',`已导入 ${rows.length} 个实例，备注和网站存储已恢复；请手动启动`);this.c.emit();
+   // Persist the complete import first. Optional IP lookup never rolls back imported data.
+   const localeWarnings=[];let localeSynced=0;
+   for(const p of plans.filter(p=>p.syncLocale)){
+    try{await this.c.queue(p.id,async()=>{
+     const locale=await require('./exit-locale.cjs').lookup(this.c,p.node,{force:true});
+     if(this.c.disposing||this.c.runtimes.get(p.id)?.status==='running')throw Error('实例状态已变化');
+     const current=this.c.store.get(p.id);this.c.store.update(p.id,{environment:{...current.environment,language:locale.language,timezone:locale.timezone}});localeSynced++;
+    });}catch{const message='时区和语言未同步，已保留原设置，可在环境配置中重新同步';localeWarnings.push({id:p.id,name:p.name,message});this.c.workspace.log('instance',message,'WARN',p.id);}
+   }
+   this.c.emit();return {ids:rows.map(r=>r.id),count:rows.length,warning,localeSynced,localeWarnings};
   }finally{
    if(!committed)for(const id of installed){try{await session.fromPartition('persist:arena-core-'+id).clearStorageData();}catch{}fs.rmSync(this.cookieFile(id),{force:true});fs.rmSync(path.join(this.c.dir,'proxy-sources',id+'.json'),{force:true});/* Locked browser directories are cleaned as orphans at next startup. */}
    this.cancel(token);

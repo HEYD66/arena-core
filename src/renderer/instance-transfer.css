@@ -1,4 +1,9 @@
 .instance-note-preview{display:block;white-space:pre-line;overflow-wrap:anywhere;color:var(--muted);font-size:11px;max-height:3em;overflow:hidden;margin-top:5px;font-weight:400}
+.instance-name-line{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
+.instance-name-line b{min-width:0;flex:1}
+.instance-notes-btn{flex:none;white-space:nowrap;gap:4px}
+.instance-notes-btn svg{width:13px;height:13px}
+.transfer-warning-list{max-height:45vh;overflow:auto;padding-left:22px;line-height:1.7}
 #instanceNotes{width:100%;min-height:230px;resize:vertical;font:inherit;line-height:1.7;padding:12px;border:1px solid var(--line2);border-radius:8px;background:var(--panel);color:var(--text)}
 .transfer-choices{max-height:55vh;overflow:auto;padding-right:6px}
 .transfer-instance{border:1px solid var(--line2);border-radius:10px;padding:16px;margin-bottom:12px}

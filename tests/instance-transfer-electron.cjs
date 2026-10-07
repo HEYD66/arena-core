@@ -22,7 +22,9 @@ app.whenReady().then(async()=>{try{
   await c.runtimes.get(a.id).session.cookies.set({url,name:'httpOnlyLogin',value:'login-fixture',httpOnly:true,path:'/',expirationDate:Date.now()/1000+86400});
   await withCookies(c.runtimes.get(a.id).session,debug=>debug.sendCommand('Network.setCookies',{cookies:[{url:'https://partition.test',name:'partitioned',value:'chips-fixture',secure:true,httpOnly:true,sameSite:'None',partitionKey:{topLevelSite:'https://top.test',hasCrossSiteAncestor:true},expires:Date.now()/1000+86400}]}));
   assert.equal((await c.runtimes.get(b.id).session.cookies.get({})).length,0);assert.equal(await c.runtimes.get(b.id).view.webContents.executeJavaScript('localStorage.getItem("memo")'),null);
-  await ui(`showInstanceNotes(${JSON.stringify(a.id)});document.querySelector('#instanceNotes').value=${JSON.stringify(' 第一行备忘录\n待办：保留账号 <script>\n ')};document.querySelector('[data-transfer="save-notes"]').click()`);
+  await ui(`route('overview')`);await wait(()=>ui(`!!document.querySelector('.instance-name-line [data-id="${a.id}"]')`));
+  assert(await ui(`(()=>{const b=document.querySelector('.instance-name-line [data-id="${a.id}"]'),cell=b.closest('td').getBoundingClientRect(),r=b.getBoundingClientRect(),name=b.previousElementSibling.getBoundingClientRect();return r.x>=name.right&&r.right<=cell.right&&r.width>0})()`));
+  await ui(`document.querySelector('.instance-name-line [data-id="${a.id}"]').click();document.querySelector('#instanceNotes').value=${JSON.stringify(' 第一行备忘录\n待办：保留账号 <script>\n ')};document.querySelector('[data-transfer="save-notes"]').click()`);
   await wait(()=>c.store.get(a.id).notes?.includes('待办'));assert.equal(c.runtimes.get(a.id).status,'running');const text=c.store.get(a.id).notes;assert.equal(new (require('../src/main/store.cjs').Store)(dir).get(a.id).notes,text);
   await ui(`route('overview')`);await wait(()=>ui('!!document.querySelector(".instance-note-preview")'));assert((await ui('document.querySelector("#content").textContent')).includes('待办'));assert.equal(await ui('!!document.querySelector("#content script")'),false);
   fs.writeFileSync(path.join(root,'notes-ui.png'),(await w.webContents.capturePage()).toPNG());
@@ -44,18 +46,37 @@ app.whenReady().then(async()=>{try{
   assert((await ui('document.querySelector(".transfer-country").textContent')).includes('United States'));assert((await ui('document.querySelector(".transfer-notes").textContent')).includes('待办'));
   await ui(`document.querySelector('[data-transfer="import-commit"]').click()`);await wait(()=>ui('document.querySelector("#transferError").textContent.includes("选择")'));assert.equal(c.store.list().length,before);
   fs.writeFileSync(path.join(root,'import-ui.png'),(await w.webContents.capturePage()).toPNG());
-  await ui(`document.querySelector('[data-transfer-node="0"]').value='0';document.querySelector('[data-transfer-locale="0"]').checked=true;document.querySelector('[data-transfer="import-commit"]').click()`);await wait(()=>c.store.list().length===before+1);
+  await ui(`document.querySelector('[data-transfer-node="0"]').value='0';document.querySelector('[data-transfer-locale="0"]').checked=true;document.querySelector('[data-transfer="import-commit"]').click()`);await wait(()=>ui('!modal'));assert.equal(c.store.list().length,before+1);
   const imported=c.store.list().find(x=>x.name==='迁移实例');assert.notEqual(imported.id,source.id);assert.equal(imported.notes,source.notes);assert.equal(imported.autoStart,false);assert.equal(imported.network.mode,'mihomo');assert.equal(imported.environment.timezone,'America/Los_Angeles');assert.equal(imported.environment.language,'en-US');assert.equal(c.store.nodes(imported.id)[0].password,'new-proxy-secret');assert.equal(c.runtimes.get(imported.id)?.status,undefined);assert.equal(c.extensions.catalog.enabled(imported.id).length,0);
   assert(!fs.existsSync(path.join(dir,'Partitions','arena-core-'+imported.id,'Local Extension Settings')));
   assert(fs.existsSync(c.transfer.cookieFile(imported.id)));fs.writeFileSync(path.join(root,'imported-id.txt'),imported.id);await c.closeAll();console.log('PASS real import UI shows prior country, requires new proxy, syncs locale and preserves stopped imported instance');app.quit();return;
  }
+ if(phase==='import-fallback'){
+  const source=JSON.parse(fs.readFileSync(path.join(root,'source-result.json'))),before=c.store.list().length;
+  require('../src/main/diagnostics.cjs').TARGETS.ip=url+'geo-fail';
+  dialog.showOpenDialog=async()=>({canceled:false,filePaths:[path.join(root,'instances.facetbackup')]});
+  await ui(`route('overview');document.querySelector('[data-transfer="import"]').click()`);await wait(()=>ui('modal?.type==="instance-import-choices"&&!modal.busy'));
+  const original=await ui('transferDraft.instances[0].environment');
+  assert(!(await ui('document.querySelector("#modal").textContent')).includes('取消本次导入'));
+  await ui(`document.querySelector('[data-transfer-node="0"]').value='direct';document.querySelector('[data-transfer-locale="0"]').checked=true;document.querySelector('[data-transfer="import-commit"]').click()`);
+  await wait(()=>ui('modal?.type==="instance-import-result"'));
+  assert.equal(c.store.list().length,before+1);const imported=c.store.list().at(-1);
+  assert.equal(imported.notes,source.notes);assert.deepEqual(imported.environment,original);assert.equal(imported.network.mode,'direct');assert.equal(c.runtimes.get(imported.id)?.status,undefined);
+  assert.deepEqual(new (require('../src/main/store.cjs').Store)(dir).get(imported.id).environment,original);
+  assert((await ui('document.querySelector("#modal").textContent')).includes('已导入'));assert((await ui('document.querySelector(".transfer-warning-list").textContent')).includes('保留原设置'));
+  assert.equal(JSON.parse(fs.readFileSync(path.join(root,'fallback-query-state.json'))).importedAtProbe,true);
+  assert(fs.existsSync(c.transfer.cookieFile(imported.id)));fs.writeFileSync(path.join(root,'fallback-imported-id.txt'),imported.id);
+  fs.writeFileSync(path.join(root,'import-fallback-ui.png'),(await w.webContents.capturePage()).toPNG());
+  await c.closeAll();console.log('PASS actual HTTP 503 after import commit retains imported instance, original locale and notes, and shows nonblocking warning');app.quit();return;
+ }
  if(phase==='first-start'){
-  const imported=c.store.get(fs.readFileSync(path.join(root,'imported-id.txt'),'utf8'));
+  for(const marker of ['imported-id.txt','fallback-imported-id.txt']){const imported=c.store.get(fs.readFileSync(path.join(root,marker),'utf8'));
   await c.start(imported.id);await wait(()=>c.runtimes.get(imported.id).pageState.startsWith('已完成'));const wc=c.runtimes.get(imported.id).view.webContents;
   assert(!fs.existsSync(c.transfer.cookieFile(imported.id)));
   const data=await wc.executeJavaScript(`(async()=>({memo:localStorage.getItem('memo'),db:await new Promise((resolve,reject)=>{const r=indexedDB.open('backup-database');r.onsuccess=()=>{const db=r.result,q=db.transaction('records').objectStore('records').get('blob');q.onsuccess=async()=>{resolve(await q.result.text());db.close()};q.onerror=reject};r.onerror=reject}),cache:await (await (await caches.open('website-cache')).match('/cached-resource')).text(),opfs:navigator.storage.getDirectory?await (await (await (await navigator.storage.getDirectory()).getFileHandle('memo.txt')).getFile()).text():null,session:document.cookie.includes('session-fixture'),login:await (await fetch('/login')).text()}))()`);
   assert.equal(data.memo,'website-value');assert.equal(data.db,'binary-database-value');assert.equal(data.cache,'cached-website-value');assert.equal(data.opfs,'opfs-value');assert.equal(data.session,true);assert.equal(data.login,'authenticated');
   const cookies=await withCookies(c.runtimes.get(imported.id).session,async d=>(await d.sendCommand('Network.getAllCookies')).cookies);assert(cookies.some(c=>c.name==='partitioned'&&c.partitionKey.topLevelSite==='https://top.test'));
+  }
   await c.closeAll();console.log('PASS first start after process restart restores session/HttpOnly/partitioned cookies, login/IndexedDB/blob/CacheStorage/OPFS');app.quit();return;
  }
  if(phase==='restart'){
