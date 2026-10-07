@@ -10,7 +10,7 @@ const gridThumbCache=new Map();
 function gridResText(id){const m=gridMetrics[id];return m?`CPU ${window.facetPct?window.facetPct(m.cpu):Math.round(m.cpu)+'%'} · ${window.facetSize?window.facetSize(m.memoryMB):Math.round(m.memoryMB)+' MB'}`:'';}
 function gridResTitle(id){const m=gridMetrics[id];return m?`该实例占用：网页、弹窗、扩展页面共 ${m.processes} 个进程${m.coreMB?`，含 Mihomo 内核约 ${window.facetSize?.(m.coreMB)||Math.round(m.coreMB)+' MB'}`:''}。\n共用的 GPU 进程和扩展后台脚本无法区分实例，只计入顶部总数。`:'';}
 function gridRes(x){return x.status==='running'?`<span class="grid-res" data-res-id="${esc(x.id)}" title="${esc(gridResTitle(x.id))}">${esc(gridResText(x.id))}</span>`:'';}
-// 格子和放大框上的喇叭：点开音量条（volume.js）。
+// 格子和放大框上的喇叭：左键静音，右键调节音量（volume.js）。
 function gridMuteBtn(x){return volButton(x,'grid-vol');}
 const gridZoomIcon='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5 M20 9V4h-5 M4 15v5h5 M20 15v5h-5"></path></svg>';
 window.addEventListener('facet-metrics',e=>{gridMetrics=e.detail?.instances||{};if(view!=='grid')return;for(const el of document.querySelectorAll('.grid-res[data-res-id]')){const id=el.dataset.resId,t=gridResText(id);if(el.textContent!==t)el.textContent=t;el.title=gridResTitle(id);}});
