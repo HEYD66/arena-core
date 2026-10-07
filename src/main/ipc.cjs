@@ -77,6 +77,11 @@ function installIPC(window,controller){
     case 'diagnostic-history-clear':{if(typeof message.sourceId!=='string'||!message.sourceId)throw Error('请选择节点源');const cleared=controller.diagnostics.history.clear(message.sourceId);controller.diagnostics.history.flush();controller.emit();return {ok:true,value:{cleared}};}
     case 'diagnostic-cancel':controller.diagnostics.cancel();break;
 
+    case 'instance-notes':return {ok:true,value:await controller.queue(id,()=>{controller.store.update(id,{notes:message.notes});controller.emit();return {saved:true};})};
+    case 'instance-export':return {ok:true,value:await controller.queue('instance-transfer',async()=>{const ids=message.ids;for(const target of ids||[])controller.store.get(target);const picked=await dialog.showSaveDialog(window,{title:'导出实例备份',defaultPath:'Facet-instances.facetbackup',filters:[{name:'千面实例备份',extensions:['facetbackup']}]});if(picked.canceled||!picked.filePath)return {cancelled:true};if(message.restartConfirmed!==true)throw Error('请确认保存数据后重启应用完成备份');return controller.transfer.prepareExport(ids,picked.filePath,{queryExit:message.queryExit!==false});})};
+    case 'instance-import-inspect':return {ok:true,value:await controller.queue('instance-transfer',async()=>{const picked=await dialog.showOpenDialog(window,{title:'导入实例备份',properties:['openFile'],filters:[{name:'千面实例备份',extensions:['facetbackup']}]});if(picked.canceled)return {cancelled:true};return controller.transfer.inspect(picked.filePaths[0]);})};
+    case 'instance-import-cancel':return {ok:true,value:controller.transfer.cancel(message.token)};
+    case 'instance-import-commit':return {ok:true,value:await controller.queue('instance-transfer',()=>controller.queue('instance-create',()=>controller.transfer.import(message.token,message.selections)))};
     case 'instance-batch-options':return {ok:true,value:require('./instance-batch.cjs').options(controller)};
     case 'instance-batch-plan':return {ok:true,value:await require('./instance-batch.cjs').prepareLocale(controller,message)};
     case 'instance-batch-create':return {ok:true,value:await controller.queue('instance-create',()=>require('./instance-batch.cjs').execute(controller,message.token))};

@@ -17,18 +17,22 @@ let window,controller,quitting=false,closing=false;
 const customFrame=process.platform==='win32';
 if(locked){app.on('second-instance',()=>{if(window){if(window.isMinimized())window.restore();window.show();window.focus();}});
 app.whenReady().then(async()=>{
+ const transferStartup=await require('./instance-transfer.cjs').finalizePending(app.getPath('userData'));
+
  window=new BrowserWindow({width:1440,height:960,minWidth:960,minHeight:700,title:'千面 Facet',icon:appIcon,backgroundColor:'#f5f8f7',autoHideMenuBar:true,...(customFrame?{titleBarStyle:'hidden',titleBarOverlay:{color:'#e9eaee',symbolColor:'#171a21',height:32}}:{}),webPreferences:{preload:path.join(__dirname,'preload.cjs'),sandbox:true,nodeIntegration:false,contextIsolation:true,webSecurity:true,webviewTag:false,backgroundThrottling:false,partition:'persist:arena-core-controls'}});
  window.webContents.setWindowOpenHandler(()=>({action:'deny'}));window.webContents.on('will-navigate',event=>event.preventDefault());
  window.webContents.session.setPermissionRequestHandler((_wc,_permission,cb)=>cb(false));window.webContents.session.setPermissionCheckHandler(()=>false);
  const binary=resourcePath(app,'mihomo',process.platform==='win32'?'mihomo.exe':'mihomo');
  controller=new Controller(window,app.getPath('userData'),binary);
+ controller.transferOutcome=transferStartup?.outcome||null;
+ controller.transferRestart=()=>{app.relaunch();quitting=true;setTimeout(()=>app.quit(),300);};
  controller.updates=new (require('./updates.cjs').Updates)(app,{onChange:value=>{if(!window.isDestroyed())window.webContents.send('core:update',value);},prepareInstall:()=>controller.closeAll(),beginQuit:()=>{quitting=true;},cancelQuit:()=>{quitting=false;controller.disposing=false;}});
  require('./ipc.cjs').installIPC(window,controller);
  window.on('close',event=>{if(quitting)return;event.preventDefault();if(closing)return;closing=true;require('./exit-guard.cjs').confirmExit(controller,window,{showMessageBox:require('./exit-dialog.cjs').showExitDialog},app.getPath('userData')).then(go=>{if(!go){closing=false;return;}return controller.closeAll().then(()=>{quitting=true;app.quit();});}).catch(e=>{closing=false;dialog.showErrorBox('暂不能退出',e.message);});});
  app.on('before-quit',event=>{if(!quitting&&window&&!window.isDestroyed()){event.preventDefault();window.close();}});
  await window.loadFile(path.join(__dirname,'../renderer/index.html'),customFrame?{query:{frame:'custom'}}:undefined);
  controller.updates.scheduleStartupCheck();
- controller.startOnLaunch().catch(e=>controller.workspace.log('application','随应用启动任务失败：'+require('./workspace.cjs').redact(e.message),'ERROR'));
+ (transferStartup?Promise.allSettled(transferStartup.runningIds.filter(id=>controller.store.list().some(x=>x.id===id)).map(id=>controller.start(id))):controller.startOnLaunch()).catch(e=>controller.workspace.log('application','随应用启动任务失败：'+require('./workspace.cjs').redact(e.message),'ERROR'));
  window.once('closed',()=>controller.updates.dispose());
  console.log('千面 Facet '+require('./application-version.cjs').applicationVersion(app)+' ready; enabled instances start sequentially.');
 }).catch(e=>{dialog.showErrorBox('千面 Facet 启动失败',e.message);quitting=true;app.quit();});

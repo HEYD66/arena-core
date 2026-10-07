@@ -40,6 +40,10 @@ function orphans(dir, ids) {
   for (const e of entries(path.join(dir, "diagnostic-runtime")))
     if (e.isDirectory() && new RegExp("^" + ID + "$").test(e.name))
       out.push(path.join(dir, "diagnostic-runtime", e.name));
+  for (const e of entries(path.join(dir, 'instance-import-cookies'))) {
+    const m = e.isFile() && e.name.match(new RegExp('^(' + ID + ')\\.bin$'));
+    if (m && !keep.has(m[1])) out.push(path.join(dir, 'instance-import-cookies', e.name));
+  }
   return out;
 }
 // 启动时调用（此时还没有打开任何实例会话）。返回 { removed, failed }。
@@ -74,7 +78,7 @@ function cleanNodeSource(dir,id){
 }
 function journalResiduals(dir,id){
  const sources=nodeSourceFiles(dir,id);
- const targets=[path.join(dir,'Partitions','arena-core-'+id),path.join(dir,'core-runtime',id),...sources];
+ const targets=[path.join(dir,'Partitions','arena-core-'+id),path.join(dir,'core-runtime',id),path.join(dir,'instance-import-cookies',id+'.bin'),...sources];
  return targets.filter(target=>fs.existsSync(target));
 }
 module.exports = { orphans, cleanOrphans, cleanInstance, cleanNodeSource, nodeSourceFiles, journalResiduals };
