@@ -657,8 +657,11 @@ html[data-frame="custom"] .window-bar{display:flex;align-items:center;justify-co
 #batchError{overflow-wrap:anywhere}
 @media(max-width:620px){.batch-form-grid{grid-template-columns:1fr}}
 .modal .hint{font-size:12px;color:var(--muted);line-height:1.7}
-.toast{position:fixed;left:50%;bottom:40px;z-index:99;transform:translateX(-50%);display:flex;align-items:center;gap:10px;max-width:min(640px,85vw);padding:10px 16px;border:1px solid var(--line);border-radius:10px;background:var(--text);color:var(--panel);box-shadow:var(--shadow-lg);font-size:13px}
-.toast svg{color:inherit;opacity:.8}
+/* 原生网页视图会遮住 HTML 浮层。提示占独立布局行，网页和宫格按新边界继续实时显示。 */
+#notificationSlots{min-width:0}
+.toast{position:relative;display:flex;align-items:center;gap:10px;width:fit-content;max-width:min(640px,85vw);max-height:min(160px,20vh);overflow:auto;margin:6px auto;padding:10px 16px;border:1px solid var(--line);border-radius:10px;background:var(--text);color:var(--panel);box-shadow:var(--shadow-sm);font-size:13px}
+.toast span{min-width:0;overflow-wrap:anywhere}
+.toast svg{color:inherit;opacity:.8;flex-shrink:0}
 .toast[hidden]{display:none}
 
 .ip-dialog,.quick-dialog{padding:0;border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--text);box-shadow:var(--shadow-lg);max-height:calc(100vh - 40px)}
