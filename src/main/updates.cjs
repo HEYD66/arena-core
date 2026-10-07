@@ -2,6 +2,7 @@
 const {applicationVersion}=require('./application-version.cjs');
 const {redact}=require('./workspace.cjs');
 const {readSettings,writeSettings}=require('./exit-guard.cjs');
+const STARTUP_CHECK_DELAY=0;
 function updateError(error){
  if(['ERR_UPDATER_NO_PUBLISHED_VERSIONS','ERR_UPDATER_LATEST_VERSION_NOT_FOUND','ERR_UPDATER_CHANNEL_FILE_NOT_FOUND'].includes(error?.code))return '尚未发布可用的在线更新版本，请稍后再试。';
  if(error?.code==='ERR_UPDATER_CHECKSUM_MISMATCH')return '更新文件校验失败，请重新检查更新并下载。';
@@ -30,7 +31,7 @@ class Updates {
  snapshot(){return {...this.state};}
  set(patch){Object.assign(this.state,patch);this.onChange(this.snapshot());}
  fail(error){this.set({status:'error',error:updateError(error),reminderVersion:null});}
- scheduleStartupCheck(delay=10000){if(!this.state.supported||this.startupScheduled||this.disposed)return;this.startupScheduled=true;this.startupTimer=setTimeout(()=>{this.startupTimer=null;this.checkStartup().catch(()=>{});},delay);this.startupTimer.unref?.();}
+ scheduleStartupCheck(delay=STARTUP_CHECK_DELAY){if(!this.state.supported||this.startupScheduled||this.disposed)return;this.startupScheduled=true;this.startupTimer=setTimeout(()=>{this.startupTimer=null;this.checkStartup().catch(()=>{});},delay);this.startupTimer.unref?.();}
  async checkStartup(){if(!this.state.supported||this.startupChecked||this.disposed)return this.snapshot();this.startupChecked=true;if(this.state.status!=='idle')return this.snapshot();return this.check({automatic:true});}
  acknowledgeReminder(version){
   if(typeof version!=='string'||version!==this.state.reminderVersion)throw Error('更新提醒已失效');
@@ -50,4 +51,4 @@ class Updates {
   return this.snapshot();
  }
 }
-module.exports={Updates,updateError};
+module.exports={Updates,updateError,STARTUP_CHECK_DELAY};

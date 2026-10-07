@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),{EventEmitter}=require('node:events');
 const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
-const {Updates,updateError}=require('../src/main/updates.cjs');
+const {Updates,updateError,STARTUP_CHECK_DELAY}=require('../src/main/updates.cjs');
 function fixture(options={}){const updater=new EventEmitter();updater.checkForUpdates=async()=>updater.emit('update-available',{version:'0.2.2'});updater.downloadUpdate=async()=>updater.emit('update-downloaded',{version:'0.2.2'});const calls=[];updater.quitAndInstall=(...args)=>calls.push(['install',...args]);const app={isPackaged:true,getVersion:()=> '0.2.1',commandLine:{hasSwitch:()=>false}};const updates=new Updates(app,{updater,prepareInstall:async()=>calls.push(['cleanup']),beginQuit:()=>calls.push(['quit-ready']),cancelQuit:()=>calls.push(['restore']),...options});return {updates,updater,calls,app};}
 test('Check and download are manual; exiting cannot silently install or downgrade',async()=>{const {updates,updater,calls}=fixture();assert.equal(updates.snapshot().status,'idle');assert.equal(updater.autoDownload,false);assert.equal(updater.autoInstallOnAppQuit,false);assert.equal(updater.allowDowngrade,false);assert.equal(updater.allowPrerelease,false);await updates.check();assert.equal(updates.snapshot().status,'available');assert.equal(calls.length,0);await updates.download();assert.equal(updates.snapshot().status,'downloaded');assert.equal(calls.length,0);});
 test('Installation requires confirmation and successful process cleanup before quitting',async()=>{const {updates,calls}=fixture();await updates.check();await updates.download();await assert.rejects(updates.install(false),/确认/);assert.deepEqual(calls,[]);await updates.install(true);assert.deepEqual(calls,[['cleanup'],['quit-ready'],['install',true,true]]);});
@@ -37,4 +37,7 @@ test('Startup scheduler has a single timer and stops on disposal; prior manual c
  updates.scheduleStartupCheck(0);updates.scheduleStartupCheck(0);await new Promise(resolve=>setTimeout(resolve,30));assert.equal(checks,1);await updates.checkStartup();assert.equal(checks,1);
  const pending=fixture();let disposedChecks=0;pending.updater.checkForUpdates=async()=>disposedChecks++;pending.updates.scheduleStartupCheck(0);pending.updates.dispose();await new Promise(resolve=>setTimeout(resolve,30));assert.equal(disposedChecks,0);
  const manual=fixture();let manualChecks=0;manual.updater.checkForUpdates=async()=>{manualChecks++;manual.updater.emit('update-not-available',{});};await manual.updates.check();await manual.updates.checkStartup();assert.equal(manualChecks,1);
+});
+test('Default startup check is scheduled immediately without a ten-second buffer',()=>{
+ const {updates}=fixture();assert.equal(STARTUP_CHECK_DELAY,0);updates.scheduleStartupCheck();assert(updates.startupTimer._idleTimeout<=1);updates.dispose();
 });

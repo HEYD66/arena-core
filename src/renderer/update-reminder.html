@@ -1,0 +1,7 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'"><title>千面 Facet 有新版本</title><link rel="stylesheet" href="ui.css"><link rel="stylesheet" href="exit-dialog.css"><script src="update-reminder.js" defer></script></head>
+<body><main class="exit-card" role="dialog" aria-modal="true" aria-labelledby="reminderTitle">
+ <header class="exit-top"><span>千面 <span class="exit-brand">FACET</span></span><button class="icon-btn" type="button" data-update-reminder="later" aria-label="稍后提醒">×</button></header>
+ <section class="exit-content"><div class="exit-heading"><span class="exit-symbol" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 4v11 M7 10l5 5 5-5 M5 20h14"></path></svg></span><div><h1 id="reminderTitle">发现新版本</h1><p id="reminderVersions"></p></div></div><div class="exit-instances"><span class="exit-label">软件更新</span><p id="exit-names">查看更新后，可选择下载新版。</p></div><p id="exit-note">下载和安装由你确认。更新保留实例配置、登录资料和扩展。</p></section>
+ <footer class="exit-actions"><span class="exit-label">同一新版本只提醒一次</span><div><button class="btn subtle" type="button" data-update-reminder="later">稍后</button><button class="btn primary" type="button" data-update-reminder="view">查看更新</button></div></footer>
+</main></body></html>
