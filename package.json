@@ -45,6 +45,7 @@
     "test:instance-node": "node scripts/launch-electron.cjs tests/instance-node-electron.cjs",
     "test:updates": "node --test tests/updates.test.cjs",
     "test:instance-archive": "node --test tests/instance-archive.test.cjs",
+    "test:export-delete": "node --test tests/instance-export-cleanup.test.cjs && node tests/instance-export-delete-runner.cjs",
     "test:instance-transfer": "node tests/instance-transfer-runner.cjs",
     "release:publish": "node scripts/publish-release.cjs"
   },

@@ -3,6 +3,16 @@ const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypt
 const {app,session,BrowserWindow,safeStorage}=require('electron');
 const archive=require('./instance-archive.cjs'),{environment,safeURL,atomic,notes}=require('./store.cjs');
 const JOB='instance-export.pending',REPORT='instance-export-result.json';
+function writePending(dir,job){
+ const destination=path.join(dir,JOB),temp=destination+'.'+crypto.randomUUID()+'.tmp';
+ try{fs.writeFileSync(temp,safeStorage.encryptString(JSON.stringify(job)),{flag:'wx',mode:0o600});const fd=fs.openSync(temp,'r+');try{fs.fsyncSync(fd);}finally{fs.closeSync(fd);}fs.renameSync(temp,destination);}finally{fs.rmSync(temp,{force:true});}
+}
+async function backupDigest(file){const hash=crypto.createHash('sha256');for await(const chunk of fs.createReadStream(file))hash.update(chunk);return hash.digest('hex');}
+async function verifyExport(job){
+ const root=path.join(os.tmpdir(),'facet-export-check-'+crypto.randomUUID());
+ try{const checked=await archive.readArchive(job.destination,root);validateMetadata(checked.metadata);if(!require('node:util').isDeepStrictEqual(checked.metadata,job.metadata))throw Error('备份实例信息不一致');const digest=await backupDigest(job.destination);if(job.verifiedDigest&&digest!==job.verifiedDigest)throw Error('备份已变化，原实例保留');return digest;}
+ finally{fs.rmSync(root,{recursive:true,force:true});}
+}
 function profile(dir,id){if(!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(id))throw Error('实例 ID 无效');return path.join(dir,'Partitions','arena-core-'+id);}
 async function withCookies(ses,callback){
  const window=new BrowserWindow({show:false,webPreferences:{session:ses,sandbox:true,contextIsolation:true,nodeIntegration:false}});
@@ -45,10 +55,21 @@ async function finalizePending(dir){
  let job;const outcome={status:'failed',at:new Date().toISOString(),message:'实例备份未完成，原实例保留'};
  try{
   job=JSON.parse(safeStorage.decryptString(fs.readFileSync(file)));validateMetadata(job.metadata);
-  const result=await archive.writeArchive(job.destination,job.metadata,job.metadata.instances.map(row=>profile(dir,row.id)));
+  let result;
+  if(job.phase==='exported'){
+   if(!/^[a-f0-9]{64}$/.test(job.verifiedDigest||''))throw Error('缺少备份验证记录');
+   await verifyExport(job);result=job.exportResult;
+  }else{
+   result=await archive.writeArchive(job.destination,job.metadata,job.metadata.instances.map(row=>profile(dir,row.id)));
+   if(job.deleteAfterExport===true){job.verifiedDigest=await verifyExport(job);job.phase='exported';job.exportResult=result;writePending(dir,job);}
+  }
   Object.assign(outcome,{status:'success',message:'实例备份已导出',destination:job.destination,count:job.metadata.instances.length,...result});
+  if(job.deleteAfterExport===true){
+   try{outcome.deletion=require('./instance-export-cleanup.cjs').deleteExportedInstances(dir,job.metadata.instances,job.originalRows);const d=outcome.deletion;outcome.message=`备份已导出并校验，已删除 ${d.deleted}/${job.metadata.instances.length} 个原实例`+(d.deleteFailed?`；${d.deleteFailed} 个原实例保留`:'')+(d.cleanupPending?`；${d.cleanupPending} 个实例的数据清理待重试`:'');}
+   catch{outcome.message='备份已导出并校验，原实例删除未完成；请保留备份并手动处理';}
+  }
   fs.unlinkSync(file);
- }catch{outcome.message='实例备份失败，原实例保留；可再次导出。待处理任务已加密保留，重启应用会重试。';}
+ }catch{outcome.message=outcome.status==='success'?outcome.message+'；任务记录未清理，重启时会重新校验并重试。':'备份未完成或校验失败，本次未执行删除；现有实例保留，待处理任务已加密保留，重启应用会重试。';}
  atomic(path.join(dir,REPORT),outcome);return {outcome,runningIds:Array.isArray(job?.runningIds)?job.runningIds:[]};
 }
 class InstanceTransfer{
@@ -59,7 +80,7 @@ class InstanceTransfer{
   const ses=session.fromPartition('persist:arena-core-'+id);await withCookies(ses,async debug=>{const list=cookies.filter(c=>c.expires<=0||c.expires>Date.now()/1000).map(cookieDetails);for(let i=0;i<list.length;i+=200)await debug.sendCommand('Network.setCookies',{cookies:list.slice(i,i+200)});});await ses.cookies.flushStore();
  }
  consumeCookies(id){const file=this.cookieFile(id);if(fs.existsSync(file))fs.unlinkSync(file);}
- async prepareExport(ids,destination,{queryExit=true}={}){
+ async prepareExport(ids,destination,{queryExit=false,deleteAfterExport=false}={}){
   if(!Array.isArray(ids)||!ids.length||ids.length>1000||new Set(ids).size!==ids.length)throw Error('请选择 1–1000 个不同实例');
   const relative=path.relative(this.c.dir,path.resolve(destination));if(!relative||!relative.startsWith('..')&&!path.isAbsolute(relative))throw Error('请将备份保存到应用数据目录之外');
   if(!this.c.transferRestart)throw Error('当前运行入口不支持完整备份重启，请通过千面主程序启动');
@@ -78,8 +99,7 @@ class InstanceTransfer{
     instances.push({id,name:x.name,url:x.url,environment:x.environment,notes:x.notes||'',muted:x.muted===true,volume:x.volume??100,previousExit:previous.get(id),cookies});
    }
    const metadata={format:'facet-instance-backup',version:1,platform:process.platform,electron:process.versions.electron,app:require('./application-version.cjs').applicationVersion(app),createdAt:new Date().toISOString(),instances};
-   validateMetadata(metadata);const encrypted=safeStorage.encryptString(JSON.stringify({destination,metadata,runningIds}));
-   const pending=path.join(this.c.dir,JOB),temp=pending+'.tmp';fs.writeFileSync(temp,encrypted,{flag:'wx',mode:0o600});const fd=fs.openSync(temp,'r+');try{fs.fsyncSync(fd);}finally{fs.closeSync(fd);}fs.renameSync(temp,pending);
+   validateMetadata(metadata);writePending(this.c.dir,{destination,metadata,runningIds,deleteAfterExport:deleteAfterExport===true,originalRows:deleteAfterExport===true?ids.map(id=>structuredClone(this.c.store.get(id))):undefined});
    this.c.transferRestart();return {accepted:true,restarting:true};
   }catch(error){this.c.disposing=false;this.c.emit();throw error;}
  }

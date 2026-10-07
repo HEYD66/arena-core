@@ -33,7 +33,7 @@ app.whenReady().then(async()=>{try{
   const plugin=path.join(dir,'Partitions','arena-core-'+a.id,'Local Extension Settings','fixture');fs.mkdirSync(plugin,{recursive:true});fs.writeFileSync(path.join(plugin,'state'),'extension-test-value');
   c.store.saveNodes(a.id,[{name:'Source proxy',type:'http',server:'127.0.0.1',port:Number(new URL(url).port),username:'source-user',password:'source-proxy-secret'}],null);c.store.update(a.id,{network:{mode:'mihomo',nodeName:'Source proxy'}});await c.stop(a.id);await c.start(a.id);await wait(()=>c.runtimes.get(a.id).pageState.startsWith('已完成'));require('../src/main/diagnostics.cjs').TARGETS.ip=url+'geo';
   c.transferRestart=()=>{setTimeout(()=>app.quit(),500);};dialog.showSaveDialog=async()=>({canceled:false,filePath:path.join(root,'instances.facetbackup')});
-  await ui(`showExport([${JSON.stringify(a.id)}]);document.querySelector('#transferRestart').checked=true;document.querySelector('[data-transfer="export-commit"]').click()`);
+  await ui(`showExport([${JSON.stringify(a.id)}]);document.querySelector('#transferQueryExit').checked=true;document.querySelector('#transferRestart').checked=true;document.querySelector('[data-transfer="export-commit"]').click()`);
   await wait(()=>fs.existsSync(path.join(dir,'instance-export.pending')));const pending=fs.readFileSync(path.join(dir,'instance-export.pending'));assert(!pending.includes(Buffer.from('session-fixture')));console.log('PASS actual notes UI, isolation, session/HttpOnly/partitioned cookies and encrypted pending export');return;
  }
  if(phase==='import'){

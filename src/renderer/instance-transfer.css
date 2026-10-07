@@ -4,6 +4,8 @@
 .instance-notes-btn{flex:none;white-space:nowrap;gap:4px}
 .instance-notes-btn svg{width:13px;height:13px}
 .transfer-warning-list{max-height:45vh;overflow:auto;padding-left:22px;line-height:1.7}
+.transfer-export-option{display:flex;align-items:flex-start;gap:8px;margin:12px 0;line-height:1.6}
+.transfer-export-option input{flex:none;margin:4px 0 0}
 #instanceNotes{width:100%;min-height:230px;resize:vertical;font:inherit;line-height:1.7;padding:12px;border:1px solid var(--line2);border-radius:8px;background:var(--panel);color:var(--text)}
 .transfer-choices{max-height:55vh;overflow:auto;padding-right:6px}
 .transfer-instance{border:1px solid var(--line2);border-radius:10px;padding:16px;margin-bottom:12px}

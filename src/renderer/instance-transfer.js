@@ -11,7 +11,7 @@ function showInstanceNotes(id){
  if(transferModal('instance-notes',x.name+' · 备忘录',`<p class="actions-note">自由记录此实例的用途、待办和提醒。保存立即生效，不会停止实例；导出备份时一起保留。</p><label class="field"><span>实例备注</span><textarea id="instanceNotes" rows="12" maxlength="10000" placeholder="写下这个实例的备忘录…">${esc(x.notes||'')}</textarea></label><p class="actions-note" id="notesCount">${(x.notes||'').length} / 10000</p><div class="modal-actions"><button class="btn subtle" data-action="modal-close">取消</button><button class="btn primary" data-transfer="save-notes">保存备注</button></div>`))modal.id=id;
 }
 function showExport(ids){
- if(transferModal('instance-export','导出实例备份',`<p>导出 ${ids.length} 个实例，包含备注、环境配置、Cookie 和网站持久存储。</p><p class="actions-note">不导出插件程序和启用绑定，不带原代理凭据。目标设备导入时需重新选择代理。两端须使用相同系统和浏览器版本。</p><p class="guide">备份文件包含 Cookie 和登录资料，没有密码保护，请妥善保存并仅导入可信文件。</p><label><input id="transferQueryExit" type="checkbox" checked> 导出前检测出口国家；检测失败使用历史记录或标为未知</label><p class="guide">完整备份需要保存数据并重启应用一次。导出后会恢复之前运行的实例。网页内未提交内容不会保存，请先处理。</p><label><input id="transferRestart" type="checkbox"> 我已保存网页内容，同意重启应用完成备份</label><div class="modal-actions"><button class="btn subtle" data-action="modal-close">取消</button><button class="btn primary" data-transfer="export-commit">选择保存位置并导出</button></div>`))modal.ids=ids;
+ if(transferModal('instance-export','导出实例备份',`<p>导出 ${ids.length} 个实例，包含备注、环境配置、Cookie 和网站持久存储。</p><p class="actions-note">不导出插件程序和启用绑定，不带原代理凭据。目标设备导入时需重新选择代理。两端须使用相同系统和浏览器版本。</p><p class="guide">备份文件包含 Cookie 和登录资料，没有密码保护，请妥善保存并仅导入可信文件。</p><label class="transfer-export-option"><input id="transferQueryExit" type="checkbox"> 重新检测出口国家（默认使用已有记录，无记录标为未知）</label><p class="guide">完整备份需要保存数据并重启应用一次。导出后会恢复之前运行的实例。网页内未提交内容不会保存，请先处理。</p><label class="guide transfer-export-option"><input id="transferDeleteAfterExport" type="checkbox"> 导出成功并校验后删除这 ${ids.length} 个原实例及其数据（其他实例保留；可用备份重新导入）</label><label class="transfer-export-option"><input id="transferRestart" type="checkbox"> 我已保存网页内容，同意重启应用完成备份</label><div class="modal-actions"><button class="btn subtle" data-action="modal-close">取消</button><button class="btn primary" data-transfer="export-commit">选择保存位置并导出</button></div>`))modal.ids=ids;
 }
 function showImportFile(){return transferModal('instance-import-file','导入实例备份',`<p class="actions-note">选择备份后会显示原出口国家，并让你为每个实例重新选择代理；导入为新实例，保留已有数据。</p><p class="guide">备份文件包含登录资料，没有密码保护。请妥善保存并仅导入可信文件。</p><div class="modal-actions"><button class="btn subtle" data-action="modal-close">取消</button><button class="btn primary" data-transfer="inspect">选择备份文件</button></div>`);}
 function showImportChoices(draft){
@@ -37,7 +37,7 @@ document.addEventListener('click',async event=>{
   if(action==='save-notes'){await request('instance-notes',{id:target.id,notes:$('#instanceNotes').value});closeModal(true);render(true);toast('备注已保存');}
   else if(action==='export-commit'){
    if(!$('#transferRestart').checked)throw Error('请先保存网页内容，并勾选重启确认');
-   const value=await request('instance-export',{ids:target.ids,restartConfirmed:true,queryExit:$('#transferQueryExit').checked});
+   const value=await request('instance-export',{ids:target.ids,restartConfirmed:true,queryExit:$('#transferQueryExit').checked,deleteAfterExport:$('#transferDeleteAfterExport').checked});
    if(value?.accepted){toast('备份任务已准备，重启后显示导出结果');}else if(value?.cancelled)toast('已取消导出');
   }else if(action==='inspect'){
    const value=await request('instance-import-inspect');if(!value?.cancelled)showImportChoices(value);else closeModal(true);
