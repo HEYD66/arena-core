@@ -10,6 +10,11 @@ class RuntimeOutput {
  flush(){clearTimeout(this.timer);this.timer=null;try{atomic(this.file,{rows:this.rows,warning:this.warning},{backup:false});}catch{this.warning='运行输出写盘失败';}}
  close(){for(const [channel,stream]of this.streams){const tail=stream.pending+stream.decoder.end();if(tail.trim())this.record(channel,tail);}this.streams.clear();this.flush();}
 }
+function writeRuntimeEvent(row){
+ const scope={application:'应用',instance:'实例',subscription:'代理管理',diagnostic:'检测'}[row.scope]||'系统';
+ const text=safeLine('['+scope+(row.instanceId?' '+String(row.instanceId).slice(0,8):'')+'] ['+row.level+'] '+row.text);
+ if(row.level==='WARN'||row.level==='ERROR')console.error(text);else console.log(text);
+}
 function installRuntimeOutput(app){
  const output=new RuntimeOutput(path.join(app.getPath('userData'),'runtime-output.json'));
  process.env.FACET_RUNTIME_OUTPUT=output.file;output.flush();
@@ -19,4 +24,4 @@ function installRuntimeOutput(app){
  return output;
 }
 function readRuntimeOutput(file=process.env.FACET_RUNTIME_OUTPUT){if(!file)return {rows:[],warning:'当前启动方式未接入运行输出。'};try{if(fs.statSync(file).size>4*1024*1024)throw Error('too large');const data=JSON.parse(fs.readFileSync(file,'utf8'));return {rows:Array.isArray(data.rows)?data.rows.slice(-1000).map(r=>({time:String(r.time||''),channel:r.channel==='stderr'?'stderr':'stdout',text:safeLine(r.text||'')})):[],warning:String(data.warning||'')};}catch(e){return {rows:[],warning:e.code==='ENOENT'?'等待运行输出…':'运行输出暂时不可读取'};}}
-module.exports={RuntimeOutput,readRuntimeOutput,safeLine,installRuntimeOutput};
+module.exports={RuntimeOutput,readRuntimeOutput,safeLine,installRuntimeOutput,writeRuntimeEvent};

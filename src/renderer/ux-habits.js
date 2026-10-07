@@ -17,7 +17,7 @@ function restoreUiState(){
  if(Array.isArray(saved.localOpen)){localOpen.clear();saved.localOpen.filter(id=>ids.has(id)).forEach(id=>localOpen.add(id));}
  if(ids.has(saved.activeId))activeId=saved.activeId;
  let next=saved.view==='runtime-output'?'global-logs':uiOneOf(saved.view,uiKnownViews,'browser');
- if(uiInstanceViews.includes(next)&&!localOpen.has(activeId)){const first=state.instances.find(x=>localOpen.has(x.id));if(first)activeId=first.id;else next='overview';}
+ if(uiInstanceViews.includes(next)&&!ids.has(activeId))next='overview';
  view=next;
  const f=saved.filters&&typeof saved.filters==='object'?saved.filters:{};
  globalLogTab=saved.view==='runtime-output'?'debug':uiOneOf(f.globalLogTab,['operations','debug'],'operations');
@@ -72,7 +72,7 @@ if(typeof saveEnvironment==='function'){const baseSaveEnvironment=saveEnvironmen
 const uiShortcuts=[['Ctrl + L','定位到当前实例的地址栏'],['Ctrl + Enter','在「环境配置」页保存配置'],['Ctrl + Tab / Ctrl + Shift + Tab','切换到下一个 / 上一个实例标签'],['Ctrl + 1 … 9','切换到第 N 个标签（9 为最后一个）'],['Ctrl + T','新建实例'],['← / →、Home / End','在实例标签栏内移动焦点'],['Esc','关闭当前对话框']];
 function shortcutListHTML(){return `<section class="settings-card full"><h3>键盘快捷键</h3><div class="inner"><dl class="shortcut-list">${uiShortcuts.map(([k,d])=>`<div><dt><kbd>${esc(k)}</kbd></dt><dd>${esc(d)}</dd></div>`).join('')}</dl><p class="actions-note">快捷键只在软件界面内生效；焦点在网页内容里时由网页自己处理。不提供 Ctrl + W，关闭标签会停止实例，请用标签上的 ×。</p></div></section>`;}
 function uiOpenTabs(){return [...document.querySelectorAll('#tabs .tab-select')];}
-async function uiGoToTab(index){const tabs=state.instances.filter(i=>localOpen.has(i.id));if(!tabs.length)return;const target=tabs[(index+tabs.length)%tabs.length];await route('browser',target.id);$('#tabs').querySelector(`[data-tab="${CSS.escape(target.id)}"]`)?.focus({preventScroll:true});}
+async function uiGoToTab(index){const tabs=runningTabs();if(!tabs.length)return;const target=tabs[(index+tabs.length)%tabs.length];await route('browser',target.id);$('#tabs').querySelector(`[data-tab="${CSS.escape(target.id)}"]`)?.focus({preventScroll:true});}
 async function uiFocusAddress(){if(!current()){toast('请先打开或新建一个实例');return;}if(view!=='browser')await route('browser');const field=$('#addressField');if(!field)return;if(field.disabled){toast('当前实例未运行，启动后才能输入网址');$('#sidebar [data-action="toggle"]')?.focus();return;}field.focus();field.select();}
 function uiBlocked(){return !!modal||!!document.querySelector('dialog[open]');}
 document.addEventListener('keydown',async e=>{
@@ -80,9 +80,9 @@ document.addEventListener('keydown',async e=>{
  const tab=e.target.closest?.('#tabs .tab-select');
  if(tab&&!e.ctrlKey&&!e.shiftKey&&['ArrowLeft','ArrowRight','Home','End'].includes(e.key)){const list=uiOpenTabs(),i=list.indexOf(tab);const next=e.key==='Home'?0:e.key==='End'?list.length-1:(i+(e.key==='ArrowRight'?1:-1)+list.length)%list.length;e.preventDefault();list[next]?.focus();list[next]?.scrollIntoView({block:'nearest',inline:'nearest'});return;}
  if(!e.ctrlKey)return;const key=e.key.length===1?e.key.toLowerCase():e.key;
- if(key==='Tab'){e.preventDefault();const tabs=state.instances.filter(i=>localOpen.has(i.id));const at=tabs.findIndex(i=>i.id===activeId&&!globalViews.includes(view));await uiGoToTab(at<0?(e.shiftKey?-1:0):at+(e.shiftKey?-1:1));return;}
+ if(key==='Tab'){e.preventDefault();const tabs=runningTabs();const at=tabs.findIndex(i=>i.id===activeId&&!globalViews.includes(view));await uiGoToTab(at<0?(e.shiftKey?-1:0):at+(e.shiftKey?-1:1));return;}
  if(e.shiftKey)return;
- if(/^[1-9]$/.test(key)){e.preventDefault();const count=state.instances.filter(i=>localOpen.has(i.id)).length;await uiGoToTab(key==='9'?count-1:Math.min(Number(key)-1,count-1));return;}
+ if(/^[1-9]$/.test(key)){e.preventDefault();const count=runningTabs().length;await uiGoToTab(key==='9'?count-1:Math.min(Number(key)-1,count-1));return;}
  if(key==='l'){e.preventDefault();await uiFocusAddress();return;}
  if(key==='t'){e.preventDefault();openModal('new');return;}
  if(key==='Enter'&&view==='environment'){const save=$('[data-ux="save-environment"]');if(!save)return;e.preventDefault();if(save.disabled)toast(savingEnvironments.has(activeId)?'正在保存，请稍候':'没有需要保存的修改');else save.click();}
