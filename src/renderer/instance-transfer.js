@@ -11,8 +11,10 @@ function showInstanceNotes(id){
  if(transferModal('instance-notes',x.name+' · 备忘录',`<p class="actions-note">自由记录此实例的用途、待办和提醒。保存立即生效，不会停止实例；导出备份时一起保留。</p><label class="field"><span>实例备注</span><textarea id="instanceNotes" rows="12" maxlength="10000" placeholder="写下这个实例的备忘录…">${esc(x.notes||'')}</textarea></label><p class="actions-note" id="notesCount">${(x.notes||'').length} / 10000</p><div class="modal-actions"><button class="btn subtle" data-action="modal-close">取消</button><button class="btn primary" data-transfer="save-notes">保存备注</button></div>`))modal.id=id;
 }
 function showExport(ids){
- if(transferModal('instance-export','导出实例备份',`<p>导出 ${ids.length} 个实例，包含备注、环境配置、Cookie 和网站持久存储。</p><p class="actions-note">不导出插件程序和启用绑定，不带原代理凭据。目标设备导入时需重新选择代理。两端须使用相同系统和浏览器版本。</p><p class="guide">备份文件包含 Cookie 和登录资料，没有密码保护，请妥善保存并仅导入可信文件。</p><label class="transfer-export-option"><input id="transferQueryExit" type="checkbox"> 重新检测出口国家（默认使用已有记录，无记录标为未知）</label><p class="guide">完整备份需要保存数据并重启应用一次。导出后会恢复之前运行的实例。网页内未提交内容不会保存，请先处理。</p><label class="guide transfer-export-option"><input id="transferDeleteAfterExport" type="checkbox"> 导出成功并校验后删除这 ${ids.length} 个原实例及其数据（其他实例保留；可用备份重新导入）</label><label class="transfer-export-option"><input id="transferRestart" type="checkbox"> 我已保存网页内容，同意重启应用完成备份</label><div class="modal-actions"><button class="btn subtle" data-action="modal-close">取消</button><button class="btn primary" data-transfer="export-commit">选择保存位置并导出</button></div>`))modal.ids=ids;
+ const names=ids.map(id=>state.instances.find(x=>x.id===id)?.name||'实例');
+ if(transferModal('instance-export','导出实例',`<section class="transfer-export-summary"><strong>已选择 ${ids.length} 个实例</strong><p>${names.map(esc).join('、')}</p></section><p class="transfer-export-description">包含登录状态、网站数据、环境配置和备注。</p><label class="transfer-export-option"><input id="transferDeleteAfterExport" type="checkbox"><span>导出成功后删除原实例</span></label><p class="actions-note">导出时暂时停止所选实例，其他实例继续运行。请先保存网页内未提交内容。</p><p class="actions-note transfer-security">备份含登录资料，请妥善保管。</p><details class="transfer-export-details"><summary>详细说明</summary><p>备份写完并校验通过后才执行删除。未勾选删除时，完成后恢复原运行状态。导出失败保留原实例，并尝试恢复运行；删除失败会说明保留或待清理状态。</p><p>不导出插件、原代理凭据、浏览器保存的密码或未提交内容。出口国家使用已有记录，不重新联网检测。导入时可重新选择代理。</p><p>备份没有密码保护，仅导入可信文件。两端需使用相同系统和浏览器版本，网站可能要求重新验证登录。</p></details><p id="transferProgressLine" class="transfer-progress" role="status" aria-live="polite" hidden></p><div class="modal-actions"><button class="btn subtle" data-action="modal-close">取消</button><button class="btn primary" data-transfer="export-commit">选择位置并导出</button></div>`))modal.ids=ids;
 }
+function showExportResult(value){transferModal('instance-export-result','导出完成',`<p>${esc(value.message)}</p><p class="transfer-result-path">${esc(value.destination)}</p><div class="modal-actions"><button class="btn" data-transfer="reveal-export">打开文件位置</button><button class="btn primary" data-action="modal-close">完成</button></div>`);}
 function showImportFile(){return transferModal('instance-import-file','导入实例备份',`<p class="actions-note">选择备份后会显示原出口国家，并让你为每个实例重新选择代理；导入为新实例，保留已有数据。</p><p class="guide">备份文件包含登录资料，没有密码保护。请妥善保存并仅导入可信文件。</p><div class="modal-actions"><button class="btn subtle" data-action="modal-close">取消</button><button class="btn primary" data-transfer="inspect">选择备份文件</button></div>`);}
 function showImportChoices(draft){
  modal.type='instance-import-choices';transferDraft=draft;
@@ -30,15 +32,16 @@ document.addEventListener('click',async event=>{
  if(action==='export'){showExport([b.dataset.id]);return;}
  if(action==='export-many'){showExport([...selected]);return;}
  if(action==='import'){if(showImportFile())$('#modal [data-transfer="inspect"]').click();return;}
+ if(action==='reveal-export'){await request('instance-export-reveal');return;}
  if(!modal||modal.busy)return;const target=modal;target.busy=true;
  const inputs=[...$('#modal').querySelectorAll('button,input,select,textarea')];inputs.forEach(x=>x.disabled=true);
  const label=b.textContent;b.textContent='处理中…';$('#transferError').textContent='';
  try{
   if(action==='save-notes'){await request('instance-notes',{id:target.id,notes:$('#instanceNotes').value});closeModal(true);render(true);toast('备注已保存');}
   else if(action==='export-commit'){
-   if(!$('#transferRestart').checked)throw Error('请先保存网页内容，并勾选重启确认');
-   const value=await request('instance-export',{ids:target.ids,restartConfirmed:true,queryExit:$('#transferQueryExit').checked,deleteAfterExport:$('#transferDeleteAfterExport').checked});
-   if(value?.accepted){toast('备份任务已准备，重启后显示导出结果');}else if(value?.cancelled)toast('已取消导出');
+   $('#transferProgressLine').hidden=false;$('#transferProgressLine').textContent='正在选择保存位置…';
+   const value=await request('instance-export',{ids:target.ids,deleteAfterExport:$('#transferDeleteAfterExport').checked});
+   if(value?.status==='success'){closeModal(true);await route('overview');render(true);showExportResult(value);}else if(value?.cancelled){$('#transferProgressLine').hidden=true;toast('已取消导出');}
   }else if(action==='inspect'){
    const value=await request('instance-import-inspect');if(!value?.cancelled)showImportChoices(value);else closeModal(true);
   }else if(action==='cancel-import'){await cancelTransferDraft();closeModal(true);}
@@ -47,7 +50,7 @@ document.addEventListener('click',async event=>{
    const value=await request('instance-import-commit',{token:draft.token,selections});transferDraft=null;closeModal(true);await route('overview');render(true);toast(`已导入 ${value.count} 个实例，备注已恢复；请手动启动`);if(value.warning||value.localeWarnings?.length)transferModal('instance-import-result','实例已导入',`<p>已导入 ${value.count} 个实例，Cookie、网站存储和备注已保留。</p>${value.warning?`<p class="guide">${esc(value.warning)}</p>`:''}<ul class="transfer-warning-list">${(value.localeWarnings||[]).map(x=>`<li><b>${esc(x.name)}</b>：${esc(x.message)}</li>`).join('')}</ul><div class="modal-actions"><button class="btn primary" data-action="modal-close">完成</button></div>`);
   }
  }catch(error){if(modal===target)$('#transferError').textContent=error.message;else toast(error.message);}
- finally{target.busy=false;if(modal===target){inputs.filter(x=>x.isConnected).forEach(x=>x.disabled=false);if(b.isConnected)b.textContent=label;}}
+ finally{target.busy=false;if(modal===target){inputs.filter(x=>x.isConnected).forEach(x=>x.disabled=false);if(b.isConnected)b.textContent=label;if($('#transferProgressLine')&&!state.transferProgress?.running)$('#transferProgressLine').hidden=true;}}
 });
 function showTransferOutcome(){const value=state.transferOutcome;if(!value||seenTransferOutcome===value.at)return;seenTransferOutcome=value.at;toast(value.message+(value.status==='success'?'：'+value.destination:''));}
-const transferRender=render;render=function(...args){const result=transferRender(...args);showTransferOutcome();return result;};
+const transferRender=render;render=function(...args){const result=transferRender(...args);showTransferOutcome();const progress=state.transferProgress,line=$('#transferProgressLine');if(line&&progress?.running){line.hidden=false;line.textContent=progress.phase+' · '+progress.done+' / '+progress.total;}return result;};

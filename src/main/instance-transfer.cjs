@@ -80,28 +80,10 @@ class InstanceTransfer{
   const ses=session.fromPartition('persist:arena-core-'+id);await withCookies(ses,async debug=>{const list=cookies.filter(c=>c.expires<=0||c.expires>Date.now()/1000).map(cookieDetails);for(let i=0;i<list.length;i+=200)await debug.sendCommand('Network.setCookies',{cookies:list.slice(i,i+200)});});await ses.cookies.flushStore();
  }
  consumeCookies(id){const file=this.cookieFile(id);if(fs.existsSync(file))fs.unlinkSync(file);}
- async prepareExport(ids,destination,{queryExit=false,deleteAfterExport=false}={}){
-  if(!Array.isArray(ids)||!ids.length||ids.length>1000||new Set(ids).size!==ids.length)throw Error('请选择 1–1000 个不同实例');
-  const relative=path.relative(this.c.dir,path.resolve(destination));if(!relative||!relative.startsWith('..')&&!path.isAbsolute(relative))throw Error('请将备份保存到应用数据目录之外');
-  if(!this.c.transferRestart)throw Error('当前运行入口不支持完整备份重启，请通过千面主程序启动');
-  if(!safeStorage.isEncryptionAvailable())throw Error('系统加密不可用，未写入包含登录资料的临时任务');
-  if(fs.existsSync(path.join(this.c.dir,JOB)))throw Error('存在待完成备份，请先重启应用完成或重试');
-  const previous=new Map(),signatures=new Map();for(const id of ids){const x=this.c.store.get(id);signatures.set(id,JSON.stringify([x.network,this.c.store.nodes(id)]));let value=previousExit(this.c,id);
-   if(queryExit){try{const node=x.network.mode==='mihomo'?this.c.store.nodes(id).find(n=>n.name===x.network.nodeName):null;if(x.network.mode==='mihomo'&&!node)throw Error('缺少节点');value=await require('./exit-locale.cjs').lookup(this.c,node,{force:true});}catch(error){this.c.workspace.log('instance','导出前出口国家查询失败，使用历史检测信息或标为未知：'+require('./workspace.cjs').redact(error.message),'WARN',id);}}
-   previous.set(id,value);
-  }
-  for(const id of ids){const x=this.c.store.get(id);if(signatures.get(id)!==JSON.stringify([x.network,this.c.store.nodes(id)]))throw Error('出口配置发生变化，请重新导出');}
-  const runningIds=[...this.c.runtimes].filter(([,r])=>r.status==='running').map(([id])=>id);
-  try{
-   await this.c.closeAll();const instances=[];
-   for(const id of ids){const x=this.c.store.get(id),ses=session.fromPartition('persist:arena-core-'+id);
-    const cookies=await withCookies(ses,async debug=>(await debug.sendCommand('Network.getAllCookies')).cookies);cookies.forEach(cookieDetails);await ses.cookies.flushStore();ses.flushStorageData();await ses.closeAllConnections();
-    instances.push({id,name:x.name,url:x.url,environment:x.environment,notes:x.notes||'',muted:x.muted===true,volume:x.volume??100,previousExit:previous.get(id),cookies});
-   }
-   const metadata={format:'facet-instance-backup',version:1,platform:process.platform,electron:process.versions.electron,app:require('./application-version.cjs').applicationVersion(app),createdAt:new Date().toISOString(),instances};
-   validateMetadata(metadata);writePending(this.c.dir,{destination,metadata,runningIds,deleteAfterExport:deleteAfterExport===true,originalRows:deleteAfterExport===true?ids.map(id=>structuredClone(this.c.store.get(id))):undefined});
-   this.c.transferRestart();return {accepted:true,restarting:true};
-  }catch(error){this.c.disposing=false;this.c.emit();throw error;}
+ async prepareExport(ids,destination,options={}){
+  if(this.exportTask)throw Error('已有导出任务正在进行');
+  const task=require('./instance-live-export.cjs').exportSelected(this,ids,destination,options);this.exportTask=task;
+  try{return await task;}finally{if(this.exportTask===task)this.exportTask=null;}
  }
  async inspect(file){
   if(this.drafts.size>=3)throw Error('请关闭已有导入窗口后再试');
@@ -129,7 +111,7 @@ class InstanceTransfer{
   if(this.c.disposing)throw Error('应用正在退出');
   const installed=[];let committed=false;
   try{
-   for(const p of plans){const target=profile(this.c.dir,p.id),source=path.join(draft.unpacked,'profiles',String(p.index));if(fs.existsSync(target))throw Error('实例目录冲突');fs.mkdirSync(target,{recursive:true});installed.push(p.id);if(fs.existsSync(source))fs.cpSync(source,target,{recursive:true,errorOnExist:true,force:false});
+   for(const p of plans){const target=profile(this.c.dir,p.id),source=path.join(draft.unpacked,'profiles',String(p.index));if(fs.existsSync(target))throw Error('实例目录冲突');fs.mkdirSync(target,{recursive:true});installed.push(p.id);if(fs.existsSync(source)){require("./instance-live-export.cjs").checkCachePath(target,archive.files(source));fs.cpSync(source,target,{recursive:true,errorOnExist:true,force:false});}
     const ses=session.fromPartition('persist:arena-core-'+p.id);
     await withCookies(ses,async debug=>{const list=p.cookies.filter(c=>c.expires<=0||c.expires>Date.now()/1000).map(cookieDetails);for(let i=0;i<list.length;i+=200)await debug.sendCommand('Network.setCookies',{cookies:list.slice(i,i+200)});
      const restored=(await debug.sendCommand('Network.getAllCookies')).cookies;if(restored.length!==list.length)throw Error('Cookie 恢复数量不一致，导入已取消');});

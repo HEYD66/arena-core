@@ -25,7 +25,6 @@ app.whenReady().then(async()=>{
  const binary=resourcePath(app,'mihomo',process.platform==='win32'?'mihomo.exe':'mihomo');
  controller=new Controller(window,app.getPath('userData'),binary);
  controller.transferOutcome=transferStartup?.outcome||null;
- controller.transferRestart=()=>{app.relaunch();quitting=true;setTimeout(()=>app.quit(),300);};
  controller.updates=new (require('./updates.cjs').Updates)(app,{onChange:value=>{if(!window.isDestroyed())window.webContents.send('core:update',value);},prepareInstall:()=>controller.closeAll(),beginQuit:()=>{quitting=true;},cancelQuit:()=>{quitting=false;controller.disposing=false;}});
  require('./ipc.cjs').installIPC(window,controller);
  window.on('close',event=>{if(quitting)return;event.preventDefault();if(closing)return;closing=true;require('./exit-guard.cjs').confirmExit(controller,window,{showMessageBox:require('./exit-dialog.cjs').showExitDialog},app.getPath('userData')).then(go=>{if(!go){closing=false;return;}return controller.closeAll().then(()=>{quitting=true;app.quit();});}).catch(e=>{closing=false;dialog.showErrorBox('暂不能退出',e.message);});});

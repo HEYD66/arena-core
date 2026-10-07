@@ -18,6 +18,7 @@ function installIPC(window,controller){
  ipcMain.handle('core:request',async(event,message)=>{
   try{if(window.isDestroyed()||controller.disposing)return {ok:false,error:'应用正在关闭'};const controls=window.webContents;if(!controls||controls.isDestroyed())return {ok:false,error:'控制窗口已关闭'};if(event.sender!==controls||event.senderFrame!==controls.mainFrame)throw Error('拒绝非控制界面调用');
   if(!message||typeof message.action!=='string')throw Error('请求无效');const {action,id}=message;
+  const exporting=controller.transfer.progress;if(exporting?.running){const mutations=['start','stop','rename','settings','instance-notes','instance-autostart','delete','remove','import','import-subscription','refresh-subscription','library-assign','instance-node-select','navigate','back','forward','reload','audio-volume','audio-mute','environment-timezone'];if(exporting.ids.includes(id)&&mutations.includes(action)||action.startsWith('extension-')&&action!=='extension-reveal'||['batch-start','batch-stop','batch-delete','library-assign-many'].includes(action))throw Error('所选实例正在导出，请等待完成');}
    switch(action){
     case 'library-proxy-save':case 'library-proxy-test':case 'library-proxy-clipboard':case 'library-proxy-parse':return {ok:true,value:await require('./proxy-entry.cjs').proxyEntry(controller,message,clipboard)};
     case 'fingerprint-preset':return {ok:true,value:require('./environment.cjs').environment(require('./fingerprint.cjs').preset(message.preset,require('./environment.cjs').environment(message.environment)))};
@@ -78,7 +79,8 @@ function installIPC(window,controller){
     case 'diagnostic-cancel':controller.diagnostics.cancel();break;
 
     case 'instance-notes':return {ok:true,value:await controller.queue(id,()=>{controller.store.update(id,{notes:message.notes});controller.emit();return {saved:true};})};
-    case 'instance-export':return {ok:true,value:await controller.queue('instance-transfer',async()=>{const ids=message.ids;for(const target of ids||[])controller.store.get(target);const picked=await dialog.showSaveDialog(window,{title:'导出实例备份',defaultPath:'Facet-instances.facetbackup',filters:[{name:'千面实例备份',extensions:['facetbackup']}]});if(picked.canceled||!picked.filePath)return {cancelled:true};if(message.restartConfirmed!==true)throw Error('请确认保存数据后重启应用完成备份');return controller.transfer.prepareExport(ids,picked.filePath,{queryExit:message.queryExit===true,deleteAfterExport:message.deleteAfterExport===true});})};
+    case 'instance-export':return {ok:true,value:await controller.queue('instance-transfer',async()=>{const ids=message.ids;for(const target of ids||[])controller.store.get(target);const picked=await dialog.showSaveDialog(window,{title:'导出实例备份',defaultPath:'Facet-instances.facetbackup',filters:[{name:'千面实例备份',extensions:['facetbackup']}]});if(picked.canceled||!picked.filePath)return {cancelled:true};return controller.transfer.prepareExport(ids,picked.filePath,{deleteAfterExport:message.deleteAfterExport===true});})};
+    case 'instance-export-reveal':if(controller.transferOutcome?.destination) shell.showItemInFolder(controller.transferOutcome.destination);break;
     case 'instance-import-inspect':return {ok:true,value:await controller.queue('instance-transfer',async()=>{const picked=await dialog.showOpenDialog(window,{title:'导入实例备份',properties:['openFile'],filters:[{name:'千面实例备份',extensions:['facetbackup']}]});if(picked.canceled)return {cancelled:true};return controller.transfer.inspect(picked.filePaths[0]);})};
     case 'instance-import-cancel':return {ok:true,value:controller.transfer.cancel(message.token)};
     case 'instance-import-commit':return {ok:true,value:await controller.queue('instance-transfer',()=>controller.queue('instance-create',()=>controller.transfer.import(message.token,message.selections)))};
@@ -88,7 +90,7 @@ function installIPC(window,controller){
     case 'instance-batch-cancel':return {ok:true,value:require('./instance-batch.cjs').cancel(controller)};
     case 'create':{const value=await controller.queue('instance-create',()=>require('./operations.cjs').createInstance(controller,message));return {ok:true,value:message.detailed?value:value.id};}
     case 'instance-autostart':return {ok:true,value:await controller.queue(id,()=>{if(controller.disposing)throw Error('应用正在关闭');if(typeof message.enabled!=='boolean')throw Error('随应用启动设置无效');controller.store.update(id,{autoStart:message.enabled});controller.log(id,message.enabled?'已开启随应用启动；下次启动应用时依次启动此实例':'已关闭随应用启动');return {id,enabled:message.enabled};})};
-    case 'rename':controller.store.update(id,{name:message.name});controller.emit();break;
+    case 'rename':await controller.queue(id,()=>{controller.store.update(id,{name:message.name});controller.emit();});break;
     case 'activate':controller.choose(id??null);break;
     case 'grid-layout':controller.setGrid(message.grid&&typeof message.grid==='object'?message.grid:null);break;
     case 'grid-thumbs':return {ok:true,value:await controller.gridThumbs()};

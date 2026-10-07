@@ -9,8 +9,8 @@ const wait=async fn=>{for(let i=0;i<200;i++){if(await fn())return;await new Prom
 let c,w;setTimeout(()=>app.exit(2),120000).unref();
 app.whenReady().then(async()=>{try{
  if(phase==='finalize'){
-  const result=await finalizePending(dir);assert.equal(result.outcome.status,'success');assert(fs.existsSync(path.join(root,'instances.facetbackup')));assert(!fs.existsSync(path.join(dir,'instance-export.pending')));
-  fs.writeFileSync(path.join(root,'finalize.json'),JSON.stringify({status:'success',bytes:result.outcome.bytes}));console.log('PASS offline password-free export after source process exits');app.quit();return;
+  const result=await finalizePending(dir);assert.equal(result,null);assert(fs.existsSync(path.join(root,'instances.facetbackup')));assert(!fs.existsSync(path.join(dir,'instance-export.pending')));
+  fs.writeFileSync(path.join(root,'finalize.json'),JSON.stringify({status:'success',bytes:fs.statSync(path.join(root,'instances.facetbackup')).size}));console.log('PASS completed live backup survives source process exit without pending restart task');app.quit();return;
  }
  w=new BrowserWindow({width:1400,height:900,show:true,webPreferences:{preload:path.join(__dirname,'../src/main/preload.cjs'),sandbox:true,contextIsolation:true}});
  c=new Controller(w,dir,path.join(__dirname,'../resources/mihomo/mihomo.exe'));installIPC(w,c);w.webContents.on('console-message',(_event,...args)=>{const text=args.find(x=>typeof x==='string'&&x.includes('Error'));if(text)console.error(text);});
@@ -26,15 +26,15 @@ app.whenReady().then(async()=>{try{
   assert(await ui(`(()=>{const b=document.querySelector('.instance-name-line [data-id="${a.id}"]'),cell=b.closest('td').getBoundingClientRect(),r=b.getBoundingClientRect(),name=b.previousElementSibling.getBoundingClientRect();return r.x>=name.right&&r.right<=cell.right&&r.width>0})()`));
   await ui(`document.querySelector('.instance-name-line [data-id="${a.id}"]').click();document.querySelector('#instanceNotes').value=${JSON.stringify(' 第一行备忘录\n待办：保留账号 <script>\n ')};document.querySelector('[data-transfer="save-notes"]').click()`);
   await wait(()=>c.store.get(a.id).notes?.includes('待办'));assert.equal(c.runtimes.get(a.id).status,'running');const text=c.store.get(a.id).notes;assert.equal(new (require('../src/main/store.cjs').Store)(dir).get(a.id).notes,text);
-  await ui(`route('overview')`);await wait(()=>ui('!!document.querySelector(".instance-note-preview")'));assert((await ui('document.querySelector("#content").textContent')).includes('待办'));assert.equal(await ui('!!document.querySelector("#content script")'),false);
+  await ui(`route('overview')`);await wait(()=>ui('!!document.querySelector(".instance-name-line")'));assert.equal(await ui('!!document.querySelector(".instance-note-preview")'),false);assert(!(await ui('document.querySelector("#content").textContent')).includes('待办'));assert((await ui('document.querySelector(".instance-notes-btn").textContent')).includes('已记录'));assert.equal(await ui('!!document.querySelector("#content script")'),false);
   fs.writeFileSync(path.join(root,'notes-ui.png'),(await w.webContents.capturePage()).toPNG());
   fs.writeFileSync(path.join(root,'source-result.json'),JSON.stringify({id:a.id,other:b.id,notes:text}));
   // Add real excluded files so archive filtering is checked on the emitted artifact.
   const plugin=path.join(dir,'Partitions','arena-core-'+a.id,'Local Extension Settings','fixture');fs.mkdirSync(plugin,{recursive:true});fs.writeFileSync(path.join(plugin,'state'),'extension-test-value');
   c.store.saveNodes(a.id,[{name:'Source proxy',type:'http',server:'127.0.0.1',port:Number(new URL(url).port),username:'source-user',password:'source-proxy-secret'}],null);c.store.update(a.id,{network:{mode:'mihomo',nodeName:'Source proxy'}});await c.stop(a.id);await c.start(a.id);await wait(()=>c.runtimes.get(a.id).pageState.startsWith('已完成'));require('../src/main/diagnostics.cjs').TARGETS.ip=url+'geo';
-  c.transferRestart=()=>{setTimeout(()=>app.quit(),500);};dialog.showSaveDialog=async()=>({canceled:false,filePath:path.join(root,'instances.facetbackup')});
-  await ui(`showExport([${JSON.stringify(a.id)}]);document.querySelector('#transferQueryExit').checked=true;document.querySelector('#transferRestart').checked=true;document.querySelector('[data-transfer="export-commit"]').click()`);
-  await wait(()=>fs.existsSync(path.join(dir,'instance-export.pending')));const pending=fs.readFileSync(path.join(dir,'instance-export.pending'));assert(!pending.includes(Buffer.from('session-fixture')));console.log('PASS actual notes UI, isolation, session/HttpOnly/partitioned cookies and encrypted pending export');return;
+  c.diagnostics.run([{instanceId:a.id,name:'Source proxy'}],'ip');await wait(()=>!c.diagnostics.work);c.transferRestart=()=>{throw Error('unexpected app restart')};dialog.showSaveDialog=async()=>({canceled:false,filePath:path.join(root,'instances.facetbackup')});
+  await ui(`showExport([${JSON.stringify(a.id)}]);document.querySelector('[data-transfer="export-commit"]').click()`);
+  await wait(()=>ui('modal?.type==="instance-export-result"'));assert(fs.existsSync(path.join(root,'instances.facetbackup')));assert(!fs.existsSync(path.join(dir,'instance-export.pending')));assert.equal(c.runtimes.get(a.id).status,'running');assert.equal(c.runtimes.get(b.id).status,'running');console.log('PASS actual notes UI hides body, isolated cookies and live export without app restart');await c.closeAll();app.quit();return;
  }
  if(phase==='import'){
   const source=JSON.parse(fs.readFileSync(path.join(root,'source-result.json'))),prior=fs.readFileSync(c.store.file),before=c.store.list().length;

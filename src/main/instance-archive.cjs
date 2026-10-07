@@ -44,7 +44,7 @@ async function readArchive(file,root){
   const plain=path.join(root,'contents.payload');let inflated=0;
   const guard=new (require('node:stream').Transform)({transform(chunk,enc,cb){inflated+=chunk.length;cb(inflated>MAX_BYTES+32*1024**2?Error('备份解压后超过 20GB'):null,chunk);}});
   await pipeline(fs.createReadStream(packed),zlib.createGunzip(),guard,fs.createWriteStream(plain,{flags:'wx',mode:0o600}));
-  const input=fs.openSync(plain,'r');let position=0,count=0,total=0;const seen=new Set();
+  const input=fs.openSync(plain,'r');let position=0,count=0,total=0,workBytes=0;const seen=new Set();
   function read(length){const b=Buffer.alloc(length);let done=0;while(done<length){const n=fs.readSync(input,b,done,length-done,position);if(!n)throw Error('备份内容不完整');position+=n;done+=n;}return b;}
   try{for(;;){const length=read(4).readUInt32BE();if(!length){if(position!==fs.statSync(plain).size)throw Error('备份末尾有无效内容');break;}if(length>4096||++count>MAX_FILES+1)throw Error('备份文件条目无效');
    const entry=JSON.parse(read(length).toString('utf8')),name=safeEntry(entry.path);if(name!=='metadata.json'&&!/^profiles\/\d+\//.test(name))throw Error('备份内容不受支持');
@@ -52,7 +52,8 @@ async function readArchive(file,root){
    if(seen.has(name.toLowerCase())||!Number.isSafeInteger(entry.size)||entry.size<0||(total+=entry.size)>MAX_BYTES)throw Error('备份条目重复或大小无效');seen.add(name.toLowerCase());
    if(name==='metadata.json'&&entry.size>16*1024**2)throw Error('备份元数据过大');
    const target=path.join(root,'unpacked',...name.split('/'));fs.mkdirSync(path.dirname(target),{recursive:true,mode:0o700});const output=fs.openSync(target,'wx',0o600);
-   try{let remaining=entry.size;while(remaining){const chunk=read(Math.min(remaining,1024**2));fs.writeSync(output,chunk);remaining-=chunk.length;}}finally{fs.closeSync(output);}
+   try{let remaining=entry.size;while(remaining){const chunk=read(Math.min(remaining,1024**2));fs.writeSync(output,chunk);remaining-=chunk.length;workBytes+=chunk.length;if(workBytes>=8*1024**2){workBytes=0;await new Promise(resolve=>setImmediate(resolve));}}}finally{fs.closeSync(output);}
+   if(count%64===0)await new Promise(resolve=>setImmediate(resolve));
   }}finally{fs.closeSync(input);}
   if(!seen.has('metadata.json'))throw Error('备份缺少实例信息');
   const metadata=JSON.parse(fs.readFileSync(path.join(root,'unpacked','metadata.json'),'utf8'));
