@@ -168,14 +168,13 @@ html[data-frame="custom"] .window-bar{display:flex;align-items:center;justify-co
 .new-node-evidence dd small.error{color:var(--red)}
 .new-node-evidence p{margin:8px 0 0}
 #newNode{width:100%;min-width:0;text-overflow:ellipsis}
-.node-result-value:has(.latency-meter){display:block;width:130px;text-align:left;padding:3px 0}
-.latency-meter{display:flex;flex-direction:column;gap:4px;width:100%;color:var(--text)}
-.latency-meter b{font-size:15px;font-variant-numeric:tabular-nums;line-height:1.2}
-.latency-meter small{font-size:11px;font-weight:400;color:var(--muted)}
-.latency-track{height:7px;width:100%;border-radius:4px;background:var(--line);overflow:hidden}
-.latency-track>span{display:block;height:100%;border-radius:4px;background:var(--green)}
-.latency-meter.medium .latency-track>span{background:var(--amber)}
-.latency-meter.slow .latency-track>span{background:var(--red)}
+.node-result-value:has(.latency-history){display:block;width:154px;text-align:left;padding:2px 0}
+.latency-history{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%}
+.latency-history b{font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.connectivity-bars{display:block;flex-shrink:0;width:76px;height:28px;max-width:100%}
+.connectivity-bar.connected{fill:var(--green)}
+.connectivity-bar.failed{fill:var(--red)}
+.connectivity-bars-large{width:400px;max-width:100%;height:auto;margin:4px 0 8px}
 .vol-pop{position:fixed;inset:auto;margin:0;width:236px;padding:10px 12px 10px;border:1px solid var(--line);border-radius:var(--r);background:var(--panel);color:var(--text);box-shadow:0 12px 32px rgba(0,0,0,.22)}
 .vol-pop::backdrop{background:transparent}
 .vol-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:6px;font-size:12px}
@@ -845,14 +844,6 @@ html[data-frame="custom"] .window-bar{display:flex;align-items:center;justify-co
 .node-chip:hover{background:var(--panel2)}
 .node-chip.active{border-color:var(--accent);background:var(--accent-weak);color:var(--accent-text,var(--accent))}
 .node-chip.active small{color:inherit}
-/* 延迟趋势 */
-.node-result-value .spark{margin-left:6px;vertical-align:-1px;overflow:visible}
-.spark polyline{fill:none;stroke:currentColor;stroke-width:1.3;stroke-linejoin:round;stroke-linecap:round;opacity:.9}
-.spark circle{stroke:none}
-.spark .spark-dot{fill:currentColor}
-.spark .spark-fail{fill:var(--red)}
-.spark-large{display:block;max-width:100%;margin:4px 0 8px;color:var(--accent-text,var(--accent))}
-.spark-large polyline{stroke-width:1.8}
 .trend-detail{margin-top:10px}
 .trend-list{display:grid;gap:2px;max-height:220px;margin:0;padding:0;overflow:auto;list-style:none;font-size:12px}
 .trend-list li{display:flex;justify-content:space-between;gap:12px;padding:3px 6px;border-radius:6px}

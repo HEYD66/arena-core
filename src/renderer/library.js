@@ -191,7 +191,7 @@ function renderDiagnostics() {
       text = job.cancelling ? "取消中…" : "检测中…";
       detail = "当前检测进行中" + (r ? "；上次结果：" + detail : "");
     }
-    cell.innerHTML = `<button class="node-result-value" data-lib="result-detail" data-node="${esc(name)}" data-kind="${kind}" title="${esc(detail)}" ${r ? "" : "disabled"}>${kind==='latency'&&r?.ok&&!running&&queued?.state!=='queued'?latencyBar(r.latencyMs):esc(text)}</button>${r?.ok && kind === "ip" ? `<button class="save-ip ${ipBookmark(r.ip) ? "is-saved" : ""}" data-lib="save-result-ip" data-ip="${esc(r.ip)}" data-node="${esc(name)}" aria-pressed="${!!ipBookmark(r.ip)}" title="${ipBookmark(r.ip) ? "已收藏，点击取消收藏" : "收藏此出口IP"}" ${ipBookmarkBusy.has(ipKey(r.ip)) ? "disabled" : ""}>${ipBookmarkBusy.has(ipKey(r.ip)) ? "保存中…" : ipBookmark(r.ip) ? "★ 已收藏" : "＋收藏"}</button>` : ""}`;
+    cell.innerHTML = `<button class="node-result-value" data-lib="result-detail" data-node="${esc(name)}" data-kind="${kind}" title="${esc(detail)}" ${r ? "" : "disabled"}>${kind==='latency'?`<span class="latency-history"><b>${esc(text)}</b>${connectivityBars(nodeHistory(sid,name)?.latency?.recent,76,28)}</span>`:esc(text)}</button>${r?.ok && kind === "ip" ? `<button class="save-ip ${ipBookmark(r.ip) ? "is-saved" : ""}" data-lib="save-result-ip" data-ip="${esc(r.ip)}" data-node="${esc(name)}" aria-pressed="${!!ipBookmark(r.ip)}" title="${ipBookmark(r.ip) ? "已收藏，点击取消收藏" : "收藏此出口IP"}" ${ipBookmarkBusy.has(ipKey(r.ip)) ? "disabled" : ""}>${ipBookmarkBusy.has(ipKey(r.ip)) ? "保存中…" : ipBookmark(r.ip) ? "★ 已收藏" : "＋收藏"}</button>` : ""}`;
   });
 }
 
@@ -203,7 +203,7 @@ function libraryConfirm(title, description, operation, payload) {
   modal.payload = payload;
 }
 
-function latencyBar(ms){const value=Number(ms);if(!Number.isFinite(value)||value<0)return '—';const tone=value<=300?'fast':value<=800?'medium':'slow',width=Math.max(3,Math.min(100,value/10));return `<span class="latency-meter ${tone}" aria-label="延迟 ${Math.round(value)} 毫秒，越低越快"><b>${Math.round(value)}<small> ms</small></b><span class="latency-track" aria-hidden="true"><span style="width:${width}%"></span></span></span>`;}
+
 document.addEventListener("click", async (event) => {
   const button = event.target.closest("[data-lib]");
   if (!button || button.disabled) return;
@@ -564,7 +564,7 @@ function showDiagnosticDetail(sourceId, name, kind) {
   if (recent.length)
     $("#modal .description").insertAdjacentHTML(
       "afterend",
-      `<div class="trend-detail">${kind === "latency" ? sparkSVG(recent.slice().reverse(), 400, 48, true) : ""}<ol class="trend-list" aria-label="最近 ${recent.length} 次检测">${recent
+      `<div class="trend-detail">${kind === "latency" ? connectivityBars(recent.slice().reverse(), 400, 64, true) : ""}<ol class="trend-list" aria-label="最近 ${recent.length} 次检测">${recent
         .map(
           (e) =>
             `<li><time>${esc(new Date(e.at).toLocaleString())}</time><b class="${e.ok ? "ok" : "bad"}">${esc(e.ok ? (kind === "latency" ? e.ms + " ms" : e.ip || "成功") : diagnosticFailureLabel(e.error || "失败"))}</b></li>`,
@@ -619,7 +619,7 @@ function nodeOutcome(sourceId, name, kind) {
   const live = state.diagnostics?.results.find((x) => x.sourceId === sourceId && x.name === name && x.kind === kind);
   if (live && live.error !== "已取消") return { r: live, saved: false };
   const h = nodeHistory(sourceId, name)?.[kind],
-    last = h?.lastOk || h?.last;
+    last = kind === "latency" ? h?.last : h?.lastOk || h?.last;
   if (last) return { r: { ...last, sourceId, name, kind, saved: true }, saved: true };
   return { r: live || null, saved: false };
 }
@@ -722,33 +722,14 @@ function nodeChipsHTML(total, regions, protocols) {
   const protocolRow = protocols.size > 1 ? `<div class="node-chip-row" role="group" aria-label="按协议筛选"><span class="node-chip-label">协议</span>${chip("protocol", "", "全部", total, !libraryProtocol)}${sorted(protocols).map(([k, n]) => chip("protocol", k, k, n, libraryProtocol === k)).join("")}</div>` : "";
   return regionRow || protocolRow ? `<div class="node-chips">${regionRow}${protocolRow}</div>` : "";
 }
-// 延迟趋势：最近 10 次，成功为折线点，失败为底部红点。
-function sparkSVG(recent, w, h, large = false) {
-  const list = Array.isArray(recent) ? recent.slice(-10) : [];
-  if (list.length < 2) return "";
-  const ok = list.filter((e) => e.ok && Number.isFinite(e.ms));
-  const max = Math.max(...ok.map((e) => e.ms), 1),
-    min = Math.min(...ok.map((e) => e.ms), max);
-  const pad = large ? 4 : 1.5,
-    step = (w - pad * 2) / (list.length - 1);
-  const y = (ms) => (max === min ? h / 2 : pad + (h - pad * 2) * (1 - (ms - min) / (max - min)));
-  const points = list.map((e, i) => (e.ok && Number.isFinite(e.ms) ? `${(pad + i * step).toFixed(1)},${y(e.ms).toFixed(1)}` : null));
-  const segments = [];
-  let seg = [];
-  for (const p of points) {
-    if (p) seg.push(p);
-    else if (seg.length) {
-      segments.push(seg);
-      seg = [];
-    }
-  }
-  if (seg.length) segments.push(seg);
-  const fails = list
-    .map((e, i) => (e.ok ? "" : `<circle cx="${(pad + i * step).toFixed(1)}" cy="${h - pad}" r="${large ? 2.6 : 1.6}" class="spark-fail"/>`))
-    .join("");
-  const dots = large ? points.map((p) => (p ? `<circle cx="${p.split(",")[0]}" cy="${p.split(",")[1]}" r="2.2" class="spark-dot"/>` : "")).join("") : "";
-  const title = `最近 ${list.length} 次：成功 ${ok.length} 次` + (ok.length ? `，${min}–${max} ms` : "");
-  return `<svg class="spark ${large ? "spark-large" : ""}" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" style="width:${w}px;height:${h}px" role="img" aria-label="${title}"><title>${title}</title>${segments.map((sg) => (sg.length > 1 ? `<polyline points="${sg.join(" ")}"/>` : `<circle cx="${sg[0].split(",")[0]}" cy="${sg[0].split(",")[1]}" r="1.4" class="spark-dot"/>`)).join("")}${dots}${fails}</svg>`;
+// 只画已有的最近检测，不补虚构记录；时间顺序左旧右新。
+function connectivityBars(recent,w=76,h=28,large=false){
+ const list=(Array.isArray(recent)?recent:[]).filter(e=>e&&e.error!=='已取消'&&!/重新检测/.test(e.error||'')).slice(-10);if(!list.length)return '';
+ const pad=2,step=(w-pad*2)/10,bw=large?Math.min(22,step-5):5,maxHeight=h-pad*2;
+ const summary='最近 '+list.length+' 次连通性检测，左旧右新；绿色成功，红色失败；成功柱高表示延迟，越低越快，超过 1000 ms 按满高显示';
+ const bars=list.map((e,i)=>{const ms=Number(e.ms),valid=e.ms!=null&&Number.isFinite(ms)&&ms>=0,height=e.ok?(valid?Math.max(6,Math.min(1,ms/1000)*maxHeight):4):maxHeight,label=new Date(e.at).toLocaleString()+' · '+(e.ok?(valid?'连通成功 · '+Math.round(ms)+' ms':'连通成功 · 延迟未记录'):'检测失败 · '+(e.error||'未取得原因'));
+ return '<rect class="connectivity-bar '+(e.ok?'connected':'failed')+'" x="'+(pad+i*step+(step-bw)/2).toFixed(2)+'" y="'+(h-pad-height).toFixed(2)+'" width="'+bw+'" height="'+height.toFixed(2)+'" rx="1" data-at="'+esc(e.at)+'" data-ok="'+Boolean(e.ok)+'"><title>'+esc(label)+'</title></rect>';}).join('');
+ return '<svg class="connectivity-bars '+(large?'connectivity-bars-large':'')+'" viewBox="0 0 '+w+' '+h+'" width="'+w+'" height="'+h+'" role="img" aria-label="'+esc(summary)+'"><title>'+esc(summary)+'</title>'+bars+'</svg>'+(large?'<p class="actions-note">左旧右新 · 绿色：连通成功 · 红色：检测失败（不一定代表节点不可用） · 成功柱越低，延迟越小</p>':'');
 }
 // 批量分配：勾选实例，按顺序或随机把已选节点分给它们；节点不够时循环使用（会提示共用）。
 function openAssignManyDialog() {
