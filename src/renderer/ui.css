@@ -853,3 +853,6 @@ html[data-frame="custom"] .window-bar{display:flex;align-items:center;justify-co
 .update-notice .btn{padding:5px 10px}
 .update-available{color:var(--accent-text);border:1px solid var(--line);white-space:nowrap}
 .update-available[hidden]{display:none}
+
+.system-log-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.system-log-tabs button{height:32px;padding:0 18px}

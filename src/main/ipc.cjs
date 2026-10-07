@@ -1,6 +1,9 @@
 'use strict';
 const {ipcMain,dialog,clipboard,shell}=require('electron');const {refreshOne,refreshAll,reveal}=require('./extension-refresh.cjs');const fs=require('node:fs'),path=require('node:path');const {sizeText}=require('./extension-catalog.cjs');const batchOperations=require('./batch-operations.cjs');
 function installIPC(window,controller){
+ const sendWindowVisibility=()=>{if(!window.isDestroyed()&&!window.webContents.isDestroyed())window.webContents.send('core:window-visibility',window.isVisible()&&!window.isMinimized());};
+ const visibilityEvents=['minimize','restore','hide','show'];for(const event of visibilityEvents)window.on(event,sendWindowVisibility);
+ window.webContents.on('did-finish-load',sendWindowVisibility);
  // 扩展菜单原生浮层：只接受浮层自身页面发来的消息。
  const overlay=new (require('./menu-overlay.cjs').MenuOverlay)(window,message=>{if(!window.isDestroyed()&&!window.webContents.isDestroyed())window.webContents.send('core:overlay',message);});controller.overlay=overlay;
  const onOverlay=(event,message)=>overlay.receive(event.sender,message);ipcMain.on('overlay:event',onOverlay);
@@ -21,6 +24,7 @@ function installIPC(window,controller){
     case 'environment-timezone':return {ok:true,value:await controller.diagnostics.timezone(id,message.network)};
     case 'quick-link-save':controller.workspace.saveQuickLink(message.link||{});controller.emit();break;
     case 'open-github':await shell.openExternal('https://github.com/HEYD66/facet');break;
+    case 'open-feedback':await shell.openExternal('https://github.com/HEYD66/facet/issues');break;
     case 'quick-link-remove':controller.workspace.removeQuickLink(message.linkId);controller.emit();break;
     case 'quick-link-move':controller.workspace.moveQuickLink(message.linkId,message.direction);controller.emit();break;
     case 'quick-link-open':await controller.navigate(id,controller.workspace.quickLink(message.linkId).url);break;
@@ -107,6 +111,6 @@ function installIPC(window,controller){
    }return {ok:true};
   }catch(e){controller.workspace.log('application','操作失败：'+require('./workspace.cjs').redact(e.message),'ERROR');controller.emit();return {ok:false,error:e.message};}finally{controller.flushEmit?.();}
  });
-return ()=>{ipcMain.removeHandler('core:request');ipcMain.removeListener('core:grid-scroll',onGridScroll);latestScroll=null;ipcMain.removeListener('overlay:event',onOverlay);overlay.destroy();};
+return ()=>{for(const event of visibilityEvents)window.removeListener(event,sendWindowVisibility);window.webContents.removeListener('did-finish-load',sendWindowVisibility);ipcMain.removeHandler('core:request');ipcMain.removeListener('core:grid-scroll',onGridScroll);latestScroll=null;ipcMain.removeListener('overlay:event',onOverlay);overlay.destroy();};
 }
 module.exports={installIPC};

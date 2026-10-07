@@ -16,10 +16,13 @@ function restoreUiState(){
  const ids=new Set(state.instances.map(x=>x.id));
  if(Array.isArray(saved.localOpen)){localOpen.clear();saved.localOpen.filter(id=>ids.has(id)).forEach(id=>localOpen.add(id));}
  if(ids.has(saved.activeId))activeId=saved.activeId;
- let next=uiOneOf(saved.view,uiKnownViews,'browser');
+ let next=saved.view==='runtime-output'?'global-logs':uiOneOf(saved.view,uiKnownViews,'browser');
  if(uiInstanceViews.includes(next)&&!localOpen.has(activeId)){const first=state.instances.find(x=>localOpen.has(x.id));if(first)activeId=first.id;else next='overview';}
  view=next;
  const f=saved.filters&&typeof saved.filters==='object'?saved.filters:{};
+ globalLogTab=saved.view==='runtime-output'?'debug':uiOneOf(f.globalLogTab,['operations','debug'],'operations');
+ runtimeOutputChannel=uiOneOf(f.runtimeOutputChannel,['all','stdout','stderr'],'all');
+ runtimeOutputSearch=uiText(f.runtimeOutputSearch,'');
  const sources=new Set([...(state.library||[]).map(x=>x.id),...(state.events||[]).map(x=>x.sourceId).filter(Boolean)]);
  librarySort=uiOneOf(f.librarySort,['original','latency','favorite','name'],librarySort);
  libraryOnly=uiOneOf(f.libraryOnly,['all','favorites','available'],libraryOnly);
@@ -41,7 +44,7 @@ function restoreUiState(){
 function saveUiState(){
  clearTimeout(uiSaveTimer);uiSaveTimer=null;if(!uiReady)return;
  const value={v:1,savedAt:new Date().toISOString(),localOpen:[...localOpen],activeId,view:view==='favorites'?'proxies':view,advancedEnvironmentOpen,
-  filters:{librarySort,libraryOnly,libraryConcurrency,libraryMinSuccess,libraryIncludeHints,librarySource,librarySearch,globalLogLevel,globalLogScope,globalLogInstance,globalLogSource,filter,search,favoriteTab}};
+  filters:{globalLogTab,runtimeOutputChannel,runtimeOutputSearch,librarySort,libraryOnly,libraryConcurrency,libraryMinSuccess,libraryIncludeHints,librarySource,librarySearch,globalLogLevel,globalLogScope,globalLogInstance,globalLogSource,filter,search,favoriteTab}};
  try{localStorage.setItem(UI_STATE_KEY,JSON.stringify(value));}catch{}
 }
 function scheduleUiSave(){if(!uiReady)return;clearTimeout(uiSaveTimer);uiSaveTimer=setTimeout(saveUiState,200);}
