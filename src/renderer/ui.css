@@ -158,6 +158,24 @@ html[data-frame="custom"] .window-bar{display:flex;align-items:center;justify-co
 .tab-vol{width:22px;height:22px;margin-right:-2px}
 .tab-vol svg{width:14px;height:14px}
 /* 音量弹层：挂在喇叭下面的小卡片；背景透明，点外面关闭 */
+.new-node-evidence{padding:12px;border:1px solid var(--line);border-radius:var(--r);background:var(--panel2);margin:0 0 12px}
+.new-node-region{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.new-node-evidence dl{margin:0;display:grid;gap:7px;font-size:13px}
+.new-node-evidence dl>div{display:grid;grid-template-columns:80px minmax(0,1fr);gap:8px}
+.new-node-evidence dt{color:var(--muted)}
+.new-node-evidence dd{margin:0;overflow-wrap:anywhere}
+.new-node-evidence dd small{display:block;color:var(--muted);font-size:11px}
+.new-node-evidence dd small.error{color:var(--red)}
+.new-node-evidence p{margin:8px 0 0}
+#newNode{width:100%;min-width:0;text-overflow:ellipsis}
+.node-result-value:has(.latency-meter){display:block;width:130px;text-align:left;padding:3px 0}
+.latency-meter{display:flex;flex-direction:column;gap:4px;width:100%;color:var(--text)}
+.latency-meter b{font-size:15px;font-variant-numeric:tabular-nums;line-height:1.2}
+.latency-meter small{font-size:11px;font-weight:400;color:var(--muted)}
+.latency-track{height:7px;width:100%;border-radius:4px;background:var(--line);overflow:hidden}
+.latency-track>span{display:block;height:100%;border-radius:4px;background:var(--green)}
+.latency-meter.medium .latency-track>span{background:var(--amber)}
+.latency-meter.slow .latency-track>span{background:var(--red)}
 .vol-pop{position:fixed;inset:auto;margin:0;width:236px;padding:10px 12px 10px;border:1px solid var(--line);border-radius:var(--r);background:var(--panel);color:var(--text);box-shadow:0 12px 32px rgba(0,0,0,.22)}
 .vol-pop::backdrop{background:transparent}
 .vol-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:6px;font-size:12px}
@@ -546,7 +564,7 @@ html[data-frame="custom"] .window-bar{display:flex;align-items:center;justify-co
 .proxy-management .library-table{max-height:480px}
 .compact-node-table{table-layout:fixed;min-width:720px}
 .compact-node-table th,.compact-node-table td{height:36px;padding:0 10px;line-height:1.3;white-space:nowrap}
-.compact-node-table th:nth-child(1){width:38px}.compact-node-table th:nth-child(3){width:118px}.compact-node-table th:nth-child(4){width:168px}.compact-node-table th:nth-child(5){width:104px}.compact-node-table th:nth-child(6){width:96px}
+.compact-node-table th:nth-child(1){width:38px}.compact-node-table th:nth-child(3){width:154px}.compact-node-table th:nth-child(4){width:168px}.compact-node-table th:nth-child(5){width:104px}.compact-node-table th:nth-child(6){width:96px}
 .compact-node-table td:first-child{font-family:inherit}
 .compact-node-table tr[data-hint="true"] td{color:var(--muted)}
 .node-identity{display:flex;align-items:center;gap:2px;min-width:0;overflow:hidden}
