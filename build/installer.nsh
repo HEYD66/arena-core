@@ -1,3 +1,5 @@
+!include "${__FILEDIR__}\install-path.nsh"
+
 ; Require a normal application exit so upgrades/uninstall never force-close live instances.
 !macro customCheckAppRunning
   ; An online update starts NSIS just before the old process exits. Wait without killing it.
