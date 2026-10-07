@@ -526,7 +526,7 @@ function confirmDiagnostic(kind, items) {
   }
   libraryConfirm(
     "开始代理检测？",
-    `通过 ${items.length} 个节点访问 ${kind === "ip" ? "ipwho.is 查询出口IP" : "Cloudflare 检测服务"}。服务可看到代理出口IP。${kind === "speed" ? "手动测速下载约5MB并消耗订阅流量。" : `最多${libraryConcurrency}路并发（可在「并发」中调整，上限16），可取消；连通性失败最多尝试一个备用目标。`}不改变实例网络配置。`,
+    `通过 ${items.length} 个节点访问 ${kind === "ip" ? "IP.SB 优先，GeoJS / ipapi.co / ipwho.is 备用查询出口 IP" : "Cloudflare 检测服务"}。服务可看到代理出口IP。${kind === "speed" ? "手动测速下载约5MB并消耗订阅流量。" : `最多${libraryConcurrency}路并发（可在「并发」中调整，上限16），可取消；连通性失败最多尝试一个备用目标。`}不改变实例网络配置。`,
     "diagnostic-start",
     payload,
   );

@@ -21,6 +21,8 @@ function pick(r) {
     city: r.city || "",
     isp: r.isp || "",
     timezone: r.timezone || "",
+    countryCode: r.countryCode || "",
+    queriedAt: r.queriedAt || r.at,
     provider: r.provider || "",
   };
 }
@@ -42,7 +44,7 @@ class DiagnosticHistory {
     return String(sourceId) + "\u0001" + String(name);
   }
   counts(result) {
-    return KINDS.includes(result?.kind) && !(!result.ok && /已取消|重新检测/.test(String(result.error || "")));
+    return KINDS.includes(result?.kind) && !result.cached && !(!result.ok && /已取消|重新检测/.test(String(result.error || "")));
   }
   record(result) {
     if (!this.counts(result)) return false;

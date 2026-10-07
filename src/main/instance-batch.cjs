@@ -49,7 +49,7 @@ async function execute(controller,token){
  try{
   save();for(const item of plan.items){
    if(job.cancelling||controller.disposing)break;
-   try{if(item.sourceId&&controller.library.get(item.sourceId).updatedAt!==item.sourceVersion)throw Error('节点源已更新，未创建此实例；请重新生成草稿');const value=await createInstance(controller,{...item,start:plan.start,syncTimezone:false,syncLocale:plan.syncLocale});job.created+=Number(value.created);const error=[value.configurationError,value.startError].filter(Boolean).join('；');if(error)job.failed++;job.results.push({name:item.name,...value,status:error?'warning':'success'});}
+   try{if(item.localeError)throw Error('此草稿出口地区查询失败，未创建；请重新生成草稿重试。'+item.localeError);if(item.sourceId&&controller.library.get(item.sourceId).updatedAt!==item.sourceVersion)throw Error('节点源已更新，未创建此实例；请重新生成草稿');const value=await createInstance(controller,{...item,start:plan.start,syncTimezone:false,syncLocale:plan.syncLocale});job.created+=Number(value.created);const error=[value.configurationError,value.startError].filter(Boolean).join('；');if(error)job.failed++;job.results.push({name:item.name,...value,status:error?'warning':'success'});}
    catch(error){job.failed++;job.results.push({name:item.name,created:false,status:'failed',error:redact(error.message)});}
    job.done++;save();controller.emit();await new Promise(resolve=>setImmediate(resolve));
   }
@@ -67,10 +67,16 @@ async function prepareLocale(controller,message){
   for(const item of plan.items){
    if(controller.disposing)throw Error('应用正在退出，未创建实例');
    const key=JSON.stringify([item.sourceId||null,item.nodeName||null]);
-   if(!locales.has(key))locales.set(key,await require('./exit-locale.cjs').lookup(controller,item.sourceId?controller.library.node(item.sourceId,item.nodeName):null));
+   if(!locales.has(key)){
+    try{locales.set(key,{value:await require('./exit-locale.cjs').lookup(controller,item.sourceId?controller.library.node(item.sourceId,item.nodeName):null)});}
+    catch(error){if(controller.disposing)throw error;locales.set(key,{error:redact(error.message)});}
+   }
    if(item.sourceId&&controller.library.get(item.sourceId).updatedAt!==item.sourceVersion)throw Error('节点源已更新，请重新生成草稿');
-   item.exitLocale=locales.get(key);item.environment=environment({...item.environment,timezone:item.exitLocale.timezone,language:item.exitLocale.language});
+   const locale=locales.get(key);
+   if(locale.error){item.localeError=locale.error;continue;}
+   item.exitLocale=locale.value;item.environment=environment({...item.environment,timezone:item.exitLocale.timezone,language:item.exitLocale.language});
   }
+  if(plan.items.every(item=>item.localeError))throw Error('所有所选出口地区查询失败，未生成可创建草稿：'+[...locales.values()].map(item=>item.error).filter(Boolean).join('；'));
   controller.instanceBatchPlan=plan;return plan;
  }finally{controller.instanceBatchPlanning=false;}
 }

@@ -8,7 +8,7 @@ const wait=async(fn,label)=>{for(let i=0;i<400;i++){if(await fn())return;await s
 setTimeout(()=>app.exit(2),90000).unref();
 app.whenReady().then(async()=>{try{
  server=http.createServer((_req,res)=>{res.setHeader('Content-Type','text/html');res.end('<!doctype html><title>Instance node fixture</title>');});await new Promise(r=>server.listen(0,'127.0.0.1',r));
- const body=url=>url.includes('/ip')?JSON.stringify({success:true,ip:'203.0.113.41',country:'Local test',timezone:{id:'Asia/Tokyo'}}):url.includes('/speed')?'x'.repeat(5000000):url.includes('/latency')?'ip=203.0.113.41\n':'<!doctype html><title>Proxied fixture</title>';
+ const body=url=>url.includes('/ip')?JSON.stringify({success:true,ip:'203.0.113.41',country:'Japan',country_code:'JP',timezone:{id:'Asia/Tokyo'}}):url.includes('/speed')?'x'.repeat(5000000):url.includes('/latency')?'ip=203.0.113.41\n':'<!doctype html><title>Proxied fixture</title>';
  proxy=http.createServer((req,res)=>res.end(body(req.url)));
  proxy.on('connect',(_req,socket)=>{socket.on('error',()=>{});socket.write('HTTP/1.1 200 Connection established\r\n\r\n');socket.once('data',chunk=>{const content=body(chunk.toString());setTimeout(()=>socket.end('HTTP/1.1 200 OK\r\nContent-Length: '+Buffer.byteLength(content)+'\r\nConnection: close\r\n\r\n'+content),250);});});
  await new Promise(r=>proxy.listen(0,'127.0.0.1',r));for(const kind of ['latency','ip','speed'])TARGETS[kind]='http://diagnostic.invalid/'+kind;
