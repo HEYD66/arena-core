@@ -15,3 +15,5 @@
 .transfer-choices{max-height:55vh;overflow:auto;padding-right:6px}
 .transfer-instance{border:1px solid var(--line2);border-radius:10px;padding:16px;margin-bottom:12px}
 .transfer-instance h3{margin:0 0 10px}.transfer-country{line-height:1.6}.transfer-notes{white-space:pre-wrap;overflow-wrap:anywhere;max-height:160px;overflow:auto;font:inherit;color:var(--muted)}
+
+.transfer-result-files{max-height:32vh;overflow:auto}.transfer-source-file{overflow-wrap:anywhere}

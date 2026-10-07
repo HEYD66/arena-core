@@ -87,13 +87,19 @@ class InstanceTransfer{
  }
  async inspect(file){
   if(this.drafts.size>=3)throw Error('请关闭已有导入窗口后再试');
-  const root=path.join(os.tmpdir(),'facet-import-'+crypto.randomUUID());
-  try{const data=await archive.readArchive(file,root),metadata=validateMetadata(data.metadata);
-   const top=path.join(data.unpacked,'profiles');if(fs.existsSync(top))for(const name of fs.readdirSync(top))if(!/^(0|[1-9]\d*)$/.test(name)||Number(name)>=metadata.instances.length)throw Error('备份包含未声明的实例目录');
-   // Reject plugin/program paths in externally crafted archives as well.
-   for(let i=0;i<metadata.instances.length;i++){const folder=path.join(top,String(i));if(fs.existsSync(folder))for(const entry of archive.files(folder)){if(archive.excluded(entry.path))throw Error('备份包含插件或不支持的数据');}}
-   const token=crypto.randomUUID(),timer=setTimeout(()=>this.cancel(token),15*60*1000);timer.unref();this.drafts.set(token,{root,unpacked:data.unpacked,metadata,timer});
-   return {token,createdAt:metadata.createdAt,instances:metadata.instances.map(({cookies,...row})=>({...row,cookieCount:cookies.length})),nodes:require('./instance-batch.cjs').options(this.c)};
+  const files=Array.isArray(file)?file:[file];if(!files.length||files.length>1000||files.some(x=>typeof x!=='string'||!path.isAbsolute(x)))throw Error('请选择 1–1000 个备份文件');
+  if(new Set(files.map(x=>process.platform==='win32'?x.toLowerCase():x)).size!==files.length)throw Error('请勿重复选择同一个备份文件');
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'fi-'));
+  try{let metadata;const instances=[],sources=[],sourceFiles=[];
+   for(let fileIndex=0;fileIndex<files.length;fileIndex++){
+    let data,checked;try{data=await archive.readArchive(files[fileIndex],path.join(root,String(fileIndex)));checked=validateMetadata(data.metadata);}catch(e){throw Error('第 '+(fileIndex+1)+' 个文件（'+path.basename(files[fileIndex])+'）无法读取：'+e.message);}
+    metadata||={...checked};if(instances.length+checked.instances.length>1000)throw Error('单次最多导入 1000 个实例，请减少所选文件');
+    const top=path.join(data.unpacked,'profiles');if(fs.existsSync(top))for(const name of fs.readdirSync(top))if(!/^(0|[1-9]\d*)$/.test(name)||Number(name)>=checked.instances.length)throw Error('备份包含未声明的实例目录');
+    // Keep each archive's profile mapping separate, including repeated source IDs.
+    for(let i=0;i<checked.instances.length;i++){const folder=path.join(top,String(i));if(fs.existsSync(folder))for(const entry of archive.files(folder)){if(archive.excluded(entry.path))throw Error('备份包含插件或不支持的数据');}instances.push(checked.instances[i]);sources.push(folder);sourceFiles.push(path.basename(files[fileIndex]));}
+   }
+   metadata.instances=instances;const token=crypto.randomUUID(),timer=setTimeout(()=>this.cancel(token),15*60*1000);timer.unref();this.drafts.set(token,{root,metadata,sources,timer});
+   return {token,fileCount:files.length,createdAt:metadata.createdAt,instances:instances.map(({cookies,...row},i)=>({...row,sourceFile:sourceFiles[i],cookieCount:cookies.length})),nodes:require('./instance-batch.cjs').options(this.c)};
   }catch(error){fs.rmSync(root,{recursive:true,force:true});throw error;}
  }
  cancel(token){const draft=this.drafts.get(token);if(draft){clearTimeout(draft.timer);fs.rmSync(draft.root,{recursive:true,force:true});this.drafts.delete(token);}return {cancelled:true};}
@@ -111,7 +117,7 @@ class InstanceTransfer{
   if(this.c.disposing)throw Error('应用正在退出');
   const installed=[];let committed=false;
   try{
-   for(const p of plans){const target=profile(this.c.dir,p.id),source=path.join(draft.unpacked,'profiles',String(p.index));if(fs.existsSync(target))throw Error('实例目录冲突');fs.mkdirSync(target,{recursive:true});installed.push(p.id);if(fs.existsSync(source)){require("./instance-live-export.cjs").checkCachePath(target,archive.files(source));fs.cpSync(source,target,{recursive:true,errorOnExist:true,force:false});}
+   for(const p of plans){const target=profile(this.c.dir,p.id),source=draft.sources[p.index];if(fs.existsSync(target))throw Error('实例目录冲突');fs.mkdirSync(target,{recursive:true});installed.push(p.id);if(fs.existsSync(source)){require("./instance-live-export.cjs").checkCachePath(target,archive.files(source));fs.cpSync(source,target,{recursive:true,errorOnExist:true,force:false});}
     const ses=session.fromPartition('persist:arena-core-'+p.id);
     await withCookies(ses,async debug=>{const list=p.cookies.filter(c=>c.expires<=0||c.expires>Date.now()/1000).map(cookieDetails);for(let i=0;i<list.length;i+=200)await debug.sendCommand('Network.setCookies',{cookies:list.slice(i,i+200)});
      const restored=(await debug.sendCommand('Network.getAllCookies')).cookies;if(restored.length!==list.length)throw Error('Cookie 恢复数量不一致，导入已取消');});

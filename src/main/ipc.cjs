@@ -79,9 +79,15 @@ function installIPC(window,controller){
     case 'diagnostic-cancel':controller.diagnostics.cancel();break;
 
     case 'instance-notes':return {ok:true,value:await controller.queue(id,()=>{controller.store.update(id,{notes:message.notes});controller.emit();return {saved:true};})};
-    case 'instance-export':return {ok:true,value:await controller.queue('instance-transfer',async()=>{const ids=message.ids;for(const target of ids||[])controller.store.get(target);const picked=await dialog.showSaveDialog(window,{title:'导出实例备份',defaultPath:'Facet-instances.facetbackup',filters:[{name:'千面实例备份',extensions:['facetbackup']}]});if(picked.canceled||!picked.filePath)return {cancelled:true};return controller.transfer.prepareExport(ids,picked.filePath,{deleteAfterExport:message.deleteAfterExport===true});})};
+    case 'instance-export':return {ok:true,value:await controller.queue('instance-transfer',async()=>{
+      const ids=message.ids;for(const target of ids||[])controller.store.get(target);const mode=message.mode||'separate';if(!['separate','combined'].includes(mode))throw Error('导出方式无效');
+      let destination;
+      if(mode==='separate'){const picked=await dialog.showOpenDialog(window,{title:'选择实例备份保存文件夹',properties:['openDirectory','createDirectory']});if(picked.canceled||!picked.filePaths.length)return {cancelled:true};destination=picked.filePaths[0];}
+      else{const picked=await dialog.showSaveDialog(window,{title:'合并导出实例备份',defaultPath:require('./instance-backup-names.cjs').backupName('Facet-instances'),filters:[{name:'千面实例备份',extensions:['facetbackup']}]});if(picked.canceled||!picked.filePath)return {cancelled:true};destination=picked.filePath;}
+      return controller.transfer.prepareExport(ids,destination,{mode,deleteAfterExport:message.deleteAfterExport===true});
+    })};
     case 'instance-export-reveal':if(controller.transferOutcome?.destination) shell.showItemInFolder(controller.transferOutcome.destination);break;
-    case 'instance-import-inspect':return {ok:true,value:await controller.queue('instance-transfer',async()=>{const picked=await dialog.showOpenDialog(window,{title:'导入实例备份',properties:['openFile'],filters:[{name:'千面实例备份',extensions:['facetbackup']}]});if(picked.canceled)return {cancelled:true};return controller.transfer.inspect(picked.filePaths[0]);})};
+    case 'instance-import-inspect':return {ok:true,value:await controller.queue('instance-transfer',async()=>{const picked=await dialog.showOpenDialog(window,{title:'导入实例备份（支持多选）',properties:['openFile','multiSelections'],filters:[{name:'千面实例备份',extensions:['facetbackup']}]});if(picked.canceled||!picked.filePaths.length)return {cancelled:true};return controller.transfer.inspect(picked.filePaths);})};
     case 'instance-import-cancel':return {ok:true,value:controller.transfer.cancel(message.token)};
     case 'instance-import-commit':return {ok:true,value:await controller.queue('instance-transfer',()=>controller.queue('instance-create',()=>controller.transfer.import(message.token,message.selections)))};
     case 'instance-batch-options':return {ok:true,value:require('./instance-batch.cjs').options(controller)};
