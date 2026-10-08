@@ -306,14 +306,14 @@ html[data-frame="custom"] .window-bar{display:flex;align-items:center;justify-co
 .page-empty p{margin:0;max-width:560px;font-size:13px;line-height:1.7;overflow-wrap:anywhere}
 .page-empty .btn{margin-top:8px}
 
-/* Inline help: long explanations live behind a small ⓘ disclosure. */
-.inline-help{position:relative;display:inline-block;font-size:12px}
+/* Help expands at its original location as a compact notice. */
+.inline-help{display:inline-block;max-width:100%;font-size:12px}
 .inline-help>summary{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 6px;border-radius:11px;color:var(--muted);cursor:pointer;list-style:none;white-space:nowrap}
 .inline-help>summary::-webkit-details-marker{display:none}
 .inline-help>summary:hover{background:var(--hover);color:var(--text)}
 .inline-help>summary svg{width:14px;height:14px}
 .inline-help[open]>summary{color:var(--accent-text)}
-.inline-help>p{position:absolute;z-index:20;top:26px;right:0;width:min(380px,70vw);margin:0;padding:10px 12px;border:1px solid var(--line);border-radius:var(--r);background:var(--panel);box-shadow:var(--shadow);color:var(--text);font-size:12px;line-height:1.7;white-space:normal}
+.inline-help>p{width:380px;max-width:100%;margin:6px 0 0;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--text);color:var(--panel);font-size:12px;line-height:1.7;white-space:normal;overflow-wrap:anywhere;box-sizing:border-box}
 
 /* Settings cards & fields */
 .settings-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:0 0 14px}
@@ -473,7 +473,7 @@ html[data-frame="custom"] .window-bar{display:flex;align-items:center;justify-co
 /* ── 8. Proxy management ──────────────────────────────────── */
 #content.proxy-management{display:block;overflow-y:auto}
 .source-add{position:relative;z-index:2;padding:16px;border-top:1px solid var(--line)}
-.source-add .inline-help>p{top:auto;bottom:26px}
+.source-add .inline-help{display:block}
 .proxy-entry-modal{width:640px;padding:24px}
 .new-environment-plan{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin:14px 0;padding:10px 12px;border:1px solid color-mix(in srgb,var(--accent) 28%,var(--line));border-radius:var(--r-sm);background:var(--accent-weak)}
 .new-environment-plan>div:first-child{display:flex;flex-direction:column;gap:2px;min-width:0}
