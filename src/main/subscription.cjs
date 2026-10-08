@@ -64,7 +64,7 @@ async function downloadSubscription(value, {
             return location ? done(null, { redirect: location }) : done(safeError('订阅重定向缺少目标地址'));
           }
           if (status !== 200) { res.destroy(); return done(safeError(`订阅服务器返回 HTTP ${status}，原配置未改变`)); }
-          if (/text\/html/i.test(res.headers['content-type'] || '')) { res.destroy(); return done(safeError('链接返回了网页，请使用 Clash/Mihomo 格式的订阅地址')); }
+          const htmlContentType = /(?:text\/html|application\/xhtml\+xml)/i.test(res.headers['content-type'] || '');
           if (Number(res.headers['content-length']) > maxBytes) { res.destroy(); return done(safeError('订阅内容超过 2MB 上限')); }
           let wire = 0, size = 0;
           const chunks = [];
@@ -85,7 +85,16 @@ async function downloadSubscription(value, {
           body.on('error', error => done(error));
           body.on('end', () => {
             if (!size) return done(safeError('订阅内容为空，原配置未改变'));
-            done(null, { text: Buffer.concat(chunks).toString('utf8') });
+            const text = Buffer.concat(chunks).toString('utf8');
+            // Some providers label valid Clash YAML as HTML. Accept it only
+            // after the same node validation used by the import transaction.
+            const webpageError = () => safeError('链接返回了网页或无效订阅内容，请使用 Clash/Mihomo 格式的订阅地址');
+            if (/^\s*(?:<!doctype\s+html\b|<html\b|<head\b|<body\b)/i.test(text)) return done(webpageError());
+            if (htmlContentType) {
+              try { require('./store.cjs').parseNodes(text); }
+              catch { return done(webpageError()); }
+            }
+            done(null, { text });
           });
         });
         req.on('error', error => done(error));
