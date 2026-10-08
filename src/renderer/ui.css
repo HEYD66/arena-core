@@ -658,7 +658,9 @@ html[data-frame="custom"] .window-bar{display:flex;align-items:center;justify-co
 .modal .hint{font-size:12px;color:var(--muted);line-height:1.7}
 /* 原生网页视图会遮住 HTML 浮层。提示占独立布局行，网页和宫格按新边界继续实时显示。 */
 #notificationSlots{min-width:0}
-.toast{position:relative;display:flex;align-items:center;gap:10px;width:fit-content;max-width:min(640px,85vw);max-height:min(160px,20vh);overflow:auto;margin:6px auto;padding:10px 16px;border:1px solid var(--line);border-radius:10px;background:var(--text);color:var(--panel);box-shadow:var(--shadow-sm);font-size:13px}
+.toast{position:fixed;z-index:1000;top:48px;right:16px;display:flex;align-items:flex-start;gap:10px;width:fit-content;max-width:min(640px,calc(100vw - 32px));max-height:40px;overflow:auto;margin:0;padding:8px 14px;border:1px solid var(--line);border-radius:10px;background:var(--text);color:var(--panel);box-shadow:var(--shadow);font-size:13px;box-sizing:border-box}
+/* Stay inside the existing control header, above native browser/grid views. */
+html[data-frame="custom"] .toast{top:80px}
 .toast span{min-width:0;overflow-wrap:anywhere}
 .toast svg{color:inherit;opacity:.8;flex-shrink:0}
 .toast[hidden]{display:none}
