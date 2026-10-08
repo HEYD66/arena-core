@@ -46,6 +46,7 @@ function installIPC(window,controller){
     case 'update-download':return {ok:true,value:await controller.updates.download()};
     case 'update-install':return {ok:true,value:await controller.updates.install(message.confirmed)};
     case 'runtime-output':return {ok:true,value:require('./runtime-output.cjs').readRuntimeOutput()};
+    case 'export-diagnostics':return {ok:true,value:await controller.queue('diagnostic-export',()=>require('./diagnostic-bundle.cjs').exportDiagnosticBundle(controller,window,dialog))};
     case 'favorite-node':if(!controller.workspace.data.nodes.some(n=>n.sourceId===message.sourceId&&n.name===message.name))controller.library.node(message.sourceId,message.name);controller.workspace.favorite(message.sourceId,message.name);controller.emit();break;
     case 'set-ip-favorite':controller.workspace.setIPFavorite(message.ip,message.selected,message.note);controller.emit();break;
     case 'remove-ips':controller.workspace.removeIPs(message.bookmarkIds);controller.emit();break;
