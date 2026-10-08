@@ -20,6 +20,8 @@ function installIPC(window,controller){
   if(!message||typeof message.action!=='string')throw Error('请求无效');const {action,id}=message;
   const exporting=controller.transfer.progress;if(exporting?.running){const mutations=['start','stop','rename','settings','instance-notes','instance-autostart','delete','remove','import','import-subscription','refresh-subscription','library-assign','instance-node-select','navigate','back','forward','reload','audio-volume','audio-mute','environment-timezone'];if(exporting.ids.includes(id)&&mutations.includes(action)||action.startsWith('extension-')&&action!=='extension-reveal'||['batch-start','batch-stop','batch-delete','library-assign-many'].includes(action))throw Error('所选实例正在导出，请等待完成');}
    switch(action){
+    case 'node-network-interfaces':return {ok:true,value:await controller.nodeNetwork.interfaces(true)};
+    case 'node-network-save':return {ok:true,value:await controller.queue('node-network',async()=>{const value=await controller.nodeNetwork.save(message.settings);controller.workspace.log('application','已保存节点 DNS 和出站设置；下次实例启动或节点检测生效');controller.emit();return value;})};
     case 'library-proxy-save':case 'library-proxy-test':case 'library-proxy-clipboard':case 'library-proxy-parse':return {ok:true,value:await require('./proxy-entry.cjs').proxyEntry(controller,message,clipboard)};
     case 'fingerprint-preset':return {ok:true,value:require('./environment.cjs').environment(require('./fingerprint.cjs').preset(message.preset,require('./environment.cjs').environment(message.environment)))};
     case 'environment-timezone':return {ok:true,value:await controller.diagnostics.timezone(id,message.network)};

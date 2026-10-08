@@ -45,6 +45,13 @@ async function main(){
  await new Promise(r=>proxy.listen(0,'127.0.0.1',r));
  const store=new Store(root),a=store.create('安装验证·直连'),b=store.create('安装验证·代理');store.update(a.id,{url});store.update(b.id,{url,network:{mode:'mihomo',nodeName:'本机验证代理'}});store.saveNodes(b.id,[{name:'本机验证代理',type:'http',server:'127.0.0.1',port:proxy.address().port}],null);
  await launch();assert((await call('snapshot')).instances.every(x=>x.status==='stopped'));pass('Installed app loads real production preload/IPC and does not auto-start instances');
+ await ui.locator('#sidebar .nav[data-view="settings"]').click();await ui.waitForFunction(()=>view==='settings'&&!!document.querySelector('#nodeNetworkCard'));
+ assert.match(await ui.locator('#workspaceHead h1').textContent(),/^应用设置/);assert(await ui.locator('[data-palette-mode]').count()>0);
+ await ui.locator('#nodeNetworkRefresh').click();await ui.waitForFunction(()=>!networkBusy&&networkRows.length>0);
+ const interfaces=await call('node-network-interfaces');assert(interfaces.every(row=>row.name&&Number.isSafeInteger(row.index)));
+ await ui.locator('#nodeDnsMode').selectOption('secure');await ui.locator('#nodeNetworkSave').click();await ui.waitForFunction(()=>!networkBusy&&networkMessage.startsWith('已保存'));
+ assert.equal((await call('snapshot')).nodeNetwork.settings.dnsMode,'secure');assert.equal(new (require('../src/main/node-network.cjs').NodeNetwork)(root).settings.dnsMode,'secure');
+ await ui.screenshot({path:path.join(root,'node-network-settings.png')});pass('Packaged settings UI retains themes, reads real adapters from asar and persists scoped DNS policy');
  await ui.locator('#sidebar .nav[data-view="global"]').click();
  await ui.waitForFunction(()=>view==='global'&&!!document.querySelector('.github-support-card'));
  const info=await ui.locator('#content').textContent();
@@ -67,7 +74,7 @@ async function main(){
  pass('Packaged realtime grid retains animated real pages and zoom/restore works');
  await call('rename',{id:a.id,name:'安装验证·已改名'});const output=await call('runtime-output');assert.equal(output.warning,'');assert(output.rows.some(r=>r.text.includes('ready')));pass('Installed runtime output works without the development launcher');
  const corePids=(await call('snapshot')).instances.map(x=>x.pid).filter(Boolean);await close();assert(corePids.every(pid=>{try{process.kill(pid,0);return false;}catch{return true;}}));pass('Normal exit reclaims packaged proxy processes');
- await launch();const second=await call('snapshot');assert(second.instances.some(x=>x.name==='安装验证·已改名'));assert(second.instances.every(x=>x.status==='stopped'));
+ await launch();const second=await call('snapshot');assert(second.instances.some(x=>x.name==='安装验证·已改名'));assert(second.instances.every(x=>x.status==='stopped'));assert.equal(second.nodeNetwork.settings.dnsMode,'secure');assert.equal(second.nodeNetwork.settings.routeMode,'system');
  for(const id of [a.id,b.id])await call('start',{id});await wait(async()=>(await call('snapshot')).instances.every(x=>x.title==='Installed live fixture'&&x.status==='running'),'restarted pages',45000);
  const restarted=browser.contexts().flatMap(c=>c.pages()).filter(p=>p.url()===url);assert((await Promise.all(restarted.map(p=>p.evaluate(()=>localStorage.getItem('facet-install-persistence'))))).includes('installed-check'));
  pass('Application restart retains renamed configuration and browser storage');await close();
