@@ -34,7 +34,7 @@ function installIPC(window,controller){
     case 'extension-refresh-all':return {ok:true,value:await controller.queue('extensions',()=>refreshAll(controller,window,dialog))};
     case 'extension-reveal':await reveal(controller,shell,message.extensionId);break;
     case 'extension-configure':if(message.confirmed!==true)throw Error('请确认仅停止目标实例后更改扩展');await controller.queue('extensions',()=>controller.extensions.configure(id,message.extensionId,message.enabled));break;
-    case 'extension-remove':if(message.confirmed!==true)throw Error('请确认移除扩展');await controller.queue('extensions',()=>controller.extensions.catalog.remove(message.extensionId));controller.emit();break;
+    case 'extension-remove':if(message.confirmed!==true)throw Error('请确认移除扩展');return {ok:true,value:await controller.queue('extensions',()=>require('./extension-remove.cjs').removeExtension(controller,message.extensionId,message.instanceIds))};
     case 'extension-open':await controller.queue(id,()=>controller.extensions.open(id,message.extensionId,message.kind));break;
     case 'snapshot':return {ok:true,value:controller.snapshot()};
     case 'update-status':return {ok:true,value:controller.updates?.snapshot()||{supported:false,status:'unsupported',error:'当前运行方式未接入在线更新'}};

@@ -79,6 +79,9 @@
 .ext-pop header{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:9px 12px;border-bottom:1px solid var(--line)}
 .ext-pop header strong{font-size:12px}
 .ext-pop header small{font-size:11px;color:var(--muted)}
+.ext-select-all{display:flex;align-items:center;gap:8px;padding:8px 0}
+.ext-select-all small{margin-left:auto;font-size:11px;color:var(--muted)}
+.ext-pop>.ext-select-all{padding:7px 12px;border-bottom:1px solid var(--line)}
 .ext-pop-list{display:flex;flex-direction:column;gap:2px;padding:6px;max-height:260px;overflow:auto}
 .ext-pop-note{margin:0;padding:8px 12px 10px;font-size:11px;color:var(--muted);border-top:1px solid var(--line)}
 .ext-pop>.ext-pending{margin:0;border:0;border-top:1px solid var(--line);border-left:3px solid var(--amber);border-radius:0;flex-direction:column;align-items:stretch}

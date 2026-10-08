@@ -76,6 +76,7 @@ try{
  await page.locator('#extSearch').fill('nothing-matches');assert.match(await page.locator('.ext-grid').innerText(),/没有匹配/);await page.locator('#extSearch').fill('');assert.equal(await page.locator('.ext-grid .ext-card').count(),3);
  ok('Chrome-style grid: icon, name, version, description, ID and source; search filters without losing focus');
  await cardA.locator('[data-extension="enable-menu"]').click();assert.equal(await cardA.locator('.ext-pop .ext-chip').count(),3);assert.equal(await cardA.locator('[data-extension="enable-menu"]').getAttribute('aria-expanded'),'true');
+ await cardA.locator('[data-extension="select-all"]').click();assert.equal(await cardA.locator('.ext-pop .ext-chip[aria-pressed=true]').count(),3);assert.equal(calls.filter(c=>c.action==='extension-configure').length,0);await cardA.locator('[data-extension="select-none"]').click();assert.equal(await cardA.locator('.ext-pop .ext-chip[aria-pressed=true]').count(),0);await cardA.locator('[data-extension="cancel"]').click();assert.equal(await cardA.locator('.ext-pop .ext-chip[aria-pressed=true]').count(),2);
  await cardA.locator('.ext-chip[data-instance-id="inst-2"]').click();await cardA.locator('.ext-chip[data-instance-id="inst-1"]').click();
  assert.match(await cardA.locator('.ext-pop .ext-pending').innerText(),/将启用：2；将停用：主工作区[\s\S]*会停止运行中的 主工作区/);assert.match(await cardA.locator('.ext-enable').innerText(),/待应用 2/);
  assert.equal(await page.evaluate(()=>document.activeElement.dataset.instanceId),'inst-1','focus stays on the toggled instance');
@@ -100,11 +101,11 @@ try{
  await page.locator('[data-extension-card="ext-b"] [data-extension="detail"]').first().click();await go(page,'extensions');assert.equal(await page.locator('.ext-detail').count(),0,'navigating to the center shows the list');
  ok('Detail page: instances with enable state and panel/settings, ID, source folder, permissions; back returns to the grid');
  await page.locator('[data-extension="refresh-all"]').click();await page.waitForFunction(()=>!extensionBusy);assert(calls.some(c=>c.action==='extension-refresh-all'));assert.match(await page.locator('#toast').innerText(),/已更新 Arena 对话导出 1\.8\.0 → 1\.9\.0[\s\S]*已停止 主工作区/);
- assert.equal(await page.locator('[data-extension-card="ext-b"] [data-extension="remove"]').isDisabled(),true);
+ assert.equal(await page.locator('[data-extension-card="ext-b"] [data-extension="remove"]').isDisabled(),false);await page.locator('[data-extension-card="ext-b"] [data-extension="remove"]').click();assert.match(await page.locator('[data-extension-card="ext-b"] .ext-pending').innerText(),/会停止.*正在运行.*不会删除/);await page.locator('[data-extension-card="ext-b"] [data-extension="cancel"]').click();
  await page.locator('[data-extension-card="ext-c"] [data-extension="remove"]').click();await page.locator('[data-extension-card="ext-c"] [data-extension="confirm"]').click();await page.waitForFunction(()=>!state.extensions.some(e=>e.id==='ext-c'));
  assert(calls.some(c=>c.action==='extension-remove'&&c.extensionId==='ext-c'));
  await page.locator('[data-extension="import"]').click();await page.waitForTimeout(50);assert(calls.some(c=>c.action==='extension-import'));
- ok('全部更新 reports versions and stopped instances; remove only when unused, with confirmation; import unchanged');
+ ok('全部更新 reports versions and stopped instances; used extensions offer removal with affected-instance confirmation; import unchanged');
  // Readability, both themes, center + toolbar + menu.
  const audit=[];for(const theme of ['light','dark']){await page.evaluate(t=>{document.documentElement.dataset.theme=t;},theme);await page.waitForTimeout(450);await go(page,'extensions');await page.locator('[data-extension-card="ext-b"] [data-extension="enable-menu"]').click();await page.locator('[data-extension-card="ext-b"] [data-instance-id="inst-2"]').click();audit.push(...(await readability(page)).map(x=>theme+'/center '+x));await page.locator('[data-extension-card="ext-b"] [data-extension="cancel"]').click();await page.keyboard.press('Escape');
   await page.locator('[data-extension-card="ext-a"] [data-extension="detail"]').first().click();audit.push(...(await readability(page)).map(x=>theme+'/detail '+x));await page.locator('[data-extension="back"]').click();

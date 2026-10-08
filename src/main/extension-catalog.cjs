@@ -66,6 +66,13 @@ class ExtensionCatalog{
  setEnabled(instanceId,id,enabled){this.get(id);if(typeof enabled!=='boolean')throw Error('启用状态无效');const set=new Set(this.data.enabled[instanceId]||[]);enabled?set.add(id):set.delete(id);this.commit({...this.data,enabled:{...this.data.enabled,[instanceId]:[...set]}});}
  enabled(id){return this.data.enabled[id]||[];}
  forget(id){const enabled={...this.data.enabled};delete enabled[id];this.commit({...this.data,enabled});}
- remove(id){const row=this.get(id);if(Object.values(this.data.enabled).some(list=>list.includes(id)))throw Error('请先在所有实例中停用此扩展');this.commit({...this.data,items:this.data.items.filter(x=>x.id!==id)});this.discard(row);}
+ remove(id,{disableAll=false}={}){this.get(id);if(!disableAll&&Object.values(this.data.enabled).some(list=>list.includes(id)))throw Error('请先在所有实例中停用此扩展');
+  const dir=path.join(this.base,id),trash=path.join(this.base,id+'.remove-'+crypto.randomUUID()),exists=fs.existsSync(dir);
+  // Rename before metadata commit; a locked package cannot leave a removed catalog entry.
+  if(exists)fs.renameSync(dir,trash);
+  const enabled=Object.fromEntries(Object.entries(this.data.enabled).map(([key,list])=>[key,list.filter(x=>x!==id)]));
+  try{this.commit({...this.data,items:this.data.items.filter(x=>x.id!==id),enabled});}catch(error){if(exists)fs.renameSync(trash,dir);throw error;}
+  let cleanupPending=false;if(exists)try{fs.rmSync(trash,{recursive:true,force:true,maxRetries:2});}catch{cleanupPending=true;}
+  return {removed:true,cleanupPending};}
 }
 module.exports={ExtensionCatalog,inspect,localPage,extensionIcon,sizeText,DANGEROUS_PERMISSIONS,GLOBAL_MATCHES};
