@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>翻译</title><link rel="stylesheet" href="compact.css"></head>
+<body>
+<main>
+  <header><strong>翻译</strong><label class="switch" title="关闭后恢复原文，暂停本实例的页面及划词翻译"><span id="enabled-label">启用翻译</span><input id="enabled" type="checkbox" role="switch" checked><span class="track" aria-hidden="true"></span></label><button id="more" class="icon" aria-label="更多选项" aria-expanded="false">⋮</button></header>
+  <nav id="menu" hidden><button id="advanced">高级设置</button><button id="original">完整面板</button></nav>
+  <section class="languages"><label><span>原文</span><select id="from" aria-label="原文语言" disabled><option value="auto">自动检测</option></select></label><span class="arrow" aria-hidden="true">→</span><label><span>译文</span><select id="to" aria-label="译文语言" disabled><option value="zh">中文（简体）</option></select></label></section>
+  <button id="translate" class="primary" disabled>翻译此页</button>
+  <label class="always"><input id="always" type="checkbox" disabled><span id="always-label">始终翻译此语言</span></label>
+  <p id="status" role="status" aria-live="polite">正在读取页面…</p>
+  <footer>Linguist</footer>
+</main><script src="compact.js"></script>
+</body></html>
