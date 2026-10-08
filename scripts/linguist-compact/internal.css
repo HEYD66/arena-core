@@ -1,0 +1,83 @@
+/* Shared internal page skin; no controls or original functionality are removed. */
+:root {color-scheme:light dark;--facet-bg:#fffdf6;--facet-card:#f7f3e8;--facet-text:#163b48;--facet-muted:#65747b;--facet-line:#e7dfc9;--facet-accent:#216ba7;--facet-hover:#efe9d8;--facet-disabled:#a3a4a0}
+@media(prefers-color-scheme:dark){:root{--facet-bg:#22211f;--facet-card:#2c2a26;--facet-text:#ece9e1;--facet-muted:#ada89a;--facet-line:#48453e;--facet-accent:#387bd1;--facet-hover:#35332e;--facet-disabled:#77746c}}
+html body, body [class*="Theme_color_"] {
+ --typography-font-family:system-ui,"Microsoft YaHei",sans-serif;
+ --typography-controls-font-family:system-ui,"Microsoft YaHei",sans-serif;
+ --typography-layout-size-s-font-size:12px;--typography-layout-size-m-font-size:14px;--typography-layout-size-l-font-size:16px;
+ --typography-layout-indent-s-all:5px;--typography-layout-indent-m-all:10px;--typography-layout-indent-l-all:14px;
+ --button-size-s-font-size:12px;--button-size-m-font-size:14px;--button-size-l-font-size:15px;
+ --button-size-s-line-height:30px;--button-size-m-line-height:32px;--button-size-l-line-height:34px;
+ --select-size-s-font-size:12px;--select-size-m-font-size:14px;--select-size-l-font-size:15px;
+ --tabsmenu-size-m-font-size:14px;--tabsmenu-size-m-line-height:36px;
+ --color-typo-primary:var(--facet-text);--color-typo-secondary:var(--facet-muted);--color-typo-disabled:var(--facet-disabled);
+ --color-link-base:var(--facet-accent);--color-link-external:var(--facet-accent);
+ --color-control-typo-primary:var(--facet-text);--color-control-type-default-typo-base:var(--facet-text);
+ --checkbox-label-typo-base:var(--facet-text);--checkbox-label-typo-disabled:var(--facet-disabled);
+ --button-view-default-fill-color-base:var(--facet-card);--button-view-default-fill-color-hovered:var(--facet-hover);--button-view-default-fill-color-disabled:var(--facet-card);
+ --button-view-default-typo-color-base:var(--facet-text);--button-view-default-typo-color-disabled:var(--facet-disabled);
+ --button-view-action-fill-color-base:var(--facet-accent);--button-view-action-fill-color-hovered:var(--facet-accent);--button-view-action-fill-color-disabled:var(--facet-disabled);
+ --button-view-clear-typo-color-base:var(--facet-text);--button-view-pseudo-fill-color-base:var(--facet-card);--button-view-pseudo-typo-color-base:var(--facet-text);
+ --button-view-clear-fill-color-disabled:transparent;--button-view-clear-typo-color-disabled:var(--facet-disabled);
+ --select-fill-color-base:var(--facet-card);--popup-view-default-fill-color:var(--facet-bg);--popup-view-default-border-color-shadow:var(--facet-line);
+ --menu-view-default-fill-color-base:var(--facet-bg);--menu-view-default-typo-color-base:var(--facet-text);--menu-view-default-fill-color-hovered:var(--facet-hover);
+ --textarea-view-default-fill-color-base:var(--facet-bg);--textarea-view-default-fill-color-disabled:var(--facet-card);--textarea-view-default-typo-color-base:var(--facet-text);--textarea-view-default-border-color-base:var(--facet-line);
+ --textinput-view-default-fill-color-base:var(--facet-bg);--textinput-view-default-typo-color-base:var(--facet-text);--textinput-view-default-border-color-base:var(--facet-line);
+ --options-page-dialog-fill-color:var(--facet-card);
+ --modal-view-default-fill-color:var(--facet-bg);
+ background:var(--facet-bg);color:var(--facet-text);font:14px/1.55 system-ui,"Microsoft YaHei",sans-serif;
+}
+html,body {margin:0;min-width:300px;width:100%;}
+.FacetInternalNav{display:flex;flex-wrap:wrap;gap:5px;padding:10px 12px;border-bottom:1px solid var(--facet-line);background:var(--facet-bg)}
+.FacetInternalNav a{color:var(--facet-muted);font-size:12px;text-decoration:none;padding:5px 7px;border-radius:6px;white-space:nowrap}
+.FacetInternalNav a:hover,.FacetInternalNav a[aria-current]{background:var(--facet-hover);color:var(--facet-text)}
+a:focus-visible,button:focus-visible{outline:2px solid var(--facet-accent);outline-offset:2px}
+#root{max-width:860px;margin:auto;}
+body h1{font-size:21px;margin:0 0 14px;line-height:1.4}body h2{font-size:17px;margin:20px 0 12px;line-height:1.4}body h3{font-size:14px;margin:14px 0 8px;line-height:1.5}
+.Page-Body{font-size:14px;padding-bottom:76px;}
+.OptionsPage-Page{padding:16px 14px 0;}
+.OptionsPage-OptionsTree{margin:20px 0!important;}
+.OptionsPage-MainGroup:not(:last-child){margin-bottom:12px;}
+.OptionsPage-Subgroup:not(:first-child)>.OptionsPage-PageSectionTitle{margin-top:14px;}
+.OptionsPage-OptionSection{padding:12px 0;border-top:1px solid var(--facet-line);grid-template-columns:150px minmax(0,1fr);gap:14px;}
+.OptionsPage-OptionTitle{margin-left:0;font-size:14px;}
+.OptionsPage-OptionContainer{min-width:0;margin-right:0;}
+.OptionsPage-OptionContainer>*:not(:last-child){margin-bottom:8px;}
+.OptionsPage-OptionDescription{font-size:12px;line-height:1.65;overflow-wrap:anywhere;}
+.OptionsPage-IndentMixin_vertical>*:not(:first-child){margin-top:14px;}
+.OptionsPage-IndentMixin_horizontal{display:flex;flex-wrap:wrap;gap:7px;}
+.OptionsPage-IndentMixin_horizontal>*:not(:first-child){margin-left:0;}
+.OptionsPage-ConfirmMenu{max-width:calc(100% - 24px);box-shadow:0 4px 20px #0002;border:1px solid var(--facet-line);border-radius:8px;}
+.OptionsPage-OptionSection_changed::before,.OptionsPage-OptionSection_changed .OptionsPage-OptionContainer::before{background:var(--facet-hover);}
+.Button{border-radius:6px;}
+.Select,.Textinput,.Textarea{max-width:100%;}
+.Select .Button-Text,.Select .Select-Text{color:var(--facet-text);}
+.Textarea .Textarea-Control,.Textinput .Textinput-Control{font-family:inherit;font-size:14px;}
+.Checkbox-Label,.RadioButton-Text,.Menu-ItemText{color:var(--facet-text);}
+.TabsMenu{margin-bottom:12px;}
+.TabsMenu-Tab{color:var(--facet-muted)!important;}
+.TabsMenu-Tab_active{color:var(--facet-text)!important;}
+.TabsMenu-Tab_active::before,.TabsMenu-Cursor{border-color:var(--facet-accent)!important;}
+.TabsMenu-Tab::before{background:transparent!important;}
+.PopupWindow-Header{background:var(--facet-card);line-height:40px;padding:0 14px;color:var(--facet-text);}
+.PopupWindow-Logo{font-size:15px;}
+.PopupWindow-Logo svg{width:85px;height:24px;}
+.PopupWindow-Logo svg path{fill:var(--facet-text);}
+.PopupWindow-HeaderMenu .Button{color:var(--facet-muted);}
+.PopupWindow>div:last-child{min-width:0!important;padding:14px;box-sizing:border-box;}
+.PageTranslator-Header{font-size:14px;margin:14px 0 8px;}
+.TextTranslator-LangPanel{min-width:0;display:flex;align-items:center;flex-wrap:wrap;gap:5px;}
+.TextTranslator-Input .Textarea-Wrap{height:110px;}
+.TextTranslator-ResultText{min-height:90px;}
+.TextTranslator-ResultContainer{border:1px solid var(--facet-line);}
+.HistoryPage,.DictionaryPage{padding:16px 14px;}
+.TranslationCard{border-color:var(--facet-line);background:var(--facet-card);border-radius:8px;font-size:14px;}
+.TranslationCard-Text{overflow-wrap:anywhere;}
+.TranslationCard-TextContainer{background:var(--facet-bg);color:var(--facet-text);}
+.TranslationCard-Lang{background:var(--facet-hover);color:var(--facet-text);padding:4px 7px;font-size:12px;}
+.TranslationsHistory-EmptyResults{padding:24px 14px;font-size:14px;font-weight:normal;color:var(--facet-muted);}
+.DictionaryPage-NotFoundMessage{font-size:14px;background:var(--facet-card);color:var(--facet-muted);border-radius:8px;}
+.ModalLayout{margin:0;min-width:0;width:100%;}.ModalLayout-Title{font-size:17px;margin-bottom:12px;}
+.Modal-Content.Modal-Content{padding:14px;background:var(--facet-bg);color:var(--facet-text);border:1px solid var(--facet-line);border-radius:8px;}
+.Modal-Cell{padding:10px;}.TranslatorsManager{min-width:0;max-width:100%;}
+@media(max-width:580px){.OptionsPage-OptionSection{display:block;}.OptionsPage-OptionTitle{text-align:left;margin-bottom:7px;}.PageTranslator-LangPanel .Select{max-width:120px;}.OptionsPage-ConfirmMenu .Button-Text{padding:0 6px;}.TranslationCard_layout_horizontal .TranslationCard-Content{flex-direction:column;}}

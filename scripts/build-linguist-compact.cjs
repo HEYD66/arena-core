@@ -15,6 +15,21 @@ function build(source,output){
  content=replaceOnce(content,'mv.main()})()})();',fs.readFileSync(path.join(__dirname,'linguist-compact/content-boot.js'),'utf8')+'\n})()})();');
  fs.cpSync(source,output,{recursive:true,errorOnExist:true,force:false});
  fs.writeFileSync(path.join(output,'background-script.js'),bg);fs.writeFileSync(path.join(output,'contentscript.js'),content);
+ const shared=path.join(output,'pages/compact-internal');fs.mkdirSync(shared);
+ const messages=JSON.parse(fs.readFileSync(path.join(source,'_locales/zh/messages.json'),'utf8'));
+ fs.writeFileSync(path.join(shared,'locale.js'),'globalThis.facetInternalMessages='+JSON.stringify(messages)+';\n'+fs.readFileSync(path.join(__dirname,'linguist-compact/internal.js'),'utf8'));
+ fs.copyFileSync(path.join(__dirname,'linguist-compact/internal.css'),path.join(shared,'internal.css'));
+ for(const page of ['popup','options','history','dictionary']){
+  const dir=path.join(output,'pages',page),jsFile=path.join(dir,page+'.js');let js=fs.readFileSync(jsFile,'utf8');
+  for(const method of ['getMessage','getUILanguage']){
+   const pattern=new RegExp('[A-Za-z_$][\\w$]*\\(\\)\\.i18n\\.'+method+'\\(','g');
+   if(!pattern.test(js))throw Error('Unsupported internal locale helper: '+page+'/'+method);
+   js=js.replace(pattern,'globalThis.facetInternalLocale.'+method+'(');
+  }
+  fs.writeFileSync(jsFile,js);
+  if(page==='options')fs.writeFileSync(jsFile,replaceOnce(js,'title:"Popup button"','title:"划词翻译按钮"'));
+  const html=path.join(dir,page+'.html');fs.writeFileSync(html,replaceOnce(fs.readFileSync(html,'utf8'),'</head>','<link rel="stylesheet" href="/pages/compact-internal/internal.css">\n<script src="/pages/compact-internal/locale.js"></script>\n</head>'));
+ }
  const popup=path.join(output,'pages/popup');fs.copyFileSync(path.join(popup,'popup.html'),path.join(popup,'original.html'));
  for(const file of ['popup.html','compact.css','compact.js'])fs.copyFileSync(path.join(__dirname,'linguist-compact',file),path.join(popup,file));
  manifest.name='Linguist 简洁翻译';manifest.description='简洁翻译面板：页面翻译、恢复原文、语言规则和独立启用开关；保留 Linguist 原引擎及高级功能。';manifest.action.default_title='翻译';
