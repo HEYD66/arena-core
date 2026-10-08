@@ -10,6 +10,11 @@ const PROVIDERS = Object.freeze([
   Object.freeze({ host: 'cloudflare-dns.com', ip: '1.1.1.1', path: '/dns-query' }),
   Object.freeze({ host: 'dns.google', ip: '8.8.8.8', path: '/resolve' })
 ]);
+// Some proxy vendors return loopback answers outside their regional DNS view.
+// This extra resolver is opt-in for proxy-node preparation, not subscriptions.
+const NODE_PROVIDERS = Object.freeze([...PROVIDERS,
+  Object.freeze({ host: 'dns.alidns.com', ip: '223.5.5.5', path: '/resolve', objectQuestion: true })
+]);
 function dnsError(code) { return Object.assign(new Error('安全 DNS 查询失败'), { code }); }
 function isPublicHostname(host) {
   if (typeof host !== 'string' || host.length > 253 || net.isIP(host) || !host.includes('.')) return false;
@@ -19,12 +24,15 @@ function isPublicHostname(host) {
   return host.split('.').every(label => label.length <= 63 && /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(label));
 }
 function normalizeName(name) { return typeof name === 'string' ? name.replace(/\.$/, '').toLowerCase() : ''; }
-function parseReply(text, host, type) {
+function parseReply(text, host, type, provider) {
   let data;
   try { data = JSON.parse(text); } catch { throw dnsError('DOH_BAD_RESPONSE'); }
+  // AliDNS's JSON API uses one Question object; other providers use an array.
+  const questions = provider.objectQuestion && data?.Question && !Array.isArray(data.Question)
+    ? [data.Question] : data?.Question;
   if (!data || ![0, 3].includes(data.Status) || data.TC === true ||
-      !Array.isArray(data.Question) || data.Question.length !== 1 ||
-      normalizeName(data.Question[0]?.name) !== host || data.Question[0]?.type !== type) {
+      !Array.isArray(questions) || questions.length !== 1 ||
+      normalizeName(questions[0]?.name) !== host || questions[0]?.type !== type) {
     throw dnsError('DOH_BAD_RESPONSE');
   }
   const answers = data.Answer === undefined ? [] : data.Answer;
@@ -81,7 +89,7 @@ function queryType(provider, host, type, signal) {
         res.on('aborted', () => finish(dnsError('DOH_RESPONSE_ERROR')));
         res.on('end', () => {
           if (settled) return;
-          try { finish(null, parseReply(Buffer.concat(chunks).toString('utf8'), host, type)); }
+          try { finish(null, parseReply(Buffer.concat(chunks).toString('utf8'), host, type, provider)); }
           catch (error) { finish(error); }
         });
       });
@@ -107,19 +115,24 @@ async function queryProvider(provider, host, signal, timeoutMs) {
     controller.abort(); // Cancel the sibling request if the other one failed.
   }
 }
-async function queryDohAddresses(host, { signal, timeoutMs = 3500 } = {}) {
+async function queryDohAddresses(host, { signal, timeoutMs = 3500, nodeFallback = false, acceptAddress = null } = {}) {
   if (!isPublicHostname(host)) throw dnsError('DOH_INVALID_HOST');
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 10000) throw dnsError('DOH_INVALID_LIMIT');
-  for (const provider of PROVIDERS) {
+  if (typeof nodeFallback !== 'boolean' || (acceptAddress !== null && typeof acceptAddress !== 'function')) throw dnsError('DOH_INVALID_LIMIT');
+  let nonPublic = false;
+  for (const provider of nodeFallback ? NODE_PROVIDERS : PROVIDERS) {
     if (signal?.aborted) throw dnsError('ABORT_ERR');
     try {
       const rows = await queryProvider(provider, host, signal, timeoutMs);
-      if (rows.length) return rows;
+      if (rows.length) {
+        if (!acceptAddress || rows.every(row => acceptAddress(row.address))) return rows;
+        nonPublic = true; // Reject the whole answer; do not cherry-pick public IPs.
+      }
     } catch {
       if (signal?.aborted) throw dnsError('ABORT_ERR');
-      // Try the second fixed provider, never a redirect supplied by a response.
+      // Try the next fixed provider, never a redirect supplied by a response.
     }
   }
-  throw dnsError('DOH_UNAVAILABLE');
+  throw dnsError(nonPublic ? 'DOH_NONPUBLIC_ADDRESS' : 'DOH_UNAVAILABLE');
 }
 module.exports = { queryDohAddresses, isPublicHostname };

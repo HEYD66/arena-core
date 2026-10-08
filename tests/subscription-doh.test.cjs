@@ -119,3 +119,51 @@ test('each provider has a bounded deadline for both address families', async t =
   await assert.rejects(queryDohAddresses('slow.vendor-two.net',{timeoutMs:20}),{code:'DOH_UNAVAILABLE'});
   assert.equal(calls.length,4);assert(Date.now()-started<2000);
 });
+
+const {isPublicAddress} = require('../src/main/subscription-policy.cjs');
+const nodeOptions = {nodeFallback:true, acceptAddress:isPublicAddress};
+function regionalReply(options, addresses) {
+  const data = JSON.parse(reply(options, addresses));
+  data.Question = data.Question[0];
+  return {body:JSON.stringify(data)};
+}
+test('node lookup rejects loopback responses and uses verified regional DNS with its object Question', async t => {
+  const calls=mockDnsHttp(t, options=>options.hostname==='dns.alidns.com'
+    ? regionalReply(options, options.path.endsWith('type=A')?['93.184.216.34']:[])
+    : {body:reply(options,options.path.endsWith('type=A')?['127.127.127.5']:[])});
+  assert.deepEqual(await queryDohAddresses('node.vendor-one.com',nodeOptions),[{address:'93.184.216.34',family:4}]);
+  assert.deepEqual([...new Set(calls.map(x=>x.hostname))],['cloudflare-dns.com','dns.google','dns.alidns.com']);
+  for(const options of calls.filter(x=>x.hostname==='dns.alidns.com')){
+    assert(options.path.startsWith('/resolve?'));assert.equal(options.servername,'dns.alidns.com');assert.equal(options.rejectUnauthorized,true);
+    assert.equal(await new Promise(resolve=>options.lookup(options.hostname,{},(_e,address)=>resolve(address))),'223.5.5.5');
+    assert.deepEqual([...new URL('https://'+options.hostname+options.path).searchParams.keys()],['name','type']);
+  }
+});
+test('node lookup uses Google before regional fallback and rejects an entire mixed response',async t=>{
+  const calls=mockDnsHttp(t,options=>({body:reply(options,options.path.endsWith('type=A')?(options.hostname==='cloudflare-dns.com'?['93.184.216.34','127.0.0.1']:['93.184.216.35']):[])}));
+  assert.deepEqual(await queryDohAddresses('mixed.node-vendor.com',nodeOptions),[{address:'93.184.216.35',family:4}]);
+  assert.equal(calls.length,4);assert(!calls.some(x=>x.hostname==='dns.alidns.com'));
+});
+test('node regional fallback still rejects private, Fake-IP and mismatched questions',async t=>{
+  const calls=mockDnsHttp(t,options=>{
+    if(options.hostname!=='dns.alidns.com')return {body:reply(options,options.path.endsWith('type=A')?['127.127.127.5']:[])};
+    const result=regionalReply(options,options.path.endsWith('type=A')?['93.184.216.34']:[]),data=JSON.parse(result.body);data.Question.name='other.vendor.com.';return {body:JSON.stringify(data)};
+  });
+  await assert.rejects(queryDohAddresses('unsafe.node-vendor.com',nodeOptions),{code:'DOH_NONPUBLIC_ADDRESS'});assert.equal(calls.length,6);
+});
+test('all unsafe node answers fail preparation before spawning a core; system mode is unchanged',async t=>{
+  const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),dns=require('node:dns').promises;
+  const {NodeNetwork}=require('../src/main/node-network.cjs'),{Mihomo}=require('../src/main/mihomo.cjs');
+  const calls=mockDnsHttp(t,options=>options.hostname==='dns.alidns.com'?regionalReply(options,options.path.endsWith('type=A')?['198.18.2.1']:[]):{body:reply(options,options.path.endsWith('type=A')?['127.127.127.5']:[])});
+  t.mock.method(dns,'lookup',async()=>[{address:'198.18.1.2',family:4}]);
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'facet-unsafe-dns-'));
+  try{const network=new NodeNetwork(dir),core=new Mihomo(path.resolve('resources/mihomo/mihomo.exe'),path.join(dir,'runtime'),null,network);
+    await assert.rejects(core.start({server:'unsafe.node-vendor.com',type:'ss',port:8080}),/多个安全 DNS/);assert.equal(core.child,null);assert(!fs.existsSync(path.join(dir,'runtime')));assert.equal(calls.length,6);
+    await network.save({dnsMode:'system',routeMode:'system'});assert.deepEqual((await network.prepare({server:'unsafe.node-vendor.com'})).overrides,{});assert.equal(calls.length,6);
+  }finally{fs.rmSync(dir,{recursive:true,force:true});}
+});
+test('node fallback has bounded deadlines and parent cancellation never starts another provider',async t=>{
+  const calls=mockDnsHttp(t,()=>({hang:true})),abort=new AbortController();
+  const pending=queryDohAddresses('cancel.node-vendor.com',{...nodeOptions,signal:abort.signal});abort.abort();await assert.rejects(pending,{code:'ABORT_ERR'});assert.equal(calls.length,2);
+  const started=Date.now();await assert.rejects(queryDohAddresses('slow.node-vendor.com',{...nodeOptions,timeoutMs:20}),{code:'DOH_UNAVAILABLE'});assert.equal(calls.length,8);assert(Date.now()-started<2000);
+});
