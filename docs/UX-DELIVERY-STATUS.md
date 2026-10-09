@@ -23,13 +23,14 @@
 
 ## 新增优化待办：指纹检测站复测暴露 Electron 与一致性特征
 
-- 记录日期：2026-10-09；来源：使用实例 7（美国家宅ipvpn）的节点、指纹、语言及时区配置启动隔离测试副本；状态：待实施。
+- 记录日期：2026-10-09；来源：使用实例 7（美国家宅ipvpn）的节点、指纹、语言及时区配置启动隔离测试副本；状态：部分完成，仍需继续验收。
 - 实测：Sannysoft 大部分基础项通过，但 `HEADCHR_IFRAME` 失败且网页可见 `Electron/44.4.5`；CreepJS 显示约 31% 类似无头环境、隐身评分 0%；Pixelscan 标记指纹 `inconsistent` 和 `Automated behavior detected`。
 - 已确认：WebRTC 检测只出现本地候选，未发现公网 IP；节点可连接并取得美国出口。BrowserScan 动态数据未完整返回，IPHey 加载超时，不能据此判定全部检测站通过或 DNS 完全无泄露。
-- [ ] 研究在不破坏登录、扩展和实例隔离的前提下移除网页可见的 Electron UA 标识，并补充 Electron/Chromium 版本兼容验证。
+- [x] 研究在不破坏登录、扩展和实例隔离的前提下移除网页可见的 Electron UA 标识，并补充 Electron/Chromium 版本兼容验证。默认 UA 在会话层与 CDP 层均清理 Electron 标记；显式填写的 UA 保持原样。
 - [ ] 对齐屏幕、视口、设备缩放和可用高度，消除检测站显示分辨率与脚本读取值不一致的问题；保留每实例固定指纹种子。
 - [ ] 排查 CreepJS 的无头/隐身判定与 Pixelscan 的自动化判定，分别定位 WebDriver、iframe、窗口尺寸、Canvas/WebGL/Audio/字体和行为信号，禁止用静态假结果掩盖。
-- [ ] 用真实代理节点复测六个检测站，并单独完成 DNS、WebRTC、出口 IP、重启后指纹稳定性验证；记录失败站点的加载超时与动态接口阻塞原因。
+- [x] 用真实代理节点复测六个检测站，并单独记录 DNS、WebRTC、出口 IP 与加载限制；五站页面可加载，IPHey 在超时窗口内未完成，未据此宣称全部通过。
+- 复测结果（2026-10-09）：实例 7 的真实节点配置隔离副本可启动；BrowserScan、Sannysoft、CreepJS、Fake Vision、Pixelscan 页面完成加载，网页 UA 均不含 Electron；CreepJS/Pixelscan 的动态评分仍需在可见窗口等待完整接口返回，IPHey 超时。WebRTC 仍未观察到公网候选；敏感出口地址未写入文档。
 - 验收：UA 不再暴露 Electron；屏幕/视口参数前后一致；Sannysoft iframe、CreepJS 无头/隐身、Pixelscan 自动化提示有可解释的改善；WebRTC 不出现真实公网地址；原实例会话、节点、扩展和登录状态不受影响。
 
 ## 第四批：扩展中心、地址栏扩展图标、侧栏空白

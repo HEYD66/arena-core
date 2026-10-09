@@ -1,7 +1,11 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm');
 const {normalize,preset,script,DEVICE_TEMPLATES}=require('../src/main/fingerprint.cjs');
-const {environment}=require('../src/main/environment.cjs');
+const {environment,sanitizeElectronUserAgent}=require('../src/main/environment.cjs');
+test('default browser UA removes Electron runtime marker while explicit UA remains unchanged',()=>{
+ assert.equal(sanitizeElectronUserAgent('Mozilla/5.0 Chrome/134.0.0.0 Electron/44.4.5 Safari/537.36'),'Mozilla/5.0 Chrome/134.0.0.0 Safari/537.36');
+ assert.equal(sanitizeElectronUserAgent('Mozilla/5.0 Chrome/134.0.0.0 Safari/537.36'),'Mozilla/5.0 Chrome/134.0.0.0 Safari/537.36');
+});
 test('fingerprint defaults are opt-in and disruptive switches remain disabled',()=>{const f=normalize();assert.equal(f.enabled,false);for(const k of ['canvas','audio','rects','webgl'])assert.equal(f[k],false);assert.equal(script(environment()),null);});
 test('six reference presets validate with coherent screen and viewport',()=>{assert.equal(DEVICE_TEMPLATES.length,6);for(const t of DEVICE_TEMPLATES){const e=environment(preset(t.id,{language:'ja-JP',timezone:'Asia/Tokyo'},'fixed-seed'));assert.equal(e.language,'ja-JP');assert.equal(e.timezone,'Asia/Tokyo');assert(e.width<=e.fingerprint.screenWidth);assert(e.height<=e.fingerprint.screenHeight);assert.equal(e.fingerprint.canvas,false);assert.equal(e.fingerprint.webgl,false);assert.deepEqual(environment(e),e);}});
 test('fixed random seed is reproducible; explicit random action issues fresh seed',()=>{assert.deepEqual(preset('random',{},'seed'),preset('random',{},'seed'));assert.notEqual(preset('random').fingerprint.seed,preset('random').fingerprint.seed);});

@@ -9,7 +9,7 @@ const {Store,safeURL,parseNodes,networkConfig}=require('./store.cjs');
 const {downloadSubscription}=require('./subscription.cjs');
 const {Mihomo}=require('./mihomo.cjs');
 const {recoverProcessHosts}=require('./process-host.cjs');
-const {Workspace,redact}=require('./workspace.cjs');const {applyEnvironment}=require('./environment.cjs');
+const {Workspace,redact}=require('./workspace.cjs');const {applyEnvironment,sanitizeElectronUserAgent}=require('./environment.cjs');
 const {Library}=require('./library.cjs');const {Diagnostics}=require('./diagnostics.cjs');
 const deletionJournal=require('./deletion-journal.cjs');
 const {commitDeletionMetadata}=require('./deletion-commit.cjs');
@@ -61,7 +61,7 @@ class Controller {
  const readable=(permission,details)=>permission==='fileSystem'&&details?.fileAccessType==='readable';s.setPermissionRequestHandler((_wc,permission,cb,details)=>cb(permission==='geolocation'&&!!x.environment.geoEnabled||readable(permission,details)));s.setPermissionCheckHandler((_wc,permission,_origin,details)=>permission==='geolocation'&&!!x.environment.geoEnabled||readable(permission,details));await s.closeAllConnections();
  if(x.network.mode==='mihomo'){const node=this.store.nodes(id).find(n=>n.name===x.network.nodeName);if(!node)throw Error('尚未选择可用节点；可导入节点或明确切换到本机 IP 直连');r.core=new Mihomo(this.binary,path.join(this.dir,'core-runtime',id),message=>{if(this.runtimes.get(id)!==r)return;r.status='error';r.error=message;this.destroyView(r);this.log(id,message,'ERROR');},this.nodeNetwork);r.core.onIssue=message=>this.noteProxyIssue(id,r,'内核连续报告连接错误：'+message,false);const {port,version}=await r.core.start(node);r.coreVersion=version;this.log(id,'节点连接：'+r.core.networkSummary.dns+'；'+r.core.networkSummary.route);await s.setProxy({mode:'fixed_servers',proxyRules:`http://127.0.0.1:${port}`,proxyBypassRules:'<-loopback>'});}else await s.setProxy({mode:'direct'});
  if(x.network.mode==='mihomo'&&!r.core?.child)throw Error('代理内核已退出');
- await this.transfer.hydrateCookies(id);s.setUserAgent(s.getUserAgent(),x.environment.language);
+ await this.transfer.hydrateCookies(id);s.setUserAgent(x.environment.userAgent||sanitizeElectronUserAgent(s.getUserAgent()),x.environment.language);
  const view=new WebContentsView({webPreferences:{session:s,sandbox:true,nodeIntegration:false,nodeIntegrationInSubFrames:true,contextIsolation:true,webSecurity:true,backgroundThrottling:true}});r.view=view;try{view.webContents.setAudioMuted(this.mutedFor(x.id));}catch{}view.setVisible(false);this.window.contentView.addChildView(view);const wc=view.webContents;
  // 弹出窗口（window.open 带尺寸，如第三方登录）用独立小窗口打开，与本实例同一登录、代理和环境；普通「新窗口」链接仍在当前页打开。
  wc.setWindowOpenHandler(({url,disposition})=>{const popup=disposition==='new-window'&&this.popupAllowed(id,r);let checked;try{checked=safeURL(url);}catch{return popup&&url==='about:blank'?this.popupOptions(x):{action:'deny'};}if(popup)return this.popupOptions(x);setImmediate(()=>this.navigate(id,checked).catch(e=>this.log(id,e.message,'WARN')));return {action:'deny'};});
