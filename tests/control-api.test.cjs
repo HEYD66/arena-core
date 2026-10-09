@@ -39,6 +39,10 @@ test('本地控制 API 默认关闭，开启后只允许令牌访问并返回实
   assert.equal(denied.status, 401);
   const response = await fetch(`http://127.0.0.1:${info.apiPort}/v1/instances`, {headers: {Authorization: `Bearer ${info.token}`}});
   assert.equal(response.status, 200);
+  assert.equal(response.headers.get('access-control-allow-origin'), null);
+  const browserResponse = await fetch(`http://127.0.0.1:${info.apiPort}/v1/instances`, {headers: {Authorization: `Bearer ${info.token}`, Origin: 'http://127.0.0.1:5173'}});
+  assert.equal(browserResponse.status, 200);
+  assert.equal(browserResponse.headers.get('access-control-allow-origin'), 'http://127.0.0.1:5173');
   assert.deepEqual((await response.json()).value[0].id, 'one');
   const navigated = await fetch(`http://127.0.0.1:${info.apiPort}/v1/instances/one/navigate`, {method: 'POST', headers: {'content-type': 'application/json', Authorization: `Bearer ${info.token}`}, body: JSON.stringify({url: 'https://example.com/next'})});
   assert.equal(navigated.status, 200);

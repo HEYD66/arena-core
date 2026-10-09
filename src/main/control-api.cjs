@@ -241,7 +241,8 @@ class ControlApi {
   }
 
   async handle(request, response) {
-    response.setHeader('access-control-allow-origin', 'http://127.0.0.1');
+    const origin = String(request.headers.origin || '');
+    if (/^https?:\/\/127\.0\.0\.1(?::\d+)?$/.test(origin)) response.setHeader('access-control-allow-origin', origin);
     response.setHeader('access-control-allow-headers', 'Authorization, Content-Type');
     response.setHeader('access-control-allow-methods', 'GET, POST, DELETE, OPTIONS');
     if (request.method === 'OPTIONS') { response.writeHead(204); response.end(); return; }

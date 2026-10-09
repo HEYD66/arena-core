@@ -91,9 +91,11 @@ GET http://127.0.0.1:<CDP端口>/json/list
 先调用 `/v1/targets`，按 `instanceId` 保存 `targetId`，再连接 CDP。不要按列表序号选页面，因为实例启动、停止和弹窗都会改变顺序。
 
 ```js
+const target = targets.value.find(item => item.instanceId === instanceId);
+if (!target) throw new Error('目标实例没有运行中的页面');
 const browser = await chromium.connectOverCDP(`http://127.0.0.1:${cdpPort}`);
 const pages = browser.contexts().flatMap(context => context.pages());
-const page = pages.find(item => item.url() === targetUrl);
+const page = pages.find(item => item.url() === target.url);
 if (!page) throw new Error('目标实例页面未找到');
 await page.bringToFront();
 ```
