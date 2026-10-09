@@ -27,6 +27,9 @@
 - `POST /v1/instances/<实例ID>/start`
 - `POST /v1/instances/<实例ID>/stop`
 - `POST /v1/instances/<实例ID>/reload`
+- `POST /v1/instances/<实例ID>/focus`（让千面界面跟随到该实例的浏览页面）
 - `POST /v1/instances/<实例ID>/navigate`，JSON body：`{"url":"https://example.com"}`
+
+启动、刷新和跳转接口也会自动发送跟随通知；如果千面当前停留在设置或全局页面，会切换到目标实例的浏览页面。
 
 API 和 CDP 只用于本机脚本自动化；不要把端口映射到公网，也不要把令牌提交到日志、工单或版本库。

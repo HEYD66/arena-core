@@ -8,8 +8,11 @@ const {ControlApi, loadSettings} = require('../src/main/control-api.cjs');
 
 function fixture() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'facet-control-api-'));
+  const focusEvents = [];
   const controller = {
-    store: {list: () => [{id: 'one', name: '测试实例'}]},
+    focusEvents,
+    window: {isDestroyed: () => false, webContents: {isDestroyed: () => false, send: (_channel, value) => focusEvents.push(value)}},
+    store: {list: () => [{id: 'one', name: '测试实例'}], get: id => {if (id !== 'one') throw Error('unknown'); return {id, name: '测试实例'};}},
     runtimes: new Map(),
     snapshot: () => ({instances: [{id: 'one', name: '测试实例', status: 'stopped', url: 'https://example.com', network: {mode: 'direct'}}]}),
     start: async id => assert.equal(id, 'one'),
@@ -36,6 +39,9 @@ test('本地控制 API 默认关闭，开启后只允许令牌访问并返回实
   assert.deepEqual((await response.json()).value[0].id, 'one');
   const navigated = await fetch(`http://127.0.0.1:${info.apiPort}/v1/instances/one/navigate`, {method: 'POST', headers: {'content-type': 'application/json', Authorization: `Bearer ${info.token}`}, body: JSON.stringify({url: 'https://example.com/next'})});
   assert.equal(navigated.status, 200);
+  const focused = await fetch(`http://127.0.0.1:${info.apiPort}/v1/instances/one/focus`, {method: 'POST', headers: {Authorization: `Bearer ${info.token}`}});
+  assert.equal(focused.status, 200);
+  assert.equal(f.controller.focusEvents.length, 2);
   await api.save({enabled: false});
   assert.equal(api.uiSnapshot().running, false);
 });

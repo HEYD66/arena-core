@@ -203,6 +203,13 @@ class ControlApi {
     }));
   }
 
+  focus(id) {
+    this.controller.store.get(id);
+    const window = this.controller.window;
+    if (!window || window.isDestroyed() || window.webContents.isDestroyed()) return;
+    window.webContents.send('core:external-focus', {id});
+  }
+
   async handle(request, response) {
     response.setHeader('access-control-allow-origin', 'http://127.0.0.1');
     response.setHeader('access-control-allow-headers', 'Authorization, Content-Type');
@@ -214,14 +221,15 @@ class ControlApi {
       if (request.method === 'GET' && url.pathname === '/v1/status') return this.send(response, 200, {ok: true, value: this.publicSnapshot()});
       if (request.method === 'GET' && url.pathname === '/v1/instances') return this.send(response, 200, {ok: true, value: this.instances()});
       if (request.method === 'GET' && url.pathname === '/v1/targets') return this.send(response, 200, {ok: true, value: await this.targets()});
-      const match = url.pathname.match(/^\/v1\/instances\/([^/]+)\/(start|stop|reload|navigate)$/);
+      const match = url.pathname.match(/^\/v1\/instances\/([^/]+)\/(start|stop|reload|navigate|focus)$/);
       if (request.method === 'POST' && match) {
         const id = decodeURIComponent(match[1]);
         const action = match[2];
-        if (action === 'start') await this.controller.start(id);
+        if (action === 'start') { await this.controller.start(id); this.focus(id); }
         else if (action === 'stop') await this.controller.stop(id);
-        else if (action === 'reload') await this.controller.action(id, 'reload');
-        else { const input = await this.body(request); await this.controller.navigate(id, input.url); }
+        else if (action === 'reload') { await this.controller.action(id, 'reload'); this.focus(id); }
+        else if (action === 'focus') this.focus(id);
+        else { const input = await this.body(request); await this.controller.navigate(id, input.url); this.focus(id); }
         return this.send(response, 200, {ok: true, value: this.instances().find(row => row.id === id) || null});
       }
       this.send(response, 404, {ok: false, error: '接口不存在'});
