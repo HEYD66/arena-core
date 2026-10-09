@@ -15,7 +15,7 @@ function installIPC(window,controller){
   scrollTask=true;queueMicrotask(()=>{scrollTask=null;const next=latestScroll;latestScroll=null;if(!next||window.isDestroyed()||controller.disposing||!controller.grid)return;if(!controller.scrollGrid(next))window.webContents.send('core:grid-resync',next.revision);});};
  ipcMain.on('core:grid-scroll',onGridScroll);
  const assignNode=(id,sourceId,name)=>controller.queue(id,async()=>{controller.store.get(id);const node=controller.library.node(sourceId,name);await controller.stopInner(id);controller.store.saveNodes(id,[node],null,{sourceId,name:node.name});controller.store.update(id,{network:{mode:'mihomo',nodeName:node.name}});controller.log(id,'已从全局库分配节点；当前实例已停止，请手动启动');return {id,sourceId,name:node.name,status:'success'};});
- ipcMain.handle('core:request',async(event,message)=>{
+ const requestHandler=async(event,message)=>{
   try{if(window.isDestroyed()||controller.disposing)return {ok:false,error:'应用正在关闭'};const controls=window.webContents;if(!controls||controls.isDestroyed())return {ok:false,error:'控制窗口已关闭'};if(event.sender!==controls||event.senderFrame!==controls.mainFrame)throw Error('拒绝非控制界面调用');
   if(!message||typeof message.action!=='string')throw Error('请求无效');const {action,id}=message;
   const exporting=controller.transfer.progress;if(exporting?.running){const mutations=['start','stop','rename','settings','instance-notes','instance-autostart','delete','remove','import','import-subscription','refresh-subscription','library-assign','instance-node-select','navigate','back','forward','reload','audio-volume','audio-mute','environment-timezone'];if(exporting.ids.includes(id)&&mutations.includes(action)||action.startsWith('extension-')&&action!=='extension-reveal'||['batch-start','batch-stop','batch-delete','library-assign-many'].includes(action))throw Error('所选实例正在导出，请等待完成');}
@@ -137,7 +137,9 @@ function installIPC(window,controller){
     default:throw Error('不支持的操作');
    }return {ok:true};
   }catch(e){controller.workspace.log('application','操作失败：'+require('./workspace.cjs').redact(e.message),'ERROR');controller.emit();return {ok:false,error:e.message};}finally{controller.flushEmit?.();}
- });
-return ()=>{for(const event of visibilityEvents)window.removeListener(event,sendWindowVisibility);window.webContents.removeListener('did-finish-load',sendWindowVisibility);ipcMain.removeHandler('core:request');ipcMain.removeListener('core:grid-scroll',onGridScroll);latestScroll=null;ipcMain.removeListener('overlay:event',onOverlay);overlay.destroy();};
+ };
+ ipcMain.handle('core:request',requestHandler);
+ controller.externalRequest=message=>requestHandler({sender:window.webContents,senderFrame:window.webContents.mainFrame},message);
+ return ()=>{for(const event of visibilityEvents)window.removeListener(event,sendWindowVisibility);window.webContents.removeListener('did-finish-load',sendWindowVisibility);ipcMain.removeHandler('core:request');delete controller.externalRequest;ipcMain.removeListener('core:grid-scroll',onGridScroll);latestScroll=null;ipcMain.removeListener('overlay:event',onOverlay);overlay.destroy();};
 }
 module.exports={installIPC};

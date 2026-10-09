@@ -24,6 +24,7 @@
 - `GET /v1/status`
 - `GET /v1/instances`
 - `GET /v1/targets`
+- `POST /v1/actions`，调用与界面相同的本地操作通道，JSON 至少包含 `{"action":"start","id":"实例ID"}`；其余字段沿用界面请求参数
 - `POST /v1/instances`，JSON body 至少包含 `{"name":"新实例"}`；默认直连且不自动启动，可用 `start:true` 明确启动
 - `DELETE /v1/instances/<实例ID>`
 - `POST /v1/instances/<实例ID>/start`
@@ -31,6 +32,8 @@
 - `POST /v1/instances/<实例ID>/reload`
 - `POST /v1/instances/<实例ID>/focus`（让千面界面跟随到该实例的浏览页面）
 - `POST /v1/instances/<实例ID>/navigate`，JSON body：`{"url":"https://example.com"}`
+
+`/v1/actions` 复用界面已有的操作分发器，因此实例、节点源、订阅、检测、扩展、环境、布局、日志诊断、更新和快捷链接等操作使用同一套校验与持久化逻辑；需要选择本地文件或原生确认框的操作仍会由应用窗口显示对应对话框。
 
 启动、刷新和跳转接口也会自动发送跟随通知；如果千面当前停留在设置或全局页面，会切换到目标实例的浏览页面。
 

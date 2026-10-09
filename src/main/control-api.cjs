@@ -221,6 +221,16 @@ class ControlApi {
     return value;
   }
 
+  async action(input = {}) {
+    const action = String(input.action || '').trim();
+    if (!action || !/^[a-z][a-z0-9-]{0,80}$/.test(action)) throw Error('操作名称无效');
+    if (typeof this.controller.externalRequest !== 'function') throw Error('本地操作通道尚未就绪，请重启应用后重试');
+    const message = {...input, action};
+    const result = await this.controller.externalRequest(message);
+    if (!result?.ok) throw Error(result?.error || '操作失败');
+    return result.value;
+  }
+
   focus(id) {
     this.controller.store.get(id);
     const window = this.controller.window;
@@ -239,6 +249,7 @@ class ControlApi {
       if (request.method === 'GET' && url.pathname === '/v1/status') return this.send(response, 200, {ok: true, value: this.publicSnapshot()});
       if (request.method === 'GET' && url.pathname === '/v1/instances') return this.send(response, 200, {ok: true, value: this.instances()});
       if (request.method === 'GET' && url.pathname === '/v1/targets') return this.send(response, 200, {ok: true, value: await this.targets()});
+      if (request.method === 'POST' && url.pathname === '/v1/actions') return this.send(response, 200, {ok: true, value: await this.action(await this.body(request))});
       if (request.method === 'POST' && url.pathname === '/v1/instances') {
         const value = await this.create(await this.body(request));
         return this.send(response, 201, {ok: true, value});

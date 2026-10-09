@@ -19,6 +19,7 @@ function fixture() {
     stop: async id => assert.equal(id, 'one'),
     remove: async id => assert.equal(id, 'created'),
     queue: async (_key, job) => job(),
+    externalRequest: async message => ({ok: true, value: {action: message.action, id: message.id || null}}),
     action: async () => {},
     navigate: async (_id, url) => assert.equal(url, 'https://example.com/next'),
   };
@@ -44,6 +45,9 @@ test('本地控制 API 默认关闭，开启后只允许令牌访问并返回实
   const focused = await fetch(`http://127.0.0.1:${info.apiPort}/v1/instances/one/focus`, {method: 'POST', headers: {Authorization: `Bearer ${info.token}`}});
   assert.equal(focused.status, 200);
   assert.equal(f.controller.focusEvents.length, 2);
+  const action = await fetch(`http://127.0.0.1:${info.apiPort}/v1/actions`, {method: 'POST', headers: {'content-type': 'application/json', Authorization: `Bearer ${info.token}`}, body: JSON.stringify({action: 'start', id: 'one'})});
+  assert.equal(action.status, 200);
+  assert.deepEqual((await action.json()).value, {action: 'start', id: 'one'});
   const operations = require('../src/main/operations.cjs');
   const originalCreate = operations.createInstance;
   operations.createInstance = async (_controller, message) => ({id: 'created', created: true, started: message.start === true});
