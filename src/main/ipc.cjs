@@ -39,6 +39,12 @@ function installIPC(window,controller){
     case 'extension-remove':if(message.confirmed!==true)throw Error('请确认移除扩展');return {ok:true,value:await controller.queue('extensions',()=>require('./extension-remove.cjs').removeExtension(controller,message.extensionId,message.instanceIds))};
     case 'extension-open':await controller.queue(id,()=>controller.extensions.open(id,message.extensionId,message.kind));break;
     case 'snapshot':return {ok:true,value:controller.snapshot()};
+    case 'control-status':return {ok:true,value:controller.controlApi?.uiSnapshot()||{enabled:false,running:false,apiPort:null,cdpPort:null,token:null,restartRequired:false}};
+    case 'control-save':{
+      if(!controller.controlApi)throw Error('本地控制模块未初始化');
+      const value=await controller.controlApi.save({enabled:message.enabled,regenerateToken:message.regenerateToken===true});
+      controller.workspace.log('application',value.enabled?'已保存本地控制设置；重启应用后启用 API 和 CDP':'已关闭本地控制；重启应用后生效');controller.emit();return {ok:true,value};
+    }
     case 'update-status':return {ok:true,value:controller.updates?.snapshot()||{supported:false,status:'unsupported',error:'当前运行方式未接入在线更新'}};
     case 'update-check':return {ok:true,value:await controller.updates.check()};
     case 'update-reminder-open':{const u=controller.updates?.snapshot();if(!u?.reminderVersion||message.version!==u.reminderVersion)return {ok:true,value:{shown:false,response:1}};return {ok:true,value:await require('./update-reminder.cjs').showUpdateReminder(window,{version:u.version,currentVersion:u.currentVersion,releaseNotes:u.releaseNotes,onShown:()=>controller.updates.acknowledgeReminder(u.version)})};}

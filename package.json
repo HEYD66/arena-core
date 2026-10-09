@@ -50,7 +50,8 @@
     "test:instance-transfer": "node tests/instance-transfer-runner.cjs",
     "release:publish": "node scripts/publish-release.cjs",
     "test:node-network": "node --test tests/node-network.test.cjs",
-    "test:node-network-electron": "node tests/node-network-runner.cjs"
+    "test:node-network-electron": "node tests/node-network-runner.cjs",
+    "test:control-api": "node --test tests/control-api.test.cjs"
   },
   "engines": {
     "node": ">=22.12.0"

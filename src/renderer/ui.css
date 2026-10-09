@@ -322,6 +322,11 @@ html[data-frame="custom"] .window-bar{display:flex;align-items:center;justify-co
 .settings-card h3{display:flex;align-items:center;gap:8px;margin:0;min-height:42px;padding:0 14px;border-bottom:1px solid var(--line);font-size:13px;font-weight:600}
 .settings-card h3 svg{width:16px;height:16px;color:var(--muted)}
 .settings-card .inner{padding:14px}
+.control-api-row,.control-api-details{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.control-api-details{margin:10px 0;padding:10px;border:1px solid var(--line);border-radius:8px}
+.control-api-details div{display:flex;gap:7px;align-items:center}
+.control-api-details span{color:var(--muted);font-size:12px}
+.control-api-details code{user-select:all;word-break:break-all}
 .settings-card .inner>p{margin:0 0 8px;font-size:13px;line-height:1.7}
 .github-support-card{border-color:color-mix(in srgb,var(--accent) 35%,var(--line));box-shadow:var(--shadow-sm)}
 .github-support-card>h3{color:var(--accent-text)}
