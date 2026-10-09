@@ -4,7 +4,7 @@ function nodeNetworkCard(){
  const saved=state.nodeNetwork?.settings||{dnsMode:'system',routeMode:'system',interfaceName:''};
  const value=networkDraft||saved;
  const option=(id,label,current)=>`<option value="${id}" ${current===id?'selected':''}>${label}</option>`;
- return `<section class="settings-card full" id="nodeNetworkCard"><h3>节点 DNS 与出站网络</h3><div class="inner">
+ return `<section class="settings-card full" id="nodeNetworkCard" hidden aria-hidden="true"><h3>节点 DNS 与出站网络</h3><div class="inner">
  <p class="actions-note">适用于代理实例及节点检测。本机 IP 直连和订阅更新沿用系统网络；设置保存后在下次启动或检测生效。</p>
  <div id="nodeDnsAdvanced" hidden aria-hidden="true">
   <label class="field"><span>节点域名解析</span><select id="nodeDnsMode" ${networkBusy?'disabled':''}>${option('auto','自动兼容（发现 Fake-IP 或解析失败时使用安全 DNS）',value.dnsMode)}${option('system','系统 DNS',value.dnsMode)}${option('secure','安全 DNS（公网节点使用 DoH）',value.dnsMode)}</select></label>

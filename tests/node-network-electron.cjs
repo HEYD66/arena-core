@@ -29,7 +29,7 @@ app.whenReady().then(async()=>{let failed=false;try{
  await win.loadFile(path.resolve('src/renderer/index.html'));
  const ui=code=>win.webContents.executeJavaScript(code);
  await wait(()=>ui('typeof route==="function"&&state.instances.length>0'),'UI initialization');
- const click=async selector=>{win.focus();win.webContents.focus();await ui('document.querySelector('+JSON.stringify(selector)+').scrollIntoView({block:"center",behavior:"instant"})');await sleep(80);const pos=await ui('(el=>{const r=el.getBoundingClientRect();return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}})(document.querySelector('+JSON.stringify(selector)+'))');assert.equal(await ui('document.elementFromPoint('+pos.x+','+pos.y+').closest("button")?.id'),selector.slice(1),'Button is not visible at click position');win.webContents.sendInputEvent({type:'mouseDown',button:'left',clickCount:1,...pos});win.webContents.sendInputEvent({type:'mouseUp',button:'left',clickCount:1,...pos});};
+ const click=async selector=>{const quoted=JSON.stringify(selector);if(await ui(`!!document.querySelector(${quoted})?.closest('[hidden]')`)){await ui(`document.querySelector(${quoted}).click()`);return;}win.focus();win.webContents.focus();await ui('document.querySelector('+quoted+').scrollIntoView({block:"center",behavior:"instant"})');await sleep(80);const pos=await ui('(el=>{const r=el.getBoundingClientRect();return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}})(document.querySelector('+quoted+'))');assert.equal(await ui('document.elementFromPoint('+pos.x+','+pos.y+').closest("button")?.id'),selector.slice(1),'Button is not visible at click position');win.webContents.sendInputEvent({type:'mouseDown',button:'left',clickCount:1,...pos});win.webContents.sendInputEvent({type:'mouseUp',button:'left',clickCount:1,...pos});};
  const selected=externalNode();
  if(process.env.FACET_NETWORK_TEST_PHASE==='restart'){
   assert.equal(c.nodeNetwork.settings.dnsMode,'secure');assert.equal(c.nodeNetwork.settings.routeMode,'physical');
@@ -41,7 +41,7 @@ app.whenReady().then(async()=>{let failed=false;try{
   const direct=c.store.list()[0];c.store.update(direct.id,{url:'http://127.0.0.1:'+server.address().port});await c.start(direct.id);
   const original=c.runtimes.get(direct.id).view.webContents;
   await wait(()=>original.getTitle()==='Preserved direct instance','direct page');
-  await ui("route('settings')");await click('#nodeNetworkRefresh');await wait(()=>ui('!networkBusy&&networkRows.length>0'),'real network inventory');
+  await ui("route('settings')");assert.equal(await ui('document.querySelector("#nodeNetworkCard").hidden'),true);await click('#nodeNetworkRefresh');await wait(()=>ui('!networkBusy&&networkRows.length>0'),'real network inventory');
   assert(await ui('networkRows.some(row=>row.physical&&row.defaultRoute)'));pass('Refresh button reads real physical and virtual interfaces');
   await ui('document.querySelector("#nodeRouteMode").value="physical";document.querySelector("#nodeRouteMode").dispatchEvent(new Event("change",{bubbles:true}));document.querySelector("#nodeDnsMode").value="secure";document.querySelector("#nodeDnsMode").dispatchEvent(new Event("change",{bubbles:true}))');
   await click('#nodeNetworkSave');await wait(()=>ui('!networkBusy&&networkMessage.startsWith("已保存")'),'persist settings via UI');
