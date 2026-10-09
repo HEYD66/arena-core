@@ -228,6 +228,8 @@ class ControlApi {
     const message = {...input, action};
     const result = await this.controller.externalRequest(message);
     if (!result?.ok) throw Error(result?.error || '操作失败');
+    if (['start', 'reload', 'navigate', 'activate'].includes(action) && input.id) this.focus(input.id);
+    if (action === 'create' && input.start === true && typeof result.value === 'string') this.focus(result.value);
     return result.value;
   }
 
