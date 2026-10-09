@@ -4,6 +4,8 @@
 
 [下载最新版](https://github.com/HEYD66/facet/releases/latest) · [版本记录](https://github.com/HEYD66/facet/releases) · [反馈问题](https://github.com/HEYD66/facet/issues)
 
+> AI 或自动化工具接手本项目时，请先阅读根目录 [`AGENTS.md`](AGENTS.md)，再阅读 [`docs/AI-CONTROL-HANDOFF.md`](docs/AI-CONTROL-HANDOFF.md)。
+
 如果千面对你有帮助，欢迎点一下 **Star**，帮助更多人发现这个项目。
 
 ## 功能
