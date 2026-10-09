@@ -45,6 +45,11 @@ function installIPC(window,controller){
       const value=await controller.controlApi.save({enabled:message.enabled,regenerateToken:message.regenerateToken===true});
       controller.workspace.log('application',value.enabled?'已保存本地控制设置；重启应用后启用 API 和 CDP':'已关闭本地控制；重启应用后生效');controller.emit();return {ok:true,value};
     }
+    case 'control-copy':{
+      const text=String(message.text||'');
+      if(!text||text.length>2000)throw Error('连接信息无效');
+      clipboard.writeText(text);return {ok:true,value:{copied:true}};
+    }
     case 'update-status':return {ok:true,value:controller.updates?.snapshot()||{supported:false,status:'unsupported',error:'当前运行方式未接入在线更新'}};
     case 'update-check':return {ok:true,value:await controller.updates.check()};
     case 'update-reminder-open':{const u=controller.updates?.snapshot();if(!u?.reminderVersion||message.version!==u.reminderVersion)return {ok:true,value:{shown:false,response:1}};return {ok:true,value:await require('./update-reminder.cjs').showUpdateReminder(window,{version:u.version,currentVersion:u.currentVersion,releaseNotes:u.releaseNotes,onShown:()=>controller.updates.acknowledgeReminder(u.version)})};}

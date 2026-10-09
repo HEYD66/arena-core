@@ -11,5 +11,5 @@ async function controlApiMount(){
   catch(error){toggle.checked=!toggle.checked;$('#controlApiMessage').textContent=error.message;toggle.disabled=false;}
  });
  $('#controlApiRegenerate')?.addEventListener('click',async()=>{try{state.control=await request('control-save',{enabled:true,regenerateToken:true});settingsPage();}catch(error){$('#controlApiMessage').textContent=error.message;}});
- $('#controlApiCopy')?.addEventListener('click',async()=>{const c=state.control||{};try{await navigator.clipboard.writeText(`API: http://127.0.0.1:${c.apiPort}\nCDP: http://127.0.0.1:${c.cdpPort}\nToken: ${c.token}`);$('#controlApiMessage').textContent='连接信息已复制';}catch{$('#controlApiMessage').textContent='复制失败，请手动复制上方信息';}});
+ $('#controlApiCopy')?.addEventListener('click',async()=>{const c=state.control||{};try{await request('control-copy',{text:`API: http://127.0.0.1:${c.apiPort}\nCDP: http://127.0.0.1:${c.cdpPort}\nToken: ${c.token}`});$('#controlApiMessage').textContent='连接信息已复制';}catch{$('#controlApiMessage').textContent='复制失败，请检查系统剪贴板权限';}});
 }
