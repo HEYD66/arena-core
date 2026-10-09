@@ -10,7 +10,9 @@ const {domainToASCII} = require('node:url');
 const {atomic} = require('./json-storage.cjs');
 const {isPublicHostname, queryDohAddresses} = require('./subscription-doh.cjs');
 const {isPublicAddress, isFakeIPAddress} = require('./subscription-policy.cjs');
-const DEFAULTS = Object.freeze({dnsMode: 'auto', routeMode: 'system', interfaceName: ''});
+// Keep the pre-DNS-fix startup behavior as the default. Auto/secure are opt-in
+// compatibility modes for nodes affected by Fake-IP or system DNS failures.
+const DEFAULTS = Object.freeze({dnsMode: 'system', routeMode: 'system', interfaceName: ''});
 
 function safeError(message) {
   const error = new Error(message);

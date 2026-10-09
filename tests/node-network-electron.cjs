@@ -37,7 +37,7 @@ app.whenReady().then(async()=>{let failed=false;try{
   pass('Application restart restores saved DNS and route choices in real UI');
   if(selected){const result=await c.diagnostics.probe(selected,'ip',new AbortController().signal,'restart');assert(result.countryCode&&result.timezone);assert.equal(c.diagnostics.cores.size,0);pass('After application restart a fresh core obtains real exit location with saved policy');}
  }else{
-  assert.equal(c.nodeNetwork.settings.routeMode,'system');assert.equal(c.nodeNetwork.settings.dnsMode,'auto');
+  assert.equal(c.nodeNetwork.settings.routeMode,'system');assert.equal(c.nodeNetwork.settings.dnsMode,'system');
   const direct=c.store.list()[0];c.store.update(direct.id,{url:'http://127.0.0.1:'+server.address().port});await c.start(direct.id);
   const original=c.runtimes.get(direct.id).view.webContents;
   await wait(()=>original.getTitle()==='Preserved direct instance','direct page');
