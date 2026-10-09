@@ -24,5 +24,7 @@ test('Installer preserves data and only ships explicit application and verified 
  const config=require('../electron-builder.config.cjs');
  assert.equal(config.appId,'Facet.MultiInstanceBrowser');assert.equal(config.nsis.deleteAppDataOnUninstall,false);assert.equal(config.nsis.runAfterFinish,false);
  assert.equal(config.nsis.allowToChangeInstallationDirectory,true);assert(!config.files.includes('**/*'));
+ assert(config.extraResources.some(x=>x.from==='AGENTS.md'&&x.to==='AGENTS.md'),'installer must include the AI entry guide');
+ assert(config.extraResources.some(x=>x.from==='docs'&&x.to==='docs'&&x.filter.includes('AI-CONTROL-HANDOFF.md')&&x.filter.includes('CONTROL-API.md')),'installer must include the linked control guides');
  require('../scripts/build-installer.cjs').verifyArtifacts();
 });

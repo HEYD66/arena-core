@@ -1,5 +1,5 @@
 'use strict';
-const {ipcMain,dialog,clipboard,shell}=require('electron');const {refreshOne,refreshAll,reveal}=require('./extension-refresh.cjs');const fs=require('node:fs'),path=require('node:path');const {sizeText}=require('./extension-catalog.cjs');const batchOperations=require('./batch-operations.cjs');
+const {app,ipcMain,dialog,clipboard,shell}=require('electron');const {refreshOne,refreshAll,reveal}=require('./extension-refresh.cjs');const fs=require('node:fs'),path=require('node:path');const {sizeText}=require('./extension-catalog.cjs');const batchOperations=require('./batch-operations.cjs');
 function installIPC(window,controller){
  const sendWindowVisibility=()=>{if(!window.isDestroyed()&&!window.webContents.isDestroyed())window.webContents.send('core:window-visibility',window.isVisible()&&!window.isMinimized());};
  const visibilityEvents=['minimize','restore','hide','show'];for(const event of visibilityEvents)window.on(event,sendWindowVisibility);
@@ -48,7 +48,11 @@ function installIPC(window,controller){
     case 'control-copy':{
       const text=String(message.text||'');
       if(!text||text.length>2000)throw Error('连接信息无效');
-      clipboard.writeText(text);return {ok:true,value:{copied:true}};
+      const baseText=text.split(/\r?\n/).filter(line=>!line.startsWith('说明书入口：')).join('\n').trim();
+      const docsRoot=app.isPackaged?process.resourcesPath:path.resolve(__dirname,'../..');
+      const guidePath=path.join(docsRoot,'AGENTS.md');
+      const guideLine=fs.existsSync(guidePath)?`说明书入口：${guidePath}`:`说明书入口：${guidePath}（当前安装包未附带）`;
+      clipboard.writeText(`${baseText}\n${guideLine}`);return {ok:true,value:{copied:true,guidePath,guideIncluded:fs.existsSync(guidePath)}};
     }
     case 'update-status':return {ok:true,value:controller.updates?.snapshot()||{supported:false,status:'unsupported',error:'当前运行方式未接入在线更新'}};
     case 'update-check':return {ok:true,value:await controller.updates.check()};

@@ -6,6 +6,8 @@ module.exports={
  directories:{output:'release',buildResources:'resources'},
  files:['src/**/*','package.json','LICENSE','README.md'],
  extraResources:[
+  {from:'AGENTS.md',to:'AGENTS.md'},
+  {from:'docs',to:'docs',filter:['AI-CONTROL-HANDOFF.md','CONTROL-API.md']},
   {from:'resources/mihomo',to:'mihomo',filter:['mihomo.exe','LICENSE','ARTIFACT.json','mihomo-source.tar.gz']},
   {from:'resources/process-host',to:'process-host',filter:['facet-process-host.exe','manifest.json','ProcessHost.cs']},
   {from:'resources/facet.ico',to:'facet.ico'},
