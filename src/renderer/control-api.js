@@ -11,5 +11,5 @@ async function controlApiMount(){
   catch(error){toggle.checked=!toggle.checked;$('#controlApiMessage').textContent=error.message;toggle.disabled=false;}
  });
  $('#controlApiRegenerate')?.addEventListener('click',async()=>{try{state.control=await request('control-save',{enabled:true,regenerateToken:true});settingsPage();}catch(error){$('#controlApiMessage').textContent=error.message;}});
- $('#controlApiCopy')?.addEventListener('click',async()=>{const c=state.control||{};try{await request('control-copy',{text:`API: http://127.0.0.1:${c.apiPort}\nCDP: http://127.0.0.1:${c.cdpPort}\nToken: ${c.token}`});$('#controlApiMessage').textContent='连接信息已复制';}catch{$('#controlApiMessage').textContent='复制失败，请检查系统剪贴板权限';}});
+ $('#controlApiCopy')?.addEventListener('click',async()=>{const c=state.control||{};try{await request('control-copy',{text:`API: http://127.0.0.1:${c.apiPort}\nCDP: http://127.0.0.1:${c.cdpPort}\nToken: ${c.token}\n说明书入口：项目根目录\\AGENTS.md（内含 API 和 AI 接手说明链接）`});$('#controlApiMessage').textContent='连接信息和说明书入口已复制';}catch{$('#controlApiMessage').textContent='复制失败，请检查系统剪贴板权限';}});
 }
