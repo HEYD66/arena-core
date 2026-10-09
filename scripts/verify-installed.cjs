@@ -47,11 +47,12 @@ async function main(){
  await launch();assert((await call('snapshot')).instances.every(x=>x.status==='stopped'));pass('Installed app loads real production preload/IPC and does not auto-start instances');
  await ui.locator('#sidebar .nav[data-view="settings"]').click();await ui.waitForFunction(()=>view==='settings'&&!!document.querySelector('#nodeNetworkCard'));
  assert.match(await ui.locator('#workspaceHead h1').textContent(),/^应用设置/);assert(await ui.locator('[data-palette-mode]').count()>0);
- await ui.locator('#nodeNetworkRefresh').click();await ui.waitForFunction(()=>!networkBusy&&networkRows.length>0);
+ assert(await ui.locator('#nodeNetworkCard').isHidden());
+ assert.deepEqual((await call('snapshot')).nodeNetwork.settings,{dnsMode:'system',routeMode:'system',interfaceName:''});
  const interfaces=await call('node-network-interfaces');assert(interfaces.every(row=>row.name&&Number.isSafeInteger(row.index)));
- await ui.locator('#nodeDnsMode').selectOption('secure');await ui.locator('#nodeNetworkSave').click();await ui.waitForFunction(()=>!networkBusy&&networkMessage.startsWith('已保存'));
- assert.equal((await call('snapshot')).nodeNetwork.settings.dnsMode,'secure');assert.equal(new (require('../src/main/node-network.cjs').NodeNetwork)(root).settings.dnsMode,'secure');
- await ui.screenshot({path:path.join(root,'node-network-settings.png')});pass('Packaged settings UI retains themes, reads real adapters from asar and persists scoped DNS policy');
+ assert(interfaces.length>0);
+ assert(!fs.existsSync(path.join(root,'node-network.json')),'Viewing settings must not write network configuration');
+ await ui.screenshot({path:path.join(root,'node-network-settings.png')});pass('Packaged settings hide node network controls, retain themes and preserve system DNS without writing configuration');
  await ui.locator('#sidebar .nav[data-view="global"]').click();
  await ui.waitForFunction(()=>view==='global'&&!!document.querySelector('.github-support-card'));
  const info=await ui.locator('#content').textContent();
@@ -63,7 +64,7 @@ async function main(){
  pass('Application info removes the requested introduction and boundary card, retaining GitHub, shortcuts and disclaimer');
  for(const id of [a.id,b.id])await call('start',{id});
  await wait(async()=>{const snapshot=await call('snapshot');return snapshot.instances.every(x=>x.status==='running'&&x.title==='Installed live fixture'&&!x.error);},'both installed pages loaded',45000);
- assert(proxyHits>0);pass('Two independent real webpages load; the proxy instance uses packaged Mihomo and process host');
+ assert(proxyHits>0);const proxyConfig=JSON.parse(fs.readFileSync(path.join(root,'core-runtime',b.id,'runtime.json'),'utf8'));assert.equal(proxyConfig.dns.enable,false);assert(!proxyConfig.hosts);assert(!proxyConfig['interface-name']);pass('Two independent real webpages load; packaged Mihomo and process host use original DNS and routing without hosts overrides');
  const pages=browser.contexts().flatMap(c=>c.pages()).filter(p=>p.url()===url);assert.equal(pages.length,2);
  await pages[0].evaluate(()=>localStorage.setItem('facet-install-persistence','installed-check'));
  assert.equal(await pages[1].evaluate(()=>localStorage.getItem('facet-install-persistence')),null);pass('Installed browser sessions remain isolated');
@@ -74,7 +75,7 @@ async function main(){
  pass('Packaged realtime grid retains animated real pages and zoom/restore works');
  await call('rename',{id:a.id,name:'安装验证·已改名'});const output=await call('runtime-output');assert.equal(output.warning,'');assert(output.rows.some(r=>r.text.includes('ready')));pass('Installed runtime output works without the development launcher');
  const corePids=(await call('snapshot')).instances.map(x=>x.pid).filter(Boolean);await close();assert(corePids.every(pid=>{try{process.kill(pid,0);return false;}catch{return true;}}));pass('Normal exit reclaims packaged proxy processes');
- await launch();const second=await call('snapshot');assert(second.instances.some(x=>x.name==='安装验证·已改名'));assert(second.instances.every(x=>x.status==='stopped'));assert.equal(second.nodeNetwork.settings.dnsMode,'secure');assert.equal(second.nodeNetwork.settings.routeMode,'system');
+ await launch();const second=await call('snapshot');assert(second.instances.some(x=>x.name==='安装验证·已改名'));assert(second.instances.every(x=>x.status==='stopped'));assert.equal(second.nodeNetwork.settings.dnsMode,'system');assert.equal(second.nodeNetwork.settings.routeMode,'system');assert(!fs.existsSync(path.join(root,'node-network.json')));
  for(const id of [a.id,b.id])await call('start',{id});await wait(async()=>(await call('snapshot')).instances.every(x=>x.title==='Installed live fixture'&&x.status==='running'),'restarted pages',45000);
  const restarted=browser.contexts().flatMap(c=>c.pages()).filter(p=>p.url()===url);assert((await Promise.all(restarted.map(p=>p.evaluate(()=>localStorage.getItem('facet-install-persistence'))))).includes('installed-check'));
  pass('Application restart retains renamed configuration and browser storage');await close();
