@@ -203,6 +203,24 @@ class ControlApi {
     }));
   }
 
+  async create(input = {}) {
+    const name = String(input.name || '').trim();
+    if (!name || name.length > 40) throw Error('实例名称必须为 1–40 个字符');
+    const message = {name, start: input.start === true, syncTimezone: false, regionMode: 'saved'};
+    if (input.environment !== undefined) {
+      if (!input.environment || typeof input.environment !== 'object' || Array.isArray(input.environment)) throw Error('实例环境配置无效');
+      message.environment = input.environment;
+    }
+    if (input.sourceId !== undefined || input.nodeName !== undefined) {
+      if (typeof input.sourceId !== 'string' || typeof input.nodeName !== 'string' || !input.sourceId || !input.nodeName) throw Error('代理节点来源和名称必须同时提供');
+      message.sourceId = input.sourceId;
+      message.nodeName = input.nodeName;
+    }
+    const value = await this.controller.queue('instance-create', () => require('./operations.cjs').createInstance(this.controller, message));
+    if (value?.id && value.started) this.focus(value.id);
+    return value;
+  }
+
   focus(id) {
     this.controller.store.get(id);
     const window = this.controller.window;
@@ -213,7 +231,7 @@ class ControlApi {
   async handle(request, response) {
     response.setHeader('access-control-allow-origin', 'http://127.0.0.1');
     response.setHeader('access-control-allow-headers', 'Authorization, Content-Type');
-    response.setHeader('access-control-allow-methods', 'GET, POST, OPTIONS');
+    response.setHeader('access-control-allow-methods', 'GET, POST, DELETE, OPTIONS');
     if (request.method === 'OPTIONS') { response.writeHead(204); response.end(); return; }
     if (!this.authorized(request)) { this.send(response, 401, {ok: false, error: '未授权'}); return; }
     try {
@@ -221,6 +239,16 @@ class ControlApi {
       if (request.method === 'GET' && url.pathname === '/v1/status') return this.send(response, 200, {ok: true, value: this.publicSnapshot()});
       if (request.method === 'GET' && url.pathname === '/v1/instances') return this.send(response, 200, {ok: true, value: this.instances()});
       if (request.method === 'GET' && url.pathname === '/v1/targets') return this.send(response, 200, {ok: true, value: await this.targets()});
+      if (request.method === 'POST' && url.pathname === '/v1/instances') {
+        const value = await this.create(await this.body(request));
+        return this.send(response, 201, {ok: true, value});
+      }
+      const removeMatch = url.pathname.match(/^\/v1\/instances\/([^/]+)$/);
+      if (request.method === 'DELETE' && removeMatch) {
+        const id = decodeURIComponent(removeMatch[1]);
+        await this.controller.remove(id);
+        return this.send(response, 200, {ok: true, value: {id, removed: true}});
+      }
       const match = url.pathname.match(/^\/v1\/instances\/([^/]+)\/(start|stop|reload|navigate|focus)$/);
       if (request.method === 'POST' && match) {
         const id = decodeURIComponent(match[1]);

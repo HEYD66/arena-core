@@ -17,6 +17,8 @@ function fixture() {
     snapshot: () => ({instances: [{id: 'one', name: '测试实例', status: 'stopped', url: 'https://example.com', network: {mode: 'direct'}}]}),
     start: async id => assert.equal(id, 'one'),
     stop: async id => assert.equal(id, 'one'),
+    remove: async id => assert.equal(id, 'created'),
+    queue: async (_key, job) => job(),
     action: async () => {},
     navigate: async (_id, url) => assert.equal(url, 'https://example.com/next'),
   };
@@ -42,6 +44,19 @@ test('本地控制 API 默认关闭，开启后只允许令牌访问并返回实
   const focused = await fetch(`http://127.0.0.1:${info.apiPort}/v1/instances/one/focus`, {method: 'POST', headers: {Authorization: `Bearer ${info.token}`}});
   assert.equal(focused.status, 200);
   assert.equal(f.controller.focusEvents.length, 2);
+  const operations = require('../src/main/operations.cjs');
+  const originalCreate = operations.createInstance;
+  operations.createInstance = async (_controller, message) => ({id: 'created', created: true, started: message.start === true});
+  let created;
+  try {
+    created = await fetch(`http://127.0.0.1:${info.apiPort}/v1/instances`, {method: 'POST', headers: {'content-type': 'application/json', Authorization: `Bearer ${info.token}`}, body: JSON.stringify({name: 'API 创建测试'})});
+  } finally { operations.createInstance = originalCreate; }
+  assert.equal(created.status, 201);
+  assert.equal((await created.json()).value.created, true);
+  const invalid = await fetch(`http://127.0.0.1:${info.apiPort}/v1/instances`, {method: 'POST', headers: {'content-type': 'application/json', Authorization: `Bearer ${info.token}`}, body: JSON.stringify({name: ''})});
+  assert.equal(invalid.status, 400);
+  const removed = await fetch(`http://127.0.0.1:${info.apiPort}/v1/instances/created`, {method: 'DELETE', headers: {Authorization: `Bearer ${info.token}`}});
+  assert.equal(removed.status, 200);
   await api.save({enabled: false});
   assert.equal(api.uiSnapshot().running, false);
 });

@@ -24,6 +24,8 @@
 - `GET /v1/status`
 - `GET /v1/instances`
 - `GET /v1/targets`
+- `POST /v1/instances`，JSON body 至少包含 `{"name":"新实例"}`；默认直连且不自动启动，可用 `start:true` 明确启动
+- `DELETE /v1/instances/<实例ID>`
 - `POST /v1/instances/<实例ID>/start`
 - `POST /v1/instances/<实例ID>/stop`
 - `POST /v1/instances/<实例ID>/reload`
