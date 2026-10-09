@@ -3,8 +3,10 @@ const parameters=new URLSearchParams(location.search);
 for(const key of ['theme','lightPalette','darkPalette'])document.documentElement.dataset[key]=parameters.get(key)||'';
 document.getElementById('reminderTitle').textContent='发现新版本 v'+(parameters.get('version')||'');
 document.getElementById('reminderVersions').textContent='当前版本 v'+(parameters.get('currentVersion')||'');
-const notes=parameters.get('releaseNotes')||'';
-if(notes){const body=document.getElementById('releaseNotesBody'),lines=notes.split(/\r?\n/).map(x=>x.trim()).filter(Boolean),items=lines.filter(x=>/^[-*•]\s+/.test(x));if(items.length){const ul=document.createElement('ul');items.slice(0,12).forEach(x=>{const li=document.createElement('li');li.textContent=x.replace(/^[-*•]\s+/,'');ul.append(li);});body.append(ul);}else{body.textContent=lines.slice(0,12).join('\n');}document.getElementById('releaseNotes').hidden=false;}
+const notes=releaseNotesText(parameters.get('releaseNotes'));
+const body=document.getElementById('releaseNotesBody'),lines=notes.split(/\r?\n/).map(x=>x.trim()).filter(Boolean),items=lines.filter(x=>/^[-*•]\s+/.test(x));
+if(items.length){const ul=document.createElement('ul');items.slice(0,12).forEach(x=>{const li=document.createElement('li');li.textContent=x.replace(/^[-*•]\s+/,'');ul.append(li);});body.append(ul);}else body.textContent=notes||'本版本未提供更新说明。';
+document.getElementById('releaseNotes').hidden=false;
 document.addEventListener('click',event=>{const b=event.target.closest('[data-update-reminder]');if(!b)return;const action=b.dataset.updateReminder;if(action==='star')window.facetUpdateReminder.openProject();else window.facetUpdateReminder.answer(action==='view'?0:1);});
 document.addEventListener('keydown',event=>{if(event.key==='Escape')window.facetUpdateReminder.answer(1);if(event.key==='Tab'){const buttons=[...document.querySelectorAll('button')],first=buttons[0],last=buttons.at(-1);if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}}});
 document.querySelector('[data-update-reminder="view"]').focus();

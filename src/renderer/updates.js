@@ -10,15 +10,20 @@ function paintUpdateNotice(){
  window.facet.request('update-reminder-open',{version}).then(async result=>{
   if(!result.ok)throw Error(result.error);
   if(result.value?.shown)shownUpdateNotices.add(version);
-  if(result.value?.shown&&result.value.response===0){await route('global');document.getElementById('appUpdates')?.scrollIntoView({block:'start'});}
- }).catch(()=>{}).finally(()=>{openingUpdateReminder=false;});
+  if(result.value?.shown&&result.value.response===0){
+   await route('global');document.getElementById('appUpdates')?.scrollIntoView({block:'start'});
+   if(appUpdateState.version!==version)return;
+   if(['available','error'].includes(appUpdateState.status))acceptUpdateState(await request('update-download'));
+   if(appUpdateState.status==='downloaded')confirmUpdateInstall();
+  }
+ }).catch(error=>toast(error.message)).finally(()=>{openingUpdateReminder=false;});
 }
 function acceptUpdateState(value){appUpdateState=value;paintUpdateCard();paintUpdateNotice();}
 function updateCardHTML(){
  const u=appUpdateState,busy=['loading','checking','downloading','installing'].includes(u.status);
  const labels={loading:'正在读取更新信息…',idle:'点击检查 GitHub Releases 中的最新版本',checking:'正在检查更新…',current:'当前已是最新版本',available:`发现新版本 v${u.version}`,downloading:`正在下载：${Math.round(u.progress)}%`,downloaded:`v${u.version} 已下载并通过校验`,installing:'正在停止实例，随后退出并安装…',unsupported:'当前运行方式不支持在线更新',error:'更新未完成'};
  const canDownload=u.supported&&u.version&&['available','error'].includes(u.status);
- return `<section class="settings-card full" id="appUpdates"><h3>${icon('download')}软件更新</h3><div class="inner"><div class="update-controls"><div><p>当前版本：v${esc(u.currentVersion||state.versions?.app||'—')}</p><p class="update-status" role="status" aria-live="polite">${esc(labels[u.status]||'等待检查')}</p></div><div class="update-buttons"><button class="btn subtle" id="updateCheck" data-update-action="check" ${!u.supported||busy||u.status==='downloaded'?'disabled':''}>检查更新</button>${canDownload?'<button class="btn primary" id="updateDownload" data-update-action="download">下载新版</button>':''}${u.status==='downloaded'?'<button class="btn primary" id="updateInstall" data-update-action="confirm">退出并更新</button>':''}</div></div>${u.status==='downloading'?`<progress class="update-progress" max="100" value="${u.progress}" aria-label="更新下载进度"></progress>`:''}${u.error?`<p class="update-error" role="alert">${esc(u.error)}</p>`:''}<p class="actions-note">主界面加载完成后立即异步检查一次，同一新版只弹窗提醒一次。下载和安装由你确认，更新保留实例配置、登录资料和扩展。</p></div></section>`;
+ return `<section class="settings-card full" id="appUpdates"><h3>${icon('download')}软件更新</h3><div class="inner"><div class="update-controls"><div><p>当前版本：v${esc(u.currentVersion||state.versions?.app||'—')}</p><p class="update-status" role="status" aria-live="polite">${esc(labels[u.status]||'等待检查')}</p></div><div class="update-buttons"><button class="btn subtle" id="updateCheck" data-update-action="check" ${!u.supported||busy||u.status==='downloaded'?'disabled':''}>检查更新</button>${canDownload?'<button class="btn primary" id="updateDownload" data-update-action="download">下载新版</button>':''}${u.status==='downloaded'?'<button class="btn primary" id="updateInstall" data-update-action="confirm">退出并更新</button>':''}</div></div>${u.status==='downloading'?`<progress class="update-progress" max="100" value="${u.progress}" aria-label="更新下载进度"></progress>`:''}${u.error?`<p class="update-error" role="alert">${esc(u.error)}</p>`:''}<p class="actions-note">启动后检查一次，之后每 30 分钟检查更新；同一新版只弹窗提醒一次。点击“立即更新”开始下载，校验通过后确认退出安装，保留实例配置、登录资料和扩展。</p></div></section>`;
 }
 function paintUpdateCard(){const old=document.getElementById('appUpdates');if(old)old.outerHTML=updateCardHTML();}
 function confirmUpdateInstall(){

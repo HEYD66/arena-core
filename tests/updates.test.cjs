@@ -46,3 +46,24 @@ test('Release notes are normalized and periodic checks use a thirty-minute inter
  assert.equal(releaseNotes([{version:'0.2.9',note:'- 新增功能'}]),'v0.2.9\n- 新增功能');
  const {updates,updater}=fixture();updater.checkForUpdates=async()=>updater.emit('update-not-available',{});updates.scheduleStartupCheck();await new Promise(resolve=>setTimeout(resolve,30));assert.equal(updates.periodicTimer?._idleTimeout,UPDATE_CHECK_INTERVAL);updates.dispose();
 });
+test('Thirty-minute checks retry after errors, notify once per version across restart, and stop after disposal',async t=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'facet-periodic-update-'));t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
+ t.mock.timers.enable({apis:['setTimeout']});
+ const {updates,updater}=fixture({settingsDir:dir});let checks=0,offered='0.2.9',offline=true;
+ updater.checkForUpdates=async()=>{checks++;if(offline)throw Error('offline');updater.emit('update-available',{version:offered,releaseNotes:'- 修复问题'});};
+ const flush=async()=>{for(let i=0;i<8;i++)await Promise.resolve();};
+ updates.scheduleStartupCheck();t.mock.timers.tick(1);await flush();assert.equal(checks,1);assert.equal(updates.snapshot().status,'error');
+ offline=false;t.mock.timers.tick(UPDATE_CHECK_INTERVAL-1);await flush();assert.equal(checks,1);
+ t.mock.timers.tick(1);await flush();assert.equal(checks,2);assert.equal(updates.snapshot().reminderVersion,offered);assert.equal(updates.snapshot().releaseNotes,'- 修复问题');
+ updates.acknowledgeReminder(offered);t.mock.timers.tick(UPDATE_CHECK_INTERVAL);await flush();assert.equal(checks,3);assert.equal(updates.snapshot().reminderVersion,null);
+ const restart=fixture({settingsDir:dir});restart.updater.checkForUpdates=updater.checkForUpdates;await restart.updates.checkStartup();assert.equal(restart.updates.snapshot().reminderVersion,null);
+ offered='0.2.10';t.mock.timers.tick(UPDATE_CHECK_INTERVAL);await flush();assert.equal(updates.snapshot().reminderVersion,offered);
+ updates.dispose();const before=checks;t.mock.timers.tick(UPDATE_CHECK_INTERVAL*2);await flush();assert.equal(checks,before);
+});
+test('Periodic checks do not overlap downloads or destroy pending installation; download keeps release notes',async t=>{
+ t.mock.timers.enable({apis:['setTimeout']});const {updates,updater}=fixture();let checks=0;
+ updater.checkForUpdates=async()=>{checks++;updater.emit('update-available',{version:'0.2.9',releaseNotes:'<ul><li>修复问题</li></ul>'});};
+ await updates.check();let finish;updater.downloadUpdate=()=>new Promise(resolve=>{finish=()=>{updater.emit('update-downloaded',{version:'0.2.9'});resolve();};});
+ const downloading=updates.download();updates.schedulePeriodicCheck();t.mock.timers.tick(UPDATE_CHECK_INTERVAL);for(let i=0;i<8;i++)await Promise.resolve();assert.equal(checks,1);assert.equal(updates.snapshot().status,'downloading');
+ finish();await downloading;assert.equal(updates.snapshot().releaseNotes,'<ul><li>修复问题</li></ul>');t.mock.timers.tick(UPDATE_CHECK_INTERVAL);for(let i=0;i<8;i++)await Promise.resolve();assert.equal(checks,1);assert.equal(updates.snapshot().status,'downloaded');updates.dispose();
+});

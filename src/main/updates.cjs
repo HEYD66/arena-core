@@ -36,7 +36,7 @@ class Updates {
   this.updater.on('update-available',info=>{const version=String(info.version);this.set({status:'available',version,releaseNotes:releaseNotes(info.releaseNotes),progress:0,error:'',reminderVersion:this.automaticCheck&&!this.remindedVersions.has(version)?version:null});});
   this.updater.on('update-not-available',()=>this.set({status:'current',version:null,releaseNotes:'',progress:0,error:'',reminderVersion:null}));
   this.updater.on('download-progress',info=>{const now=Date.now();if(now-this.lastProgress<200&&info.percent<100)return;this.lastProgress=now;this.set({status:'downloading',progress:Math.max(0,Math.min(100,Number(info.percent)||0))});});
-  this.updater.on('update-downloaded',info=>this.set({status:'downloaded',version:String(info.version),releaseNotes:releaseNotes(info.releaseNotes),progress:100,error:''}));
+  this.updater.on('update-downloaded',info=>this.set({status:'downloaded',version:String(info.version),releaseNotes:info.releaseNotes==null?this.state.releaseNotes:releaseNotes(info.releaseNotes),progress:100,error:''}));
   this.updater.on('error',error=>this.fail(error));
  }
  snapshot(){return {...this.state};}
@@ -52,7 +52,7 @@ class Updates {
  }
  dispose(){this.disposed=true;clearTimeout(this.startupTimer);clearTimeout(this.periodicTimer);this.startupTimer=null;this.periodicTimer=null;}
  assertReady(){if(!this.state.supported)throw Error(this.state.error);if(['checking','downloading','installing'].includes(this.state.status))throw Error('更新任务正在进行，请稍候');}
- async check({automatic=false}={}){this.assertReady();if(this.state.status==='downloaded')return this.snapshot();this.automaticCheck=automatic;this.set({status:'checking',version:null,progress:0,error:'',reminderVersion:null});try{await this.updater.checkForUpdates();}catch(error){this.fail(error);}finally{this.automaticCheck=false;}return this.snapshot();}
+ async check({automatic=false}={}){this.assertReady();if(this.state.status==='downloaded')return this.snapshot();this.automaticCheck=automatic;this.set({status:'checking',version:null,releaseNotes:'',progress:0,error:'',reminderVersion:null});try{await this.updater.checkForUpdates();}catch(error){this.fail(error);}finally{this.automaticCheck=false;}return this.snapshot();}
  async download(){this.assertReady();if(!this.state.version||!['available','error'].includes(this.state.status))throw Error('请先检查是否有新版本');this.set({status:'downloading',progress:0,error:''});try{await this.updater.downloadUpdate();}catch(error){this.fail(error);}return this.snapshot();}
  async install(confirmed){this.assertReady();if(confirmed!==true)throw Error('请先确认退出并更新');if(this.state.status!=='downloaded')throw Error('请先完成更新下载');this.set({status:'installing',error:''});try{
    await this.prepareInstall();
